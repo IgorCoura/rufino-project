@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using System.Text.RegularExpressions;
 
@@ -31,31 +31,46 @@ namespace PeopleManagement.API.Authorization
         private static partial Regex ParamRegex();
     }
 
-    public class ProtectedResourceRequirementHandler(IHttpContextAccessor httpContextAccessor, IAuthorizationServerClient authorizationServerClient) : AuthorizationHandler<ProtectedResourceRequirement>
+    /// <summary>
+    /// Resolve a permissao do endpoint contra o retrato de permissoes do token.
+    /// </summary>
+    /// <remarks>
+    /// Desde 2026-09-04 nao fala com o Keycloak: pede o retrato ao <see cref="IRptCache"/>, que o
+    /// busca UMA vez por token. A traducao de desfecho continua identica — token recusado vira 401
+    /// e servidor fora do ar vira 503, em vez de os dois colapsarem no 403 padrao.
+    /// </remarks>
+    public class ProtectedResourceRequirementHandler(
+        IHttpContextAccessor httpContextAccessor,
+        IRptCache rptCache,
+        AuthorizationOptions options) : AuthorizationHandler<ProtectedResourceRequirement>
     {
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-        private readonly IAuthorizationServerClient _authorizationServerClient = authorizationServerClient;
+        private readonly IRptCache _rptCache = rptCache;
+        private readonly AuthorizationOptions _options = options;
 
         protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, ProtectedResourceRequirement requirement)
         {
+            ArgumentNullException.ThrowIfNull(context);
+            ArgumentNullException.ThrowIfNull(requirement);
+
             var permission = requirement.FillPermissionParams(_httpContextAccessor.HttpContext);
 
             var cancellationToken = _httpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None;
-            var result = await _authorizationServerClient.VerifyAccessToResouce(permission, cancellationToken);
+            var result = await _rptCache.GetAsync(cancellationToken);
 
-            switch (result)
+            switch (result.Outcome)
             {
-                case ResourceAccessResult.Granted:
-                    context.Succeed(requirement);
+                case RptFetchOutcome.Resolved:
+                    if (result.Snapshot.Grants(permission, _options.ScopesValidationMode))
+                        context.Succeed(requirement);
+                    else
+                        context.Fail();
                     break;
-                case ResourceAccessResult.InvalidToken:
+                case RptFetchOutcome.InvalidToken:
                     context.Fail(new InvalidTokenFailureReason(this));
                     break;
-                case ResourceAccessResult.ServerUnavailable:
-                    context.Fail(new AuthorizationServerUnavailableFailureReason(this));
-                    break;
                 default:
-                    context.Fail();
+                    context.Fail(new AuthorizationServerUnavailableFailureReason(this));
                     break;
             }
         }

@@ -8,7 +8,6 @@ import 'package:rufino_v2/core/errors/auth_exception.dart';
 import 'package:rufino_v2/data/services/auth_api_service.dart';
 
 import '../../../testing/fakes/fake_secure_storage.dart';
-
 void main() {
   final tokenEndpoint = Uri.parse('https://keycloak.test/token');
 

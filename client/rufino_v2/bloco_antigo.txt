@@ -1,0 +1,196 @@
+    final companyApiService = CompanyApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: getAuthHeader,
+    );
+
+    final departmentApiService = DepartmentApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: getAuthHeader,
+    );
+
+    // Repositories
+    final permissionCacheService = PermissionCacheService(prefs: prefs);
+    final PermissionRepository permissionRepository =
+        PermissionRepositoryImpl(
+      permissionApiService: permissionApiService,
+      permissionCacheService: permissionCacheService,
+      reporter: errorReporter,
+    );
+    final permissionNotifier = PermissionNotifier(
+      permissionRepository: permissionRepository,
+    );
+
+    // Chave de cache própria: duas audiências dividindo uma só se
+    // sobrescreveriam, e qual venceria dependeria da ordem de chegada.
+    final tenantPermissionRepository = PermissionRepositoryImpl(
+      permissionApiService: tenantPermissionApiService,
+      permissionCacheService: PermissionCacheService(
+        prefs: prefs,
+        cacheKey: 'cached_permissions_tenant_management',
+      ),
+      reporter: errorReporter,
+    );
+    final tenantPermissionNotifier = TenantPermissionNotifier(
+      permissionRepository: tenantPermissionRepository,
+    );
+
+    // Terceira audiência: o BillPayment é outro resource server, com cache
+    // próprio — duas audiências numa chave só se sobrescreveriam.
+    final billPaymentPermissionNotifier = BillPaymentPermissionNotifier(
+      permissionRepository: PermissionRepositoryImpl(
+        permissionApiService: PermissionApiService(
+          client: httpClient,
+          tokenEndpoint: tokenEndpoint,
+          getAccessToken: getAccessToken,
+          audience: AppConfig.billPaymentAudience,
+        ),
+        permissionCacheService: PermissionCacheService(
+          prefs: prefs,
+          cacheKey: 'cached_permissions_bill_payment',
+        ),
+        reporter: errorReporter,
+      ),
+    );
+
+    // Reload permissions automatically when the access token is refreshed —
+    // every audience, or one of them silently goes stale.
+    void reloadAllPermissions() {
+      permissionNotifier.loadPermissions();
+      tenantPermissionNotifier.loadPermissions();
+      billPaymentPermissionNotifier.loadPermissions();
+    }
+
+    if (authApiService != null) {
+      authApiService.onTokenRefreshed = reloadAllPermissions;
+    }
+    if (authCodeApiService != null) {
+      authCodeApiService.onTokenRefreshed = reloadAllPermissions;
+    }
+
+    final AuthRepository authRepository = AppConfig.useAuthorizationCodeFlow
+        ? AuthCodeRepositoryImpl(
+            authCodeApiService: authCodeApiService!,
+            reporter: errorReporter,
+          )
+        : AuthRepositoryImpl(
+            authApiService: authApiService!,
+            reporter: errorReporter,
+          );
+    final CompanyRepository companyRepository = CompanyRepositoryImpl(
+      companyApiService: companyApiService,
+      storage: secureStorage,
+      reporter: errorReporter,
+    );
+    final DepartmentRepository departmentRepository = DepartmentRepositoryImpl(
+      apiService: departmentApiService,
+      reporter: errorReporter,
+    );
+
+    final workplaceApiService = WorkplaceApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: getAuthHeader,
+    );
+    final WorkplaceRepository workplaceRepository = WorkplaceRepositoryImpl(
+      apiService: workplaceApiService,
+      reporter: errorReporter,
+    );
+
+    final documentGroupApiService = DocumentGroupApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: getAuthHeader,
+    );
+    final DocumentGroupRepository documentGroupRepository =
+        DocumentGroupRepositoryImpl(
+      apiService: documentGroupApiService,
+      reporter: errorReporter,
+    );
+
+    final documentTemplateApiService = DocumentTemplateApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: getAuthHeader,
+    );
+    final DocumentTemplateRepository documentTemplateRepository =
+        DocumentTemplateRepositoryImpl(
+      apiService: documentTemplateApiService,
+      reporter: errorReporter,
+    );
+
+    final requireDocumentApiService = RequireDocumentApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: getAuthHeader,
+    );
+    final RequireDocumentRepository requireDocumentRepository =
+        RequireDocumentRepositoryImpl(
+      apiService: requireDocumentApiService,
+      reporter: errorReporter,
+    );
+
+    final employeeApiService = EmployeeApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: getAuthHeader,
+    );
+    final EmployeeRepository employeeRepository = EmployeeRepositoryImpl(
+      apiService: employeeApiService,
+      reporter: errorReporter,
+    );
+
+    final batchDocumentApiService = BatchDocumentApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: getAuthHeader,
+    );
+    final BatchDocumentRepository batchDocumentRepository =
+        BatchDocumentRepositoryImpl(
+      apiService: batchDocumentApiService,
+      reporter: errorReporter,
+    );
+
+    final cepApiService = CepApiService(client: httpClient);
+    final CepRepository cepRepository = CepRepositoryImpl(
+      apiService: cepApiService,
+      reporter: errorReporter,
+    );
+
+    final batchDownloadApiService = BatchDownloadApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: getAuthHeader,
+    );
+    final BatchDownloadRepository batchDownloadRepository =
+        BatchDownloadRepositoryImpl(
+      apiService: batchDownloadApiService,
+      reporter: errorReporter,
+    );
+
+    final documentDashboardApiService = DocumentDashboardApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: getAuthHeader,
+    );
+    final DocumentDashboardRepository documentDashboardRepository =
+        DocumentDashboardRepositoryImpl(
+      apiService: documentDashboardApiService,
+      reporter: errorReporter,
+    );
+
+    // Tenant: a identidade do cliente da plataforma. O contexto é um só e
+    // vive em `rufino_core`, para que todo produto o leia sem depender do
+    // pacote que desenha a tela de seleção.
+    final tenantContextNotifier = TenantContextNotifier(
+      storage: secureStorage,
+    );
+    final TenantRepository tenantRepository = TenantRepositoryImpl(
+      apiService: TenantApiService(
+        client: httpClient,
+        baseUrl: AppConfig.tenantManagementUrl,
+        getAuthHeader: getAuthHeader,
+      ),
+      reporter: errorReporter,
+    );

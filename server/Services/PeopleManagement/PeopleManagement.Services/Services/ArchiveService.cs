@@ -1,4 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿#pragma warning disable CS0618 // O arquivo INTEIRO e a feature Archive, descontinuada.
+// Os tipos seguem marcados com [Obsolete] para quem estiver de fora; aqui dentro o aviso
+// so produziria ruido no build de uma feature que ninguem deve mexer.
+using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate.Interfaces;
@@ -10,6 +13,7 @@ using ArchiveFile = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Fil
 
 namespace PeopleManagement.Services.Services
 {
+    [Obsolete("Feature Archive descontinuada em 2026-09-04: o desenvolvimento parou no meio e os endpoints foram removidos. Nao estenda nem use em codigo novo; ver o plano de refatoracao de autorizacao no CLAUDE.md.")]
     public class ArchiveService(IArchiveRepository archiveRepository, IArchiveCategoryRepository archiveCategoryRepository, IBlobService blobService) : IArchiveService
     {
         private readonly IArchiveRepository _archiveRepository = archiveRepository;

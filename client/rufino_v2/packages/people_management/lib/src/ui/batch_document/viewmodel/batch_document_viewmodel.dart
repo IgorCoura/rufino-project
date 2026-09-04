@@ -1,0 +1,1206 @@
+import 'dart:collection';
+
+import 'package:flutter/foundation.dart';
+
+import 'package:rufino_core/rufino_core.dart';
+import '../../../domain/entities/batch_document_unit.dart';
+import '../../../domain/entities/bulk_upload_match.dart';
+import '../../../domain/entities/document_group_with_templates.dart';
+import '../../../domain/ports/file_picker_service.dart';
+import '../../../domain/repositories/batch_document_repository.dart';
+import '../../../domain/repositories/document_group_repository.dart';
+import '../../../domain/repositories/document_scanner_repository.dart';
+import '../../../utils/error_messages.dart';
+import '../../../utils/fuzzy_name_matcher.dart';
+import '../../../utils/page_rotation_finder.dart';
+import '../../../utils/pdf_text_extractor.dart';
+import '../../../utils/concurrency.dart';
+import '../../../domain/repositories/document_content_repository.dart';
+import '../../../data/models/document_content_status_api_model.dart';
+import '../../../domain/repositories/employee_repository.dart';
+import '../../../domain/entities/employee.dart';
+
+/// Possible states for the batch document screen.
+enum BatchDocumentStatus {
+  idle,
+  loading,
+  loaded,
+  error,
+  uploading,
+  uploadComplete,
+}
+
+/// Manages state and business logic for the batch document management screen.
+///
+/// Signature for a function that extracts text from PDF bytes.
+///
+/// Defaults to [_extractTextInIsolate] (which offloads [extractTextFromPdf]
+/// to a background isolate via `compute`). Can be overridden in tests with a
+/// synchronous-returning async stub to avoid spawning a real isolate.
+typedef PdfTextExtractorFn = Future<String> Function(Uint8List bytes);
+
+/// Default [PdfTextExtractorFn]: runs [extractTextFromPdf] on a background
+/// isolate so bulk text extraction never blocks the UI thread.
+Future<String> _extractTextInIsolate(Uint8List bytes) =>
+    compute(extractTextFromPdf, bytes);
+
+/// Signature for a function that detects the upright orientation of a
+/// scanned page and returns the rotated bytes + OCR text for it.
+///
+/// Defaults to [pickBestRotation]. Can be overridden in tests to avoid
+/// running the real image decoder + isolate.
+typedef PageRotationFinderFn = Future<RotationCandidate?> Function({
+  required Uint8List originalBytes,
+  required String originalText,
+  required Future<String> Function(Uint8List) recognizeText,
+});
+
+/// Coordinates between [BatchDocumentRepository] for batch operations and
+/// [DocumentTemplateRepository] for populating the template dropdown.
+/// Implements a staging pattern where the user selects files locally before
+/// sending all of them in a single multipart request.
+class BatchDocumentViewModel extends ChangeNotifier {
+  /// Creates a [BatchDocumentViewModel].
+  ///
+  /// The optional [textExtractor] allows injecting a custom PDF text
+  /// extraction function for testing. The optional [scannerRepository]
+  /// enables document scanning on supported platforms. The optional
+  /// [pageRotationFinder] lets tests stub the orientation-detection step
+  /// without invoking the real image decoder.
+  BatchDocumentViewModel({
+    required BatchDocumentRepository batchDocumentRepository,
+    required DocumentGroupRepository documentGroupRepository,
+    required String companyId,
+    EmployeeRepository? employeeRepository,
+    PdfTextExtractorFn? textExtractor,
+    DocumentScannerRepository? scannerRepository,
+    PageRotationFinderFn? pageRotationFinder,
+    DocumentContentRepository? documentContentRepository,
+  })  : _batchDocumentRepository = batchDocumentRepository,
+        _documentGroupRepository = documentGroupRepository,
+        _employeeRepository = employeeRepository,
+        _companyId = companyId,
+        _textExtractor = textExtractor ?? _extractTextInIsolate,
+        _scannerRepository = scannerRepository,
+        _pageRotationFinder = pageRotationFinder ?? pickBestRotation,
+        _documentContentRepository = documentContentRepository;
+
+  final BatchDocumentRepository _batchDocumentRepository;
+  final DocumentGroupRepository _documentGroupRepository;
+  final EmployeeRepository? _employeeRepository;
+  final DocumentContentRepository? _documentContentRepository;
+  final PdfTextExtractorFn _textExtractor;
+  final DocumentScannerRepository? _scannerRepository;
+  final PageRotationFinderFn _pageRotationFinder;
+  final String _companyId;
+
+  // ─── State ───────────────────────────────────────────────
+
+  BatchDocumentStatus _status = BatchDocumentStatus.idle;
+  String? _errorMessage;
+
+  List<DocumentGroupWithTemplates> _groupsWithTemplates = [];
+  String? _selectedGroupId;
+
+  List<DocumentTemplateSummary> _groupTemplates = [];
+  String? _selectedTemplateId;
+
+  String? _selectedEmployeeId;
+  String? _selectedEmployeeName;
+
+  List<BatchDocumentUnitItem> _pendingUnits = [];
+  int _totalCount = 0;
+  int _pageNumber = 1;
+  int _pageSize = 50;
+
+  List<EmployeeMissingDocument> _missingEmployees = [];
+
+  int? _employeeStatusFilter;
+  String? _employeeNameFilter;
+  int? _periodTypeFilter;
+  int? _periodYearFilter;
+  int? _periodMonthFilter;
+  int? _periodDayFilter;
+  int? _periodWeekFilter;
+
+  final Set<String> _selectedUnitIds = {};
+  final Map<String, BatchUploadItem> _stagedFiles = {};
+
+  String? _globalSignDeadline;
+  int _globalReminderDays = 7;
+
+  List<BatchUploadResult> _uploadResults = [];
+
+  List<BulkUploadMatch> _bulkMatches = [];
+  bool _isBulkProcessing = false;
+  int _bulkProcessedCount = 0;
+  int _bulkTotalCount = 0;
+
+  // ─── Getters ─────────────────────────────────────────────
+
+  /// The current screen status.
+  BatchDocumentStatus get status => _status;
+
+  /// Error message when [status] is [BatchDocumentStatus.error].
+  String? get errorMessage => _errorMessage;
+
+  /// Available document groups for the group dropdown.
+  UnmodifiableListView<DocumentGroupWithTemplates> get groups =>
+      UnmodifiableListView(_groupsWithTemplates);
+
+  /// The currently selected group identifier.
+  String? get selectedGroupId => _selectedGroupId;
+
+  /// Document templates for the selected group.
+  UnmodifiableListView<DocumentTemplateSummary> get templates =>
+      UnmodifiableListView(_groupTemplates);
+
+  /// The currently selected template identifier, or null for all templates.
+  String? get selectedTemplateId => _selectedTemplateId;
+
+  /// The employee the list is scoped to, or null for all employees.
+  String? get selectedEmployeeId => _selectedEmployeeId;
+
+  /// The display name of the employee the list is scoped to.
+  String? get selectedEmployeeName => _selectedEmployeeName;
+
+  /// The currently selected units, in list order.
+  List<BatchDocumentUnitItem> get _selectedUnits => _pendingUnits
+      .where((u) => _selectedUnitIds.contains(u.documentUnitId))
+      .toList();
+
+  /// Whether every selected unit comes from a template that generates PDFs.
+  ///
+  /// The list mixes templates, so the capability is a property of the
+  /// selection — not of the first row.
+  bool get canGenerateSelected {
+    final selected = _selectedUnits;
+    return selected.isNotEmpty &&
+        selected.every((u) => u.canGenerateDocument);
+  }
+
+  /// Whether every selected unit comes from a signable template.
+  bool get canSignSelected {
+    final selected = _selectedUnits;
+    return selected.isNotEmpty && selected.every((u) => u.isSignable);
+  }
+
+  /// Whether every unit with a staged file comes from a signable template.
+  ///
+  /// Uploading for signature acts on the staged files, not on the selection,
+  /// so this is the capability that gates that button.
+  bool get canSignStaged {
+    if (_stagedFiles.isEmpty) return false;
+    return _stagedFiles.keys.every((unitId) =>
+        _pendingUnits
+            .where((u) => u.documentUnitId == unitId)
+            .firstOrNull
+            ?.isSignable ??
+        false);
+  }
+
+  /// Whether creating missing pendings is possible — it needs a document
+  /// scope, since a pending is always created for a specific template.
+  bool get canCreateMissing =>
+      _selectedGroupId != null || _selectedTemplateId != null;
+
+  /// Whether any of the three scope axes is set.
+  bool get hasAnyScope =>
+      _selectedGroupId != null ||
+      _selectedTemplateId != null ||
+      _selectedEmployeeId != null;
+
+  /// Pending document units on the current page.
+  UnmodifiableListView<BatchDocumentUnitItem> get pendingUnits =>
+      UnmodifiableListView(_pendingUnits);
+
+  /// Total count of matching pending units across all pages.
+  int get totalCount => _totalCount;
+
+  /// The current page number (1-based).
+  int get pageNumber => _pageNumber;
+
+  /// The current page size.
+  int get pageSize => _pageSize;
+
+  /// Employees without a pending document for the selected template.
+  UnmodifiableListView<EmployeeMissingDocument> get missingEmployees =>
+      UnmodifiableListView(_missingEmployees);
+
+  /// Currently selected unit identifiers for batch operations.
+  UnmodifiableSetView<String> get selectedUnitIds =>
+      UnmodifiableSetView(_selectedUnitIds);
+
+  /// The number of files currently staged for upload.
+  int get stagedFileCount => _stagedFiles.length;
+
+  /// Files currently staged for upload, keyed by `documentUnitId`.
+  UnmodifiableMapView<String, BatchUploadItem> get stagedFiles =>
+      UnmodifiableMapView(_stagedFiles);
+
+  /// The global signature deadline in ISO 8601 format.
+  String? get globalSignDeadline => _globalSignDeadline;
+
+  /// The global reminder interval in days.
+  int get globalReminderDays => _globalReminderDays;
+
+  /// Results from the most recent batch upload.
+  UnmodifiableListView<BatchUploadResult> get uploadResults =>
+      UnmodifiableListView(_uploadResults);
+
+  /// Whether the given [unitId] has a file staged for upload.
+  bool hasStaged(String unitId) => _stagedFiles.containsKey(unitId);
+
+  /// Returns the staged file name for [unitId], or null if not staged.
+  String? stagedFileName(String unitId) => _stagedFiles[unitId]?.fileName;
+
+  /// Files matched during bulk upload, pending user verification.
+  UnmodifiableListView<BulkUploadMatch> get bulkMatches =>
+      UnmodifiableListView(_bulkMatches);
+
+  /// Whether bulk file processing is in progress.
+  bool get isBulkProcessing => _isBulkProcessing;
+
+  /// The number of files already processed during bulk upload.
+  int get bulkProcessedCount => _bulkProcessedCount;
+
+  /// The total number of files being processed during bulk upload.
+  int get bulkTotalCount => _bulkTotalCount;
+
+  /// Whether there are pending bulk matches awaiting verification.
+  bool get hasBulkMatches => _bulkMatches.isNotEmpty;
+
+  /// The number of bulk matches that have a valid employee assignment.
+  int get bulkMatchedCount =>
+      _bulkMatches.where((m) => m.isMatched).length;
+
+  /// The number of bulk matches without a valid assignment.
+  int get bulkUnmatchedCount =>
+      _bulkMatches.where((m) => !m.isMatched).length;
+
+  // ─── Filter getters ──────────────────────────────────────
+
+  /// The current employee status filter, or null for all.
+  int? get employeeStatusFilter => _employeeStatusFilter;
+
+  /// The current employee name search filter.
+  String? get employeeNameFilter => _employeeNameFilter;
+
+  /// The current period type filter.
+  int? get periodTypeFilter => _periodTypeFilter;
+
+  /// The current period year filter.
+  int? get periodYearFilter => _periodYearFilter;
+
+  /// The current period month filter.
+  int? get periodMonthFilter => _periodMonthFilter;
+
+  /// The current period day filter (daily only).
+  int? get periodDayFilter => _periodDayFilter;
+
+  /// The current period week filter (weekly only).
+  int? get periodWeekFilter => _periodWeekFilter;
+
+  /// Extracts a user-facing error message from [error].
+  ///
+  /// Delegates to [extractServerMessages] to unwrap domain errors from
+  /// [HttpException]. Falls back to [fallback] when no server messages
+  /// are available.
+  String _errorFrom(Object error, String fallback) {
+    final messages = extractServerMessages(error);
+    return messages.isNotEmpty ? messages.join('\n') : fallback;
+  }
+
+  // ─── Group & template loading ─────────────────────────────
+
+  /// Loads document groups with their templates for the dropdowns.
+  Future<void> loadGroupsAndTemplates() async {
+    _status = BatchDocumentStatus.loading;
+    notifyListeners();
+    try {
+      final result = await _documentGroupRepository
+          .getDocumentGroupsWithTemplates(_companyId);
+      result.fold(
+        onSuccess: (groups) {
+          _groupsWithTemplates = groups;
+          _status = BatchDocumentStatus.loaded;
+        },
+        onError: (e, _) {
+          _errorMessage = _errorFrom(e, 'Falha ao carregar grupos.');
+          _status = BatchDocumentStatus.error;
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  /// Scopes the list to [groupId], or to every group when null.
+  ///
+  /// Clears the template filter: a template only exists inside its group.
+  Future<void> selectGroup(String? groupId) async {
+    _selectedGroupId = groupId;
+    _selectedTemplateId = null;
+    final group = _groupsWithTemplates.where((g) => g.id == groupId).firstOrNull;
+    _groupTemplates = group?.templates ?? [];
+    _resetScopedState();
+    await loadPendingUnits();
+  }
+
+  /// Scopes the list to [templateId], or to every template when null.
+  Future<void> selectTemplate(String? templateId) async {
+    _selectedTemplateId = templateId;
+    _resetScopedState();
+    await loadPendingUnits();
+  }
+
+  /// Scopes the list to a single employee, or to every employee when null.
+  Future<void> selectEmployee(String? employeeId, String? employeeName) async {
+    _selectedEmployeeId = employeeId;
+    _selectedEmployeeName = employeeName;
+    _resetScopedState();
+    await loadPendingUnits();
+  }
+
+  /// Searches employees by [name] for the employee scope picker.
+  ///
+  /// Returns an empty list when no repository is available or the search
+  /// fails — the picker degrades to "no matches", never to an error screen.
+  Future<List<Employee>> searchEmployees(String name) async {
+    final repository = _employeeRepository;
+    if (repository == null || name.trim().isEmpty) return const [];
+    final result = await repository.getEmployees(_companyId, name: name.trim());
+    return result.fold(onSuccess: (employees) => employees, onError: (_, __) => const []);
+  }
+
+  /// Drops everything tied to the previous scope.
+  ///
+  /// Selection and staged files are keyed by document unit, and changing the
+  /// scope takes those units off the list — keeping them would send files for
+  /// rows the user can no longer see.
+  void _resetScopedState() {
+    _pageNumber = 1;
+    _selectedUnitIds.clear();
+    _stagedFiles.clear();
+    _uploadResults = [];
+    _missingEmployees = [];
+  }
+
+  // ─── Pending units ───────────────────────────────────────
+
+  /// Loads pending document units with the current scope, filters and page.
+  ///
+  /// A single request covers every scope — the server filters by group,
+  /// template and employee. It used to fan out one request per template and
+  /// sum the per-template totals, which made [totalCount] and the page
+  /// boundaries disagree with what the list actually held.
+  Future<void> loadPendingUnits() async {
+    _status = BatchDocumentStatus.loading;
+    _pendingUnits = [];
+    _totalCount = 0;
+    notifyListeners();
+    try {
+      final result = await _batchDocumentRepository.getPendingDocumentUnits(
+        _companyId,
+        documentGroupId: _selectedGroupId,
+        documentTemplateId: _selectedTemplateId,
+        employeeId: _selectedEmployeeId,
+        employeeStatusId: _employeeStatusFilter,
+        employeeName: _employeeNameFilter,
+        periodTypeId: _periodTypeFilter,
+        periodYear: _periodYearFilter,
+        periodMonth: _periodMonthFilter,
+        periodDay: _periodDayFilter,
+        periodWeek: _periodWeekFilter,
+        pageSize: _pageSize,
+        pageNumber: _pageNumber,
+      );
+      result.fold(
+        onSuccess: (page) {
+          _pendingUnits = page.items;
+          _totalCount = page.totalCount;
+          // Note: errorMessage is intentionally NOT reset here — callers that
+          // reload after a failed op (upload/generate) rely on the message
+          // surviving this trailing reload.
+          _status = BatchDocumentStatus.loaded;
+        },
+        onError: (e, _) {
+          _errorMessage =
+              _errorFrom(e, 'Falha ao carregar documentos pendentes.');
+          _status = BatchDocumentStatus.error;
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  // ─── Missing employees ───────────────────────────────────
+
+  /// Loads the employee x template pairs without a pending document unit.
+  ///
+  /// Each row names its own template, so a group-wide scope lists the same
+  /// employee once per missing document instead of collapsing them.
+  Future<void> loadMissingEmployees() async {
+    if (!canCreateMissing) return;
+    try {
+      final result = await _batchDocumentRepository.getMissingEmployees(
+        _companyId,
+        documentGroupId: _selectedGroupId,
+        documentTemplateId: _selectedTemplateId,
+        employeeId: _selectedEmployeeId,
+        employeeStatusId: _employeeStatusFilter,
+        employeeName: _employeeNameFilter,
+      );
+      result.fold(
+        onSuccess: (employees) => _missingEmployees = employees,
+        onError: (e, _) =>
+            _errorMessage = _errorFrom(e, 'Falha ao carregar funcionários.'),
+      );
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  // ─── Batch create ────────────────────────────────────────
+
+  /// Creates the pending units for the chosen employee x template pairs.
+  ///
+  /// The command is per template, so the pairs are grouped by template and
+  /// sent concurrently — one call per template, not one per pair.
+  Future<void> batchCreateDocumentUnits(
+      List<EmployeeMissingDocument> items) async {
+    if (items.isEmpty) return;
+    final byTemplate = <String, List<String>>{};
+    for (final item in items) {
+      byTemplate
+          .putIfAbsent(item.documentTemplateId, () => [])
+          .add(item.employeeId);
+    }
+
+    _status = BatchDocumentStatus.loading;
+    notifyListeners();
+    try {
+      final results = await mapWithConcurrency<String,
+          Result<List<BatchCreatedItem>>>(
+        byTemplate.keys.toList(),
+        (templateId) => _batchDocumentRepository.batchCreateDocumentUnits(
+          _companyId,
+          templateId,
+          byTemplate[templateId]!,
+        ),
+      );
+      for (final result in results) {
+        result.fold(
+          onSuccess: (_) => null,
+          onError: (e, _) => _errorMessage =
+              _errorFrom(e, 'Falha ao criar documentos.'),
+        );
+      }
+    } finally {
+      notifyListeners();
+    }
+    await loadPendingUnits();
+  }
+
+  // ─── Batch date update ───────────────────────────────────
+
+  /// Updates the date for all selected document units.
+  ///
+  /// The [date] must be in `yyyy-MM-dd` API format.
+  Future<void> batchUpdateDate(String date) async {
+    if (_selectedUnitIds.isEmpty) return;
+    final items = _selectedUnits;
+    if (items.isEmpty) return;
+    _status = BatchDocumentStatus.loading;
+    notifyListeners();
+    try {
+      final result = await _batchDocumentRepository.batchUpdateDate(
+          _companyId, items, date);
+      result.fold(
+        onSuccess: (_) {
+          _selectedUnitIds.clear();
+        },
+        onError: (e, _) => _errorMessage = _errorFrom(e, 'Falha ao atualizar datas.'),
+      );
+    } finally {
+      notifyListeners();
+    }
+    await loadPendingUnits();
+  }
+
+  // ─── File staging ────────────────────────────────────────
+
+  /// Stages a file for later batch upload.
+  ///
+  /// The file is held in memory until [uploadAllStaged] or
+  /// [uploadAllStagedToSign] is called.
+  void stageFile(
+    String documentUnitId,
+    String documentId,
+    String employeeId,
+    Uint8List bytes,
+    String fileName,
+  ) {
+    _stagedFiles[documentUnitId] = BatchUploadItem(
+      documentUnitId: documentUnitId,
+      documentId: documentId,
+      employeeId: employeeId,
+      fileBytes: bytes,
+      fileName: fileName,
+    );
+    notifyListeners();
+  }
+
+  /// Removes a staged file for the given [documentUnitId].
+  void unstageFile(String documentUnitId) {
+    _stagedFiles.remove(documentUnitId);
+    notifyListeners();
+  }
+
+  /// Returns employee names whose staged documents have an invalid date.
+  ///
+  /// An empty list means all staged items have valid dates.
+  List<String> validateStagedDates() {
+    final invalidNames = <String>[];
+    for (final staged in _stagedFiles.values) {
+      final unit = _pendingUnits.where(
+        (u) => u.documentUnitId == staged.documentUnitId,
+      ).firstOrNull;
+      if (unit != null && !unit.hasValidDate) {
+        invalidNames.add(unit.employeeName);
+      }
+    }
+    return invalidNames;
+  }
+
+  /// Uploads all staged files in a single multipart request.
+  Future<void> uploadAllStaged() async {
+    if (_stagedFiles.isEmpty) return;
+
+    final invalidNames = validateStagedDates();
+    if (invalidNames.isNotEmpty) {
+      _errorMessage =
+          'Os seguintes funcionários possuem data inválida: ${invalidNames.join(', ')}. Corrija as datas antes de enviar.';
+      _status = BatchDocumentStatus.error;
+      notifyListeners();
+      return;
+    }
+
+    _status = BatchDocumentStatus.uploading;
+    notifyListeners();
+    try {
+      final result = await _batchDocumentRepository.uploadDocumentRange(
+          _companyId, _stagedFiles.values.toList());
+      result.fold(
+        onSuccess: (results) {
+          _uploadResults = results;
+          _stagedFiles.clear();
+          _status = BatchDocumentStatus.uploadComplete;
+        },
+        onError: (e, _) {
+          _errorMessage = _errorFrom(e, 'Falha ao enviar arquivos.');
+          _status = BatchDocumentStatus.error;
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
+    await loadPendingUnits();
+  }
+
+  /// Uploads all staged files and sends them for digital signature.
+  ///
+  /// Requires [globalSignDeadline] to be set before calling.
+  Future<void> uploadAllStagedToSign() async {
+    if (_stagedFiles.isEmpty || _globalSignDeadline == null) return;
+
+    final invalidNames = validateStagedDates();
+    if (invalidNames.isNotEmpty) {
+      _errorMessage =
+          'Os seguintes funcionários possuem data inválida: ${invalidNames.join(', ')}. Corrija as datas antes de enviar.';
+      _status = BatchDocumentStatus.error;
+      notifyListeners();
+      return;
+    }
+
+    _status = BatchDocumentStatus.uploading;
+    notifyListeners();
+    try {
+      final result =
+          await _batchDocumentRepository.uploadDocumentRangeToSign(
+        _companyId,
+        _stagedFiles.values.toList(),
+        _globalSignDeadline!,
+        _globalReminderDays,
+      );
+      result.fold(
+        onSuccess: (results) {
+          _uploadResults = results;
+          _stagedFiles.clear();
+          _status = BatchDocumentStatus.uploadComplete;
+        },
+        onError: (e, _) {
+          _errorMessage = _errorFrom(e, 'Falha ao enviar para assinatura.');
+          _status = BatchDocumentStatus.error;
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
+    await loadPendingUnits();
+  }
+
+  // ─── Generate PDF ────────────────────────────────────────
+
+  /// Returns employee names from the selected units that have invalid dates.
+  ///
+  /// An empty list means all selected items have valid dates.
+  List<String> _validateSelectedDates() {
+    final invalidNames = <String>[];
+    for (final unit in _pendingUnits) {
+      if (_selectedUnitIds.contains(unit.documentUnitId) &&
+          !unit.hasValidDate) {
+        invalidNames.add(unit.employeeName);
+      }
+    }
+    return invalidNames;
+  }
+
+  /// Generates PDFs for all selected document units.
+  ///
+  /// Returns the raw ZIP bytes for the caller to save.
+  Future<Uint8List?> generatePdfRange() async {
+    if (_selectedUnitIds.isEmpty) return null;
+    final items = _selectedUnits;
+    if (items.isEmpty) return null;
+
+    final invalidNames = _validateSelectedDates();
+    if (invalidNames.isNotEmpty) {
+      _errorMessage =
+          'Os seguintes funcionários possuem data inválida: ${invalidNames.join(', ')}. Corrija as datas antes de gerar.';
+      _status = BatchDocumentStatus.error;
+      notifyListeners();
+      return null;
+    }
+
+    _status = BatchDocumentStatus.loading;
+    notifyListeners();
+    Uint8List? zipBytes;
+    try {
+      final result =
+          await _batchDocumentRepository.generatePdfRange(_companyId, items);
+      result.fold(
+        onSuccess: (bytes) {
+          zipBytes = bytes;
+          _status = BatchDocumentStatus.loaded;
+        },
+        onError: (e, _) {
+          _errorMessage = _errorFrom(e, 'Falha ao gerar PDFs.');
+          _status = BatchDocumentStatus.error;
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
+    await loadPendingUnits();
+    return zipBytes;
+  }
+
+  /// Generates PDFs and sends them for digital signature.
+  ///
+  /// Requires [globalSignDeadline] to be set before calling.
+  Future<void> generateAndSignRange() async {
+    if (_selectedUnitIds.isEmpty || _globalSignDeadline == null) return;
+    final items = _selectedUnits;
+    if (items.isEmpty) return;
+
+    final invalidNames = _validateSelectedDates();
+    if (invalidNames.isNotEmpty) {
+      _errorMessage =
+          'Os seguintes funcionários possuem data inválida: ${invalidNames.join(', ')}. Corrija as datas antes de gerar.';
+      _status = BatchDocumentStatus.error;
+      notifyListeners();
+      return;
+    }
+
+    _status = BatchDocumentStatus.loading;
+    notifyListeners();
+    try {
+      final result = await _batchDocumentRepository.generateAndSignRange(
+        _companyId,
+        items,
+        _globalSignDeadline!,
+        _globalReminderDays,
+      );
+      result.fold(
+        onSuccess: (_) {
+          _selectedUnitIds.clear();
+          _status = BatchDocumentStatus.loaded;
+        },
+        onError: (e, _) {
+          _errorMessage =
+              _errorFrom(e, 'Falha ao gerar e enviar para assinatura.');
+          _status = BatchDocumentStatus.error;
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
+    await loadPendingUnits();
+  }
+
+  // ─── Snapshot freshness ──────────────────────────────────
+
+  /// Returns the ids of the currently selected units whose stored snapshot no
+  /// longer matches the employee's current data.
+  ///
+  /// Returns an empty set when the check cannot run (no repository injected)
+  /// or fails — a warning that cannot be trusted must never block generation.
+  /// The batch screen only reports the divergence; refreshing is done by
+  /// editing the document, one by one.
+  Future<Set<String>> checkOutdatedContent() async {
+    final repository = _documentContentRepository;
+    if (repository == null) return const {};
+
+    final items = _selectedUnits;
+    if (items.isEmpty) return const {};
+
+    final result = await repository.checkOutdated(
+      _companyId,
+      items
+          .map((u) => DocumentUnitRefApiModel(
+                documentUnitId: u.documentUnitId,
+                documentId: u.documentId,
+                employeeId: u.employeeId,
+              ))
+          .toList(),
+    );
+
+    final outdated = <String>{};
+    result.fold(
+      onSuccess: (statuses) {
+        for (final status in statuses) {
+          if (status.needsWarning) outdated.add(status.documentUnitId);
+        }
+      },
+      onError: (_, __) {},
+    );
+    return outdated;
+  }
+
+  // ─── Selection ───────────────────────────────────────────
+
+  /// Toggles selection of a document unit by [unitId].
+  void toggleSelection(String unitId) {
+    if (_selectedUnitIds.contains(unitId)) {
+      _selectedUnitIds.remove(unitId);
+    } else {
+      _selectedUnitIds.add(unitId);
+    }
+    notifyListeners();
+  }
+
+  /// Selects all pending units on the current page.
+  void selectAll() {
+    _selectedUnitIds.addAll(_pendingUnits.map((u) => u.documentUnitId));
+    notifyListeners();
+  }
+
+  /// Clears the selection.
+  void clearSelection() {
+    _selectedUnitIds.clear();
+    notifyListeners();
+  }
+
+  // ─── Filters ─────────────────────────────────────────────
+
+  /// Sets the employee status filter without reloading.
+  void setEmployeeStatusFilter(int? status) {
+    _employeeStatusFilter = status;
+    notifyListeners();
+  }
+
+  /// Sets the employee name search filter without reloading.
+  void setEmployeeNameFilter(String? name) {
+    _employeeNameFilter = name;
+  }
+
+  /// Sets the period filter fields without reloading.
+  void setPeriodFilter({
+    int? typeId,
+    int? year,
+    int? month,
+    int? day,
+    int? week,
+  }) {
+    _periodTypeFilter = typeId;
+    _periodYearFilter = year;
+    _periodMonthFilter = month;
+    _periodDayFilter = day;
+    _periodWeekFilter = week;
+    notifyListeners();
+  }
+
+  /// Applies the current filters and reloads the pending units from page 1.
+  Future<void> applyFilters() async {
+    _pageNumber = 1;
+    await loadPendingUnits();
+  }
+
+  /// Clears all filters and reloads.
+  Future<void> clearFilters() async {
+    _employeeStatusFilter = null;
+    _employeeNameFilter = null;
+    _periodTypeFilter = null;
+    _periodYearFilter = null;
+    _periodMonthFilter = null;
+    _periodDayFilter = null;
+    _periodWeekFilter = null;
+    _pageNumber = 1;
+    await loadPendingUnits();
+  }
+
+  // ─── Pagination ──────────────────────────────────────────
+
+  /// Navigates to [page] and reloads.
+  Future<void> setPage(int page) async {
+    _pageNumber = page;
+    await loadPendingUnits();
+  }
+
+  /// Changes page size and reloads from page 1.
+  Future<void> setPageSize(int size) async {
+    _pageSize = size;
+    _pageNumber = 1;
+    await loadPendingUnits();
+  }
+
+  // ─── Signature settings ──────────────────────────────────
+
+  /// Sets the global signature deadline in ISO 8601 format.
+  void setGlobalSignDeadline(String date) {
+    _globalSignDeadline = date;
+    notifyListeners();
+  }
+
+  /// Sets the global reminder interval in days.
+  void setGlobalReminderDays(int days) {
+    _globalReminderDays = days;
+    notifyListeners();
+  }
+
+  // ─── Bulk upload ────────────────────────────────────────
+
+  /// Processes multiple files for bulk upload with fuzzy name matching.
+  ///
+  /// Extracts text from each PDF, matches against [pendingUnits] using
+  /// fuzzy name matching, and populates [bulkMatches] for verification.
+  /// Units already staged in [_stagedFiles] are excluded from candidates.
+  Future<void> processBulkFiles(List<PickedFile> files) async {
+    _isBulkProcessing = true;
+    _bulkMatches = [];
+    _bulkProcessedCount = 0;
+    _bulkTotalCount = files.length;
+    notifyListeners();
+
+    try {
+      final assignedUnitIds = <String>{};
+
+      // Build candidates from pending units not already staged.
+      final availableUnits = _pendingUnits
+          .where((u) => !_stagedFiles.containsKey(u.documentUnitId))
+          .toList();
+
+      // Phase 1: extract text from every file concurrently. Extraction is the
+      // expensive, isolate-backed step and the files are independent, so run
+      // them with bounded concurrency, reporting progress as each completes.
+      // Files without bytes yield `null` and are skipped in phase 2.
+      final texts = await mapWithConcurrency<PickedFile, String?>(
+        files,
+        (file) async {
+          final bytes = file.bytes;
+          final text = bytes == null ? null : await _textExtractor(bytes);
+          _bulkProcessedCount++;
+          notifyListeners();
+          return text;
+        },
+      );
+
+      // Phase 2: match serially so each file excludes the units already
+      // assigned to earlier files (the no-duplicate-assignment invariant).
+      for (var i = 0; i < files.length; i++) {
+        final text = texts[i];
+        if (text == null) continue;
+        final file = files[i];
+
+        // Build candidates excluding already-assigned units in this batch.
+        final candidates = availableUnits
+            .where((u) => !assignedUnitIds.contains(u.documentUnitId))
+            .map((u) => NameCandidate(
+                  documentUnitId: u.documentUnitId,
+                  employeeId: u.employeeId,
+                  documentId: u.documentId,
+                  name: u.employeeName,
+                ))
+            .toList();
+
+        final matchResult = FuzzyNameMatcher.findBestMatch(text, candidates);
+
+        final match = BulkUploadMatch(
+          fileName: file.name,
+          fileBytes: file.bytes!,
+          extractedText: text,
+          matchedDocumentUnitId: matchResult?.candidate.documentUnitId,
+          matchedEmployeeName: matchResult?.candidate.name,
+          matchedEmployeeId: matchResult?.candidate.employeeId,
+          matchedDocumentId: matchResult?.candidate.documentId,
+          confidence: matchResult?.confidence ?? 0.0,
+          confidenceLevel:
+              matchResult?.confidenceLevel ?? MatchConfidenceLevel.none,
+        );
+
+        _bulkMatches.add(match);
+
+        if (match.isMatched) {
+          assignedUnitIds.add(match.matchedDocumentUnitId!);
+        }
+
+        notifyListeners();
+      }
+
+      // Sort: unmatched first, then low, medium, high.
+      _bulkMatches.sort((a, b) {
+        const order = {
+          MatchConfidenceLevel.none: 0,
+          MatchConfidenceLevel.low: 1,
+          MatchConfidenceLevel.medium: 2,
+          MatchConfidenceLevel.high: 3,
+        };
+        return order[a.confidenceLevel]!.compareTo(order[b.confidenceLevel]!);
+      });
+    } finally {
+      _isBulkProcessing = false;
+      notifyListeners();
+    }
+  }
+
+  /// Updates the employee assignment for a bulk match at [index].
+  ///
+  /// Called when the user manually reassigns a file to a different
+  /// employee during verification.
+  void reassignBulkMatch(int index, BatchDocumentUnitItem unit) {
+    if (index < 0 || index >= _bulkMatches.length) return;
+
+    final match = _bulkMatches[index];
+    match.matchedDocumentUnitId = unit.documentUnitId;
+    match.matchedEmployeeName = unit.employeeName;
+    match.matchedEmployeeId = unit.employeeId;
+    match.matchedDocumentId = unit.documentId;
+    match.confidence = 1.0;
+    match.confidenceLevel = MatchConfidenceLevel.high;
+    notifyListeners();
+  }
+
+  /// Removes a file from the bulk matches at [index].
+  void removeBulkMatch(int index) {
+    if (index < 0 || index >= _bulkMatches.length) return;
+    _bulkMatches.removeAt(index);
+    notifyListeners();
+  }
+
+  /// Confirms all bulk matches and stages the matched files.
+  ///
+  /// Only stages matches that have a valid assignment. Calls [stageFile]
+  /// for each confirmed match, then clears [bulkMatches].
+  void confirmBulkMatches() {
+    for (final match in _bulkMatches) {
+      if (!match.isMatched) continue;
+      stageFile(
+        match.matchedDocumentUnitId!,
+        match.matchedDocumentId!,
+        match.matchedEmployeeId!,
+        match.fileBytes,
+        match.fileName,
+      );
+    }
+    _bulkMatches = [];
+    notifyListeners();
+  }
+
+  /// Clears all pending bulk matches without staging any files.
+  void cancelBulkMatches() {
+    _bulkMatches = [];
+    notifyListeners();
+  }
+
+  // ─── Document Scanning ────────────────────────────────────
+
+  /// Whether document scanning is available on the current platform.
+  bool get isScanSupported =>
+      _scannerRepository != null && _scannerRepository.isPlatformSupported;
+
+  /// Launches the native document scanner and returns the captured pages.
+  ///
+  /// Returns `Result.success(null)` when the user cancelled or scanning
+  /// is not supported on this platform; `Result.error` when the scanner
+  /// could not run (permission denied, plugin failure, file read error).
+  Future<Result<List<Uint8List>?>> scanPages() async {
+    if (_scannerRepository == null) return const Result.success(null);
+    return _scannerRepository.scanPages();
+  }
+
+  /// Processes multiple scanned documents through the bulk upload pipeline.
+  ///
+  /// Each entry in [documents] is a list of page images for a single
+  /// document. For each document, converts its pages to a PDF, runs OCR,
+  /// and fuzzy-matches the extracted name against [pendingUnits].
+  /// All results are added to [bulkMatches] for user verification via
+  /// the same [BulkUploadVerificationDialog] used by file-based uploads.
+  Future<void> processScannedDocuments(List<List<Uint8List>> documents) async {
+    if (_scannerRepository == null || documents.isEmpty) return;
+
+    _isBulkProcessing = true;
+    _bulkMatches = [];
+    _bulkProcessedCount = 0;
+    _bulkTotalCount = documents.length;
+    notifyListeners();
+
+    try {
+      final assignedUnitIds = <String>{};
+      final availableUnits = _pendingUnits
+          .where((u) => !_stagedFiles.containsKey(u.documentUnitId))
+          .toList();
+
+      for (var i = 0; i < documents.length; i++) {
+        if (documents[i].isEmpty) {
+          _bulkProcessedCount++;
+          notifyListeners();
+          continue;
+        }
+
+        // Working copy so we can swap rotated bytes in place.
+        final pages = List<Uint8List>.of(documents[i]);
+
+        // Step 1: Run OCR on each page on its original orientation. Pages of
+        // the same document are independent, so recognize them concurrently
+        // (bounded) while keeping page order in the result.
+        final pageTexts = (await mapWithConcurrency<Uint8List, String>(
+          pages,
+          _scannerRepository.recognizeText,
+        ))
+            .toList();
+
+        // Step 2: Fuzzy match excluding already-assigned units.
+        final candidates = availableUnits
+            .where((u) => !assignedUnitIds.contains(u.documentUnitId))
+            .map((u) => NameCandidate(
+                  documentUnitId: u.documentUnitId,
+                  employeeId: u.employeeId,
+                  documentId: u.documentId,
+                  name: u.employeeName,
+                ))
+            .toList();
+
+        var extractedText = _joinPageTexts(pageTexts);
+        var matchResult = FuzzyNameMatcher.findBestMatch(
+          extractedText,
+          candidates,
+        );
+
+        // Step 3: When match is below `high`, test 90°/180°/270° per page
+        // and keep whichever orientation produces the longest OCR text.
+        // Pages whose original orientation already wins the per-page
+        // duel are left untouched. After applying any rotation, the
+        // match is recomputed against the updated concatenated text.
+        if (matchResult?.confidenceLevel != MatchConfidenceLevel.high) {
+          var anyRotationApplied = false;
+          for (var p = 0; p < pages.length; p++) {
+            final winner = await _pageRotationFinder(
+              originalBytes: pages[p],
+              originalText: pageTexts[p],
+              recognizeText: _scannerRepository.recognizeText,
+            );
+            if (winner == null) continue;
+            if (winner.rotationDegrees != 0) {
+              pages[p] = winner.bytes;
+              pageTexts[p] = winner.text;
+              anyRotationApplied = true;
+            }
+          }
+          if (anyRotationApplied) {
+            extractedText = _joinPageTexts(pageTexts);
+            matchResult = FuzzyNameMatcher.findBestMatch(
+              extractedText,
+              candidates,
+            );
+          }
+        }
+
+        // Step 4: Build the PDF using the (possibly rotated) page bytes.
+        final pdfBytes = await _scannerRepository.imagesToPdf(pages);
+
+        final now = DateTime.now();
+        final fileName =
+            'scan_${now.year}-${now.month.toString().padLeft(2, '0')}-'
+            '${now.day.toString().padLeft(2, '0')}_'
+            '${now.hour.toString().padLeft(2, '0')}'
+            '${now.minute.toString().padLeft(2, '0')}'
+            '${now.second.toString().padLeft(2, '0')}'
+            '_${(i + 1).toString().padLeft(3, '0')}.pdf';
+
+        final match = BulkUploadMatch(
+          fileName: fileName,
+          fileBytes: pdfBytes,
+          extractedText: extractedText,
+          matchedDocumentUnitId: matchResult?.candidate.documentUnitId,
+          matchedEmployeeName: matchResult?.candidate.name,
+          matchedEmployeeId: matchResult?.candidate.employeeId,
+          matchedDocumentId: matchResult?.candidate.documentId,
+          confidence: matchResult?.confidence ?? 0.0,
+          confidenceLevel:
+              matchResult?.confidenceLevel ?? MatchConfidenceLevel.none,
+        );
+
+        _bulkMatches.add(match);
+
+        if (match.isMatched) {
+          assignedUnitIds.add(match.matchedDocumentUnitId!);
+        }
+
+        _bulkProcessedCount++;
+        notifyListeners();
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      // Sort: unmatched first, then low, medium, high.
+      _bulkMatches.sort((a, b) {
+        const order = {
+          MatchConfidenceLevel.none: 0,
+          MatchConfidenceLevel.low: 1,
+          MatchConfidenceLevel.medium: 2,
+          MatchConfidenceLevel.high: 3,
+        };
+        return order[a.confidenceLevel]!.compareTo(order[b.confidenceLevel]!);
+      });
+    } catch (e) {
+      _status = BatchDocumentStatus.error;
+      _errorMessage = 'Erro ao processar documentos digitalizados: $e';
+    } finally {
+      _isBulkProcessing = false;
+      notifyListeners();
+    }
+  }
+
+  /// Joins the per-page OCR texts of a single document into one searchable
+  /// string, skipping pages that produced no recognized text.
+  String _joinPageTexts(List<String> pageTexts) {
+    final buffer = StringBuffer();
+    for (final text in pageTexts) {
+      if (text.isEmpty) continue;
+      if (buffer.isNotEmpty) buffer.write(' ');
+      buffer.write(text);
+    }
+    return buffer.toString().trim();
+  }
+}

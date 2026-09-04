@@ -1,0 +1,42 @@
+name: rufino_core
+description: "Fundação compartilhada entre os produtos do app Rufino."
+publish_to: 'none'
+version: 0.1.0
+
+# O que entra aqui responde uma pergunta só: "se o outro produto mudar isto, este
+# deveria se importar?". Se a resposta for não, não é core — é do módulo.
+#
+# Entra: Result, cliente HTTP com sessão, tema e design tokens, storage,
+# monitoramento de erro. NÃO entra: entidade, repositório, exceção de domínio,
+# viewmodel ou tela de produto nenhum.
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.2
+  # O tema define a tipografia do produto, e ela e' compartilhada.
+  google_fonts: ^6.2.1
+  flutter_secure_storage: ^9.2.2
+  # Os guards (permissao e produto) leem notifiers da arvore. O DI e' o mesmo
+  # nos tres pacotes; um guard que nao pudesse ler o notifier obrigaria cada
+  # produto a reimplementar o guard.
+  provider: ^6.1.2
+  # Cache de permissao: par recurso/escopo, nao segredo.
+  shared_preferences: ^2.5.5
+  # O contrato de modulo (AppModule) fala de rotas: o tipo RouteBase vem daqui.
+  # E fundacao pelo criterio D3 — se o roteador do app mudar, os tres modulos
+  # se importam.
+  go_router: ^14.6.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true

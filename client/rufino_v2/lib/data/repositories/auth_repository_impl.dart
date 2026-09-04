@@ -1,6 +1,4 @@
-import '../../core/errors/auth_exception.dart';
-import '../../core/monitoring/error_reporter.dart';
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../services/auth_api_service.dart';
 
@@ -18,18 +16,6 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       await authApiService.login(username: username, password: password);
       return const Result.success(null);
-    } on AuthException catch (e, st) {
-      return reporter.failure(e, st);
-    } catch (e, st) {
-      return reporter.failure(NetworkAuthException(e), st);
-    }
-  }
-
-  @override
-  Future<Result<List<String>>> getCompanyIds() async {
-    try {
-      final ids = await authApiService.getCompanyIds();
-      return Result.success(ids);
     } on AuthException catch (e, st) {
       return reporter.failure(e, st);
     } catch (e, st) {

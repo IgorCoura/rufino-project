@@ -1,0 +1,41 @@
+{
+  "_leia": "Copie para seed-tenant.local.json e preencha. O .local.json NAO e versionado (contem CNPJ e CPF reais). Guarde-o no backup junto com a master key do cofre.",
+
+  "tenantId": "0195a1f0-0000-7000-8000-00000000f001",
+
+  "_payerProfile": "Um por tenant. E daqui que saem as senhas de PDF: CNPJ pelos 5, 8 ou 14 primeiros digitos; CPF pelos 3, 5, 6 ou 11. Os documentos adicionais importam — no corpus real, o unico PDF cifrado que abriu abriu por um documento ADICIONAL. kind: Company (CNPJ) ou Individual (CPF).",
+  "payerProfile": {
+    "kind": "Company",
+    "legalName": "RUFINO EMPREITEIRA LTDA",
+    "primaryTaxId": "00000000000000",
+    "additionalTaxIds": [
+      "00000000000000",
+      "00000000000"
+    ]
+  },
+
+  "_payees": "Beneficiarios conhecidos. amountPolicyKind: Unbounded (sem teto), Fixed (expectedAmount + tolerancePercent) ou Range (minAmount + maxAmount). Os apelidos cobrem a divergencia de grafia entre o cadastro e o nome que a consulta oficial devolve.",
+  "payees": [
+    {
+      "legalName": "EDP SAO PAULO DISTRIBUICAO DE ENERGIA S.A.",
+      "taxId": "00000000000000",
+      "amountPolicyKind": "Unbounded",
+      "aliases": ["EDP", "EDP SP"]
+    },
+    {
+      "legalName": "DESPACON SERVICOS CONTABEIS SS",
+      "taxId": "00000000000000",
+      "amountPolicyKind": "Range",
+      "minAmount": 100.0,
+      "maxAmount": 5000.0
+    }
+  ],
+
+  "_trustedOrigins": "Remetentes conhecidos. E o que transforma 'nao reconheci' em quarentena revisavel em vez de descarte — sem isto, todo boleto que a cascata errar some sem deixar arquivo. kind: EmailAddress ou EmailDomain. decision: Trusted ou Blocked. Quem decidiu sai do sub do token de quem roda o seed — o campo decidedBy nao existe mais no contrato.",
+  "trustedOrigins": [
+    { "kind": "EmailDomain", "value": "edpbr.com.br", "decision": "Trusted", "note": "conta de luz" },
+    { "kind": "EmailDomain", "value": "seconci-sp.org.br", "decision": "Trusted" },
+    { "kind": "EmailDomain", "value": "bbz.com.br", "decision": "Trusted", "note": "condominio" },
+    { "kind": "EmailAddress", "value": "faturas@fornecedor.com.br", "decision": "Trusted" }
+  ]
+}

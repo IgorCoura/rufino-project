@@ -48,6 +48,11 @@ namespace PeopleManagement.IntegrationTests.Configs
     {
     }
 
+    /// <summary>
+    /// Substitui a ida ao Keycloak — e SÓ isso. A semântica da comparação tem que ser a mesma do
+    /// <c>RouteAccessRequirementHandler</c> de produção: parâmetro ausente concede, e o valor casa
+    /// sem sensibilidade a caixa. Divergir aqui faz a suíte provar um guard que não existe.
+    /// </summary>
     public class MockAccessRequirementHandler(IHttpContextAccessor httpContextAccessor) : AuthorizationHandler<MockAccessRequirement>
     {
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
@@ -73,7 +78,8 @@ namespace PeopleManagement.IntegrationTests.Configs
                 return Task.CompletedTask;
             }
 
-            if (string.IsNullOrWhiteSpace(parameter) || claims.Contains(parameter))
+            if (string.IsNullOrWhiteSpace(parameter)
+                || claims.Any(c => string.Equals(c, parameter, StringComparison.OrdinalIgnoreCase)))
             {
                 context.Succeed(requirement);
                 return Task.CompletedTask;

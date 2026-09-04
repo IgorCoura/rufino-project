@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/domain/entities/remuneration.dart';
+import 'package:people_management/people_management.dart';
 
 void main() {
   group('Remuneration computed properties', () {

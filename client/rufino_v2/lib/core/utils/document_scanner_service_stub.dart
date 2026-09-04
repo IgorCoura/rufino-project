@@ -5,8 +5,8 @@
 library;
 
 import 'dart:typed_data';
+import 'package:people_management/people_management.dart';
 
-import 'document_scanner_service.dart';
 
 /// Desktop stub that reports scanning as unsupported.
 class DocumentScannerServiceImpl implements DocumentScannerService {
@@ -22,4 +22,7 @@ class DocumentScannerServiceImpl implements DocumentScannerService {
   @override
   Future<Uint8List> imagesToPdf(List<Uint8List> pages) async =>
       Uint8List(0);
+
+  @override
+  Future<void> openAppSettings() async {}
 }

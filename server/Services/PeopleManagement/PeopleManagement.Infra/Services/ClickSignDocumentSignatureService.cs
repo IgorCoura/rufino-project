@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
@@ -20,12 +20,12 @@ public class ClickSignDocumentSignatureService : IDocumentSignatureService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<ClickSignDocumentSignatureService> _logger;
-    private readonly SignOptions _options;
+    private readonly SignatureProviderOptions _options;
 
     public ClickSignDocumentSignatureService(
         HttpClient httpClient,
         ILogger<ClickSignDocumentSignatureService> logger,
-        SignOptions options)
+        SignatureProviderOptions options)
     {
         _httpClient = httpClient;
         _logger = logger;

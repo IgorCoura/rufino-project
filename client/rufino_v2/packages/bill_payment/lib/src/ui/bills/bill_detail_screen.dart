@@ -1,0 +1,1380 @@
+import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
+import 'package:provider/provider.dart';
+import 'package:rufino_core/rufino_core.dart';
+
+import '../../bill_payment_permissions.dart';
+import '../../domain/bill_check.dart';
+import '../../domain/bill_detail.dart';
+import '../../domain/bill_payment_enums.dart';
+import '../../domain/schedule_preview.dart';
+import '../bill_payment_back_button.dart';
+import '../shared/formats.dart';
+import '../shared/message_panel.dart';
+import '../shared/status_badge.dart';
+import 'bill_detail_viewmodel.dart';
+
+/// The approval screen: the bill, the twelve checks with evidence, and the
+/// three decisions.
+///
+/// The digitable line and the Pix payload never appear here — the API does
+/// not return them, by design: whoever has them, pays.
+class BillDetailScreen extends StatefulWidget {
+  /// Creates the screen.
+  const BillDetailScreen({
+    super.key,
+    required this.viewModel,
+    required this.backFallback,
+    required this.onOpenArtifact,
+    required this.onOpenEmail,
+    this.onOpenReceipt,
+  });
+
+  /// Drives the screen.
+  final BillDetailViewModel viewModel;
+
+  /// Para onde o voltar leva quando não há pilha.
+  final String backFallback;
+
+  /// Opens the original document the bill came from.
+  final VoidCallback onOpenArtifact;
+
+  /// Abre o e-mail que trouxe o boleto.
+  final VoidCallback onOpenEmail;
+
+  /// Abre o comprovante do pagamento (fase 3). Nulo esconde o botão.
+  final VoidCallback? onOpenReceipt;
+
+  @override
+  State<BillDetailScreen> createState() => _BillDetailScreenState();
+}
+
+class _BillDetailScreenState extends State<BillDetailScreen> {
+  String? _lastInfoMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.viewModel.addListener(_onViewModelChanged);
+    widget.viewModel.load();
+  }
+
+  @override
+  void dispose() {
+    widget.viewModel.removeListener(_onViewModelChanged);
+    super.dispose();
+  }
+
+  void _onViewModelChanged() {
+    final message = widget.viewModel.infoMessage;
+    if (message != null && message != _lastInfoMessage && mounted) {
+      _lastInfoMessage = message;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Boleto'),
+        leading: BillPaymentBackButton(fallback: widget.backFallback),
+      ),
+      body: SafeArea(
+        child: ListenableBuilder(
+          listenable: widget.viewModel,
+          builder: (context, _) {
+            final viewModel = widget.viewModel;
+            switch (viewModel.status) {
+              case BillDetailStatus.loading:
+                return const Center(child: CircularProgressIndicator());
+              case BillDetailStatus.error:
+                return MessagePanel(
+                  icon: Symbols.error,
+                  title: viewModel.errorMessage ??
+                      'Não foi possível carregar o boleto.',
+                  action: FilledButton.tonal(
+                    onPressed: viewModel.load,
+                    child: const Text('Tentar novamente'),
+                  ),
+                );
+              case BillDetailStatus.loaded:
+                return _Body(
+                  viewModel: viewModel,
+                  onOpenArtifact: widget.onOpenArtifact,
+                  onOpenEmail: widget.onOpenEmail,
+                  onOpenReceipt: widget.onOpenReceipt,
+                );
+            }
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _Body extends StatelessWidget {
+  const _Body({
+    required this.viewModel,
+    required this.onOpenArtifact,
+    required this.onOpenEmail,
+    this.onOpenReceipt,
+  });
+
+  final BillDetailViewModel viewModel;
+  final VoidCallback onOpenArtifact;
+
+  /// Abre o comprovante do pagamento, quando a rota existe.
+  final VoidCallback? onOpenReceipt;
+
+  /// Abre o e-mail que trouxe o boleto.
+  final VoidCallback onOpenEmail;
+
+  @override
+  Widget build(BuildContext context) {
+    final bill = viewModel.bill!;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: AppBreakpoints.tablet),
+        child: ListView(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          children: [
+            Row(
+              children: [
+                StatusBadge.billStatus(bill.status),
+                const SizedBox(width: AppSpacing.sm),
+                StatusBadge(label: bill.rail),
+                const SizedBox(width: AppSpacing.sm),
+                StatusBadge(label: BillKinds.label(bill.kind)),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            if (viewModel.errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: Text(
+                  viewModel.errorMessage!,
+                  style:
+                      TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            _SummarySection(bill: bill),
+            const SizedBox(height: AppSpacing.md),
+            // O veredito colorido abre as verificações (ADR-015): o sistema
+            // classifica e destaca; quem decide é sempre o usuário.
+            if (bill.riskLevel != null) ...[
+              _RiskBanner(bill: bill),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            _ChecksSection(bill: bill),
+            const SizedBox(height: AppSpacing.md),
+            if (bill.bankSlipLookup != null || bill.pixLookup != null) ...[
+              _LookupSection(bill: bill),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            _OriginSection(
+              bill: bill,
+              onOpenArtifact: onOpenArtifact,
+              onOpenEmail: onOpenEmail,
+            ),
+            if (bill.approval != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              _DecisionSection(bill: bill),
+            ],
+            // A execução (fase 3): a ordem atrás do boleto aprovado. Sem
+            // ordem ainda, o card diz "em processamento" — é a janela
+            // observável entre a aprovação e o outbox (ADR-002 do BC).
+            if (viewModel.payment != null ||
+                bill.status == BillStatuses.approved ||
+                bill.status == BillStatuses.scheduled ||
+                bill.status == BillStatuses.paid ||
+                bill.status == BillStatuses.failed) ...[
+              const SizedBox(height: AppSpacing.md),
+              _PaymentSection(viewModel: viewModel, onOpenReceipt: onOpenReceipt),
+            ],
+            const SizedBox(height: AppSpacing.md),
+            _Actions(viewModel: viewModel),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummarySection extends StatelessWidget {
+  const _SummarySection({required this.bill});
+
+  final BillDetail bill;
+
+  @override
+  Widget build(BuildContext context) {
+    final beneficiary = bill.beneficiary;
+    return SectionCard(
+      title: 'Resumo',
+      child: Column(
+        children: [
+          InfoRow(
+            icon: Symbols.storefront,
+            label: 'Beneficiário',
+            value: beneficiary?.displayName ?? 'Não identificado',
+          ),
+          if (beneficiary?.taxId != null)
+            InfoRow(
+              icon: Symbols.badge,
+              label: 'Documento',
+              value: beneficiary!.taxId!,
+            ),
+          // O que a IA leu do documento e do e-mail: a competência e a
+          // descrição só ocupam espaço quando existem.
+          if (bill.reading?.competenceLabel != null)
+            InfoRow(
+              icon: Symbols.calendar_month,
+              label: 'Referente a',
+              value: bill.reading!.competenceLabel!,
+            ),
+          if (bill.reading?.description != null)
+            InfoRow(
+              icon: Symbols.notes,
+              label: 'Descrição',
+              value: bill.reading!.description!,
+            ),
+          if (bill.reading?.accountReference != null)
+            InfoRow(
+              icon: Symbols.tag,
+              label: 'Referência',
+              value: bill.reading!.accountReference!,
+            ),
+          // Sem isto, os três campos acima simplesmente não aparecem — e some
+          // com eles a explicação de por quê. "Ainda não leu" e "não há o que
+          // ler" ficavam idênticos na tela, que é o que este aviso desfaz.
+          if (ReadingStatuses.speaks(bill.readingStatus))
+            _ReadingNotice(status: bill.readingStatus),
+          InfoRow(
+            icon: Symbols.payments,
+            label: 'Valor',
+            value: formatMoney(bill.amount) +
+                (bill.originalAmount != null &&
+                        bill.originalAmount != bill.amount
+                    ? ' (original ${formatMoney(bill.originalAmount)})'
+                    : ''),
+          ),
+          InfoRow(
+            icon: Symbols.event,
+            label: 'Vencimento',
+            value: formatDate(bill.dueDate),
+          ),
+          if (bill.bankCode != null)
+            InfoRow(
+              icon: Symbols.account_balance,
+              label: 'Banco recebedor',
+              value: bill.bankCode!,
+            ),
+          InfoRow(
+            icon: Symbols.schedule,
+            label: 'Consulta oficial',
+            value: formatDateTime(bill.lastConsultedAt),
+          ),
+          if (bill.scheduledFor != null)
+            InfoRow(
+              icon: Symbols.event_available,
+              label: 'Agendado para',
+              value: formatDate(bill.scheduledFor),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RiskBanner extends StatelessWidget {
+  const _RiskBanner({required this.bill});
+
+  final BillDetail bill;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final (color, onColor, icon, title, message) = switch (bill.riskLevel) {
+      // O visual mais duro da escala: fundo cheio na cor de erro, não o container.
+      RiskLevels.extremeDanger => (
+          theme.colorScheme.error,
+          theme.colorScheme.onError,
+          Symbols.gpp_bad,
+          'Extremo Perigo',
+          'O beneficiário ou a origem deste boleto está na sua lista de '
+              'bloqueio. Aprovar exige a alçada máxima e assumir o risco '
+              'explicitamente.',
+        ),
+      RiskLevels.danger => (
+          theme.colorScheme.errorContainer,
+          theme.colorScheme.onErrorContainer,
+          Symbols.gpp_bad,
+          'Perigo',
+          'As verificações encontraram contradição entre as fontes, ou a '
+              'consulta oficial não pôde conferir o documento. Confira as '
+              'evidências abaixo — aprovar exige assumir o risco '
+              'explicitamente.',
+        ),
+      RiskLevels.attention => (
+          const Color(0xFFFFE9B8),
+          const Color(0xFF5C4400),
+          Symbols.warning,
+          'Atenção',
+          'Nada contradiz, mas algo não pôde ser confirmado. Confira os '
+              'pontos destacados antes de autorizar.',
+        ),
+      RiskLevels.safe => (
+          const Color(0xFFCDE8CF),
+          const Color(0xFF10401A),
+          Symbols.verified_user,
+          'Seguro',
+          'Todas as verificações passaram. Nenhuma divergência encontrada.',
+        ),
+      // Nível que este app não conhece NUNCA pode ler como "Seguro" — um
+      // servidor mais novo estaria classificando pior, não melhor.
+      _ => (
+          theme.colorScheme.surfaceContainerHighest,
+          theme.colorScheme.onSurface,
+          Symbols.help,
+          'Nível de risco desconhecido',
+          'O servidor classificou este boleto num nível que esta versão do '
+              'aplicativo não conhece. Atualize o aplicativo antes de decidir.',
+        ),
+    };
+
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: onColor, size: 32),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: onColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  message,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: onColor),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Says where the AI reading stands, so an empty summary stops looking final.
+///
+/// Deliberately quieter than [_RiskBanner]: this is not a signal about the
+/// bill, it is a signal about the system. The bill never waits for the queue —
+/// it can be approved with what the deterministic funnel proved.
+class _ReadingNotice extends StatelessWidget {
+  const _ReadingNotice({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final queued = status == ReadingStatuses.queued;
+
+    final onColor = queued
+        ? theme.colorScheme.onSurfaceVariant
+        : theme.colorScheme.onErrorContainer;
+
+    return Container(
+      margin: const EdgeInsets.only(top: AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: queued
+            ? theme.colorScheme.surfaceContainerHighest
+            : theme.colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            queued ? Symbols.hourglass_top : Symbols.cloud_off,
+            color: onColor,
+            size: 20,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ReadingStatuses.label(status),
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: onColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  ReadingStatuses.detail(status),
+                  style: theme.textTheme.bodySmall?.copyWith(color: onColor),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LookupSection extends StatelessWidget {
+  const _LookupSection({required this.bill});
+
+  final BillDetail bill;
+
+  @override
+  Widget build(BuildContext context) {
+    final bankSlip = bill.bankSlipLookup;
+    final pix = bill.pixLookup;
+    return SectionCard(
+      title: 'Consulta oficial',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (pix != null) ...[
+            Text(
+              'Decode do QR Pix',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            InfoRow(
+              icon: Symbols.storefront,
+              label: 'Recebedor',
+              value: pix.receiver?.displayName ?? 'Não informado',
+            ),
+            if (pix.receiver?.taxId != null)
+              InfoRow(
+                icon: Symbols.badge,
+                label: 'Documento',
+                value: pix.receiver!.taxId!,
+              ),
+            if (pix.receiverIspbName != null)
+              InfoRow(
+                icon: Symbols.account_balance,
+                label: 'Instituição',
+                value: pix.receiverIspbName!,
+              ),
+            if (pix.totalAmount != null)
+              InfoRow(
+                icon: Symbols.payments,
+                label: 'Valor total',
+                value: formatMoney(pix.totalAmount) +
+                    (pix.interest != null || pix.fine != null
+                        ? ' (com encargos)'
+                        : ''),
+              ),
+            if (pix.dueDate != null)
+              InfoRow(
+                icon: Symbols.event,
+                label: 'Vencimento',
+                value: formatDate(pix.dueDate),
+              ),
+            InfoRow(
+              icon: Symbols.schedule,
+              label: 'Consultado em',
+              value: formatDateTime(pix.consultedAt),
+            ),
+          ],
+          if (bankSlip != null && pix != null)
+            const SizedBox(height: AppSpacing.sm),
+          if (bankSlip != null) ...[
+            Text(
+              'Registro do boleto',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            InfoRow(
+              icon: Symbols.storefront,
+              label: 'Beneficiário',
+              value: bankSlip.beneficiary?.displayName ?? 'Não informado',
+            ),
+            if (bankSlip.beneficiary?.taxId != null)
+              InfoRow(
+                icon: Symbols.badge,
+                label: 'Documento',
+                value: bankSlip.beneficiary!.taxId!,
+              ),
+            if (bankSlip.bankCode != null)
+              InfoRow(
+                icon: Symbols.account_balance,
+                label: 'Banco',
+                value: bankSlip.bankCode!,
+              ),
+            if (bankSlip.amount != null)
+              InfoRow(
+                icon: Symbols.payments,
+                label: 'Valor hoje',
+                value: formatMoney(bankSlip.amount) +
+                    (bankSlip.originalAmount != null &&
+                            bankSlip.originalAmount != bankSlip.amount
+                        ? ' (original ${formatMoney(bankSlip.originalAmount)})'
+                        : ''),
+              ),
+            if (bankSlip.dueDate != null)
+              InfoRow(
+                icon: Symbols.event,
+                label: 'Vencimento',
+                value: formatDate(bankSlip.dueDate),
+              ),
+            InfoRow(
+              icon: Symbols.schedule,
+              label: 'Consultado em',
+              value: formatDateTime(bankSlip.consultedAt),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ChecksSection extends StatelessWidget {
+  const _ChecksSection({required this.bill});
+
+  final BillDetail bill;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      title: 'Verificações (${bill.checks.length})',
+      child: Column(
+        children: [
+          for (final check in bill.checks)
+            _CheckTile(check: check, readingStatus: bill.readingStatus),
+        ],
+      ),
+    );
+  }
+}
+
+class _CheckTile extends StatelessWidget {
+  const _CheckTile({required this.check, required this.readingStatus});
+
+  final BillCheck check;
+
+  /// One of [ReadingStatuses]. Only the check that depends on the AI reading
+  /// looks at it.
+  final String readingStatus;
+
+  /// The check the server skips for lack of an AI reading.
+  static const String _readingNotAvailable = 'reading_not_available';
+
+  /// Whether this row is a check still WAITING on the AI queue.
+  ///
+  /// The server is right to skip the check — there is nothing to compare yet —
+  /// but "Não se aplica" reads as a verdict, and the user acted on it as one.
+  /// Pending and inapplicable are different facts and must not share a label.
+  bool get _awaitsReading =>
+      check.reasonCode == _readingNotAvailable &&
+      readingStatus == ReadingStatuses.queued;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final (icon, color) = _awaitsReading
+        ? (Symbols.hourglass_top, cs.tertiary)
+        : switch (check.outcome) {
+            CheckOutcomes.passed => (Symbols.check_circle, cs.primary),
+            CheckOutcomes.failed => (Symbols.cancel, cs.error),
+            CheckOutcomes.inconclusive => (Symbols.help, cs.tertiary),
+            CheckOutcomes.warning => (Symbols.warning, cs.tertiary),
+            _ => (Symbols.remove_circle_outline, cs.outline),
+          };
+
+    final message = _awaitsReading
+        ? 'A leitura por IA ainda está na fila; a comparação é feita quando '
+            'ela chegar.'
+        : check.reasonMessage;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        check.typeLabel,
+                        style: theme.textTheme.bodyLarge,
+                      ),
+                    ),
+                    Text(
+                      _awaitsReading
+                          ? 'Aguardando'
+                          : CheckOutcomes.label(check.outcome),
+                      style:
+                          theme.textTheme.labelMedium?.copyWith(color: color),
+                    ),
+                    if (check.isBlockingFailure)
+                      Padding(
+                        padding: const EdgeInsets.only(left: AppSpacing.xs),
+                        child: Text(
+                          'BLOQUEIA',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: cs.error,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                if (message != null)
+                  Text(
+                    message,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                if (!_awaitsReading &&
+                    check.evidence != null &&
+                    message != check.evidence)
+                  Text(
+                    check.evidence!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OriginSection extends StatelessWidget {
+  const _OriginSection({
+    required this.bill,
+    required this.onOpenArtifact,
+    required this.onOpenEmail,
+  });
+
+  final BillDetail bill;
+  final VoidCallback onOpenArtifact;
+  final VoidCallback onOpenEmail;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      title: 'Origem',
+      child: Column(
+        children: [
+          InfoRow(
+            icon: Symbols.input,
+            label: 'Entrada',
+            value: BillSourceKinds.label(bill.origin.sourceKind),
+          ),
+          if (bill.origin.senderAddress != null)
+            InfoRow(
+              icon: Symbols.person,
+              label: 'Remetente',
+              value: bill.origin.senderAddress!,
+            ),
+          InfoRow(
+            icon: Symbols.schedule,
+            label: 'Recebido em',
+            value: formatDateTime(bill.origin.receivedAt),
+          ),
+
+          // Importação manual nasce só com os dígitos: não há papel para
+          // mostrar, e o botão simplesmente não existe — desabilitar seria
+          // prometer um documento que nunca vai chegar.
+          if (bill.origin.hasArtifact ||
+              bill.origin.sourceKind == BillSourceKinds.mailbox) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  if (bill.origin.hasArtifact)
+                    OutlinedButton.icon(
+                      onPressed: onOpenArtifact,
+                      icon: const Icon(Symbols.description),
+                      label: const Text('Ver documento'),
+                    ),
+                  // Só boleto vindo de caixa tem e-mail por trás — para os
+                  // demais o botão não existe, como o de documento.
+                  if (bill.origin.sourceKind == BillSourceKinds.mailbox)
+                    OutlinedButton.icon(
+                      onPressed: onOpenEmail,
+                      icon: const Icon(Symbols.mail),
+                      label: const Text('Ver e-mail'),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DecisionSection extends StatelessWidget {
+  const _DecisionSection({required this.bill});
+
+  final BillDetail bill;
+
+  @override
+  Widget build(BuildContext context) {
+    final approval = bill.approval!;
+    return SectionCard(
+      title: 'Decisão',
+      child: Column(
+        children: [
+          InfoRow(
+            icon: Symbols.gavel,
+            label: 'Decisão',
+            value: approval.decision,
+          ),
+          InfoRow(
+            icon: Symbols.schedule,
+            label: 'Quando',
+            value: formatDateTime(approval.decidedAt),
+          ),
+          if (approval.note != null)
+            InfoRow(
+              icon: Symbols.notes,
+              label: 'Observação',
+              value: approval.note!,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A execução financeira do boleto aprovado (fase 3).
+///
+/// A ordem é a fonte de verdade da execução; o boleto só a espelha. Sem
+/// ordem ainda, o card diz "em processamento" — a janela observável entre a
+/// aprovação e o outbox, que não é erro.
+class _PaymentSection extends StatelessWidget {
+  const _PaymentSection({required this.viewModel, this.onOpenReceipt});
+
+  final BillDetailViewModel viewModel;
+  final VoidCallback? onOpenReceipt;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final order = viewModel.payment;
+
+    if (order == null) {
+      return const SectionCard(
+        title: 'Pagamento',
+        child: InfoRow(
+          icon: Symbols.hourglass_top,
+          label: 'Situação',
+          value: 'Agendamento em processamento…',
+        ),
+      );
+    }
+
+    final holdLabel = PaymentOrderHolds.label(order.hold);
+    final effectiveDiffers = order.effectiveScheduleDate != null &&
+        !_sameDay(order.effectiveScheduleDate!, order.requestedScheduleDate);
+
+    return SectionCard(
+      title: 'Pagamento',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InfoRow(
+            icon: Symbols.account_balance,
+            label: 'Situação',
+            value: PaymentOrderStatuses.label(order.status),
+          ),
+          if (holdLabel != null)
+            InfoRow(
+              icon: Symbols.pause_circle,
+              label: 'Retenção',
+              value: holdLabel,
+            ),
+          InfoRow(
+            icon: Symbols.event,
+            label: 'Data pedida',
+            value: formatDate(order.requestedScheduleDate),
+          ),
+          if (order.effectiveScheduleDate != null)
+            InfoRow(
+              icon: Symbols.event_available,
+              // A data efetiva pode diferir da pedida: antecedência de 24h,
+              // janela de submissão e dia útil deslizam para frente.
+              label: effectiveDiffers ? 'Data efetiva (deslizou)' : 'Data efetiva',
+              value: formatDate(order.effectiveScheduleDate),
+            ),
+          if (order.amount != null)
+            InfoRow(
+              icon: Symbols.payments,
+              label: 'Valor',
+              value: formatMoney(order.amount),
+            ),
+          if (order.fee != null)
+            InfoRow(
+              icon: Symbols.toll,
+              label: 'Taxa do provedor',
+              value: formatMoney(order.fee),
+            ),
+          if (order.paidAt != null)
+            InfoRow(
+              icon: Symbols.task_alt,
+              label: 'Pago em',
+              value: formatDate(order.paidAt),
+            ),
+          for (final reason in order.failReasons)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Text(
+                reason,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.error),
+              ),
+            ),
+          if (order.hasFailed && order.lastError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Text(
+                order.lastError!,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              // O vencido só é pago com gente confirmando (ADR-017): o botão
+              // é a outra metade do aviso de retenção logo acima.
+              if (order.requiresConfirmation)
+                BillPaymentPermissionGuard(
+                  resource: BillPaymentResources.bill,
+                  scope: BillPaymentScopes.approve,
+                  child: FilledButton.tonal(
+                    onPressed: viewModel.isMutating
+                        ? null
+                        : () => _confirmImmediate(context),
+                    child: const Text('Confirmar pagamento imediato'),
+                  ),
+                ),
+              if (order.canCancel)
+                BillPaymentPermissionGuard(
+                  resource: BillPaymentResources.bill,
+                  scope: BillPaymentScopes.cancel,
+                  child: OutlinedButton(
+                    onPressed: viewModel.isMutating
+                        ? null
+                        : () => _confirmCancel(context),
+                    child: const Text('Cancelar agendamento'),
+                  ),
+                ),
+              if (order.hasReceipt && onOpenReceipt != null)
+                OutlinedButton.icon(
+                  icon: const Icon(Symbols.receipt),
+                  onPressed: onOpenReceipt,
+                  label: const Text('Ver comprovante'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  Future<void> _confirmImmediate(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Pagar imediatamente?'),
+        content: const Text(
+          'O boleto venceu antes do agendamento, e conta vencida é '
+          'processada na hora — sem janela para cancelar depois. Confirma o '
+          'pagamento imediato?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Pagar agora'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) await viewModel.confirmImmediatePayment();
+  }
+
+  Future<void> _confirmCancel(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cancelar o agendamento?'),
+        content: const Text(
+          'O pagamento não será feito. Depois que o provedor começa a '
+          'processar, cancelar pode não ser mais possível.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Cancelar agendamento'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) await viewModel.cancelPayment();
+  }
+}
+
+class _Actions extends StatelessWidget {
+  const _Actions({required this.viewModel});
+
+  final BillDetailViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final bill = viewModel.bill!;
+    if (bill.isTerminal) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (bill.acceptsDecision && viewModel.isSnapshotStale)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Text(
+              'Consulta desatualizada — revalide antes de aprovar.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.tertiary,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          alignment: WrapAlignment.center,
+          children: [
+            if (bill.acceptsValidation)
+              BillPaymentPermissionGuard(
+                resource: BillPaymentResources.bill,
+                scope: BillPaymentScopes.validate,
+                child: OutlinedButton(
+                  onPressed:
+                      viewModel.isMutating ? null : viewModel.revalidate,
+                  child: const Text('Revalidar'),
+                ),
+              ),
+            if (bill.acceptsDecision)
+              BillPaymentPermissionGuard(
+                resource: BillPaymentResources.bill,
+                scope: BillPaymentScopes.deny,
+                child: OutlinedButton(
+                  onPressed: viewModel.isMutating
+                      ? null
+                      : () => _askReason(
+                            context,
+                            title: 'Negar o boleto',
+                            action: viewModel.deny,
+                          ),
+                  child: const Text('Negar'),
+                ),
+              ),
+            if (bill.acceptsCancellation)
+              BillPaymentPermissionGuard(
+                resource: BillPaymentResources.bill,
+                scope: BillPaymentScopes.cancel,
+                child: TextButton(
+                  onPressed: viewModel.isMutating
+                      ? null
+                      : () => _askReason(
+                            context,
+                            title: 'Cancelar o boleto',
+                            action: viewModel.cancel,
+                          ),
+                  child: const Text('Cancelar boleto'),
+                ),
+              ),
+            // O falhado volta à fila de decisão (fase 3): a nova tentativa é
+            // uma nova aprovação e uma nova ordem — poder de quem aprova.
+            if (bill.acceptsReopen)
+              BillPaymentPermissionGuard(
+                resource: BillPaymentResources.bill,
+                scope: BillPaymentScopes.approve,
+                child: FilledButton.tonal(
+                  onPressed: viewModel.isMutating
+                      ? null
+                      : () => _confirmReopen(context),
+                  child: const Text('Reabrir para nova tentativa'),
+                ),
+              ),
+            if (bill.acceptsDecision)
+              BillPaymentPermissionGuard(
+                resource: BillPaymentResources.bill,
+                scope: BillPaymentScopes.approve,
+                child: Builder(builder: (context) {
+                  // Alçada por risco (espelho do BLP.BIL32): sem o escopo do
+                  // nível, o botão desabilita com o motivo à vista — o
+                  // servidor recusaria com 403 de qualquer jeito.
+                  final hasClearance = context
+                      .watch<BillPaymentPermissionNotifier>()
+                      .canApproveAtRisk(viewModel.bill?.riskLevel);
+                  return Tooltip(
+                    message: hasClearance
+                        ? ''
+                        : 'Boleto em ${RiskLevels.label(viewModel.bill?.riskLevel)} '
+                            '— acima da sua alçada de aprovação.',
+                    child: FilledButton(
+                      onPressed: viewModel.isMutating ||
+                              !viewModel.canApprove ||
+                              !hasClearance
+                          ? null
+                          : () => _approveSheet(context),
+                      child: const Text('Aprovar…'),
+                    ),
+                  );
+                }),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmReopen(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reabrir o boleto?'),
+        content: const Text(
+          'O boleto volta para a fila de aprovação. A nova tentativa exige '
+          'aprovar de novo, e cria uma nova ordem de pagamento — a falhada '
+          'fica registrada como histórico.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Reabrir'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) await viewModel.reopen();
+  }
+
+  /// Motivo obrigatório: recusa sem motivo é buraco de auditoria.
+  Future<void> _askReason(
+    BuildContext context, {
+    required String title,
+    required Future<bool> Function(String reason) action,
+  }) async {
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Motivo (obrigatório)',
+              border: OutlineInputBorder(),
+            ),
+            validator: (value) => (value == null || value.trim().isEmpty)
+                ? 'Informe o motivo.'
+                : null,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton.tonal(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.of(dialogContext).pop(true);
+              }
+            },
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) await action(controller.text.trim());
+    controller.dispose();
+  }
+
+  Future<void> _approveSheet(BuildContext context) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          left: AppSpacing.md,
+          right: AppSpacing.md,
+          top: AppSpacing.md,
+          bottom:
+              MediaQuery.of(sheetContext).viewInsets.bottom + AppSpacing.md,
+        ),
+        child: _ApproveSheet(viewModel: viewModel),
+      ),
+    );
+  }
+}
+
+/// A folha "Autorizar pagamento": data, observação, os aceites do ADR-015 e
+/// do ADR-017, e a prévia informativa da data efetiva.
+///
+/// É um widget com estado próprio — e não um `StatefulBuilder` — porque o
+/// [TextEditingController] precisa viver até a animação de saída da folha
+/// terminar; descartá-lo no `await` do `showModalBottomSheet` quebra o
+/// último frame do `TextField`.
+class _ApproveSheet extends StatefulWidget {
+  const _ApproveSheet({required this.viewModel});
+
+  final BillDetailViewModel viewModel;
+
+  @override
+  State<_ApproveSheet> createState() => _ApproveSheetState();
+}
+
+class _ApproveSheetState extends State<_ApproveSheet> {
+  final _noteController = TextEditingController();
+  late final DateTime _earliest;
+  late DateTime _scheduleFor;
+  var _riskAcknowledged = false;
+  var _immediateAcknowledged = false;
+  // O relógio da tela e o do servidor podem discordar sobre "vencido" na
+  // virada do dia — quando o servidor recusar com BLP.BIL35, a caixa
+  // aparece aqui mesmo, sem fechar a folha nem perder o formulário.
+  var _serverSaysOverdue = false;
+  var _submitting = false;
+  SchedulePreview? _preview;
+
+  @override
+  void initState() {
+    super.initState();
+    _earliest = widget.viewModel.earliestScheduleDate;
+    _scheduleFor = _earliest;
+    _fetchPreview(_scheduleFor);
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  /// A prévia é INFORMATIVA: falha não desenha nada e nunca trava a
+  /// autorização; resposta que chegar depois de a data mudar (ou de a folha
+  /// fechar) é descartada como obsoleta.
+  Future<void> _fetchPreview(DateTime date) async {
+    final preview = await widget.viewModel.previewSchedule(date);
+    if (!mounted || _scheduleFor != date) return;
+    setState(() => _preview = preview);
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _scheduleFor,
+      firstDate: _earliest,
+      lastDate: _earliest.add(const Duration(days: 365)),
+    );
+    if (picked == null) return;
+    setState(() {
+      _scheduleFor = picked;
+      _preview = null;
+    });
+    _fetchPreview(picked);
+  }
+
+  Future<void> _authorize() async {
+    setState(() => _submitting = true);
+    final note = _noteController.text.trim();
+    final approved = await widget.viewModel.approve(
+      scheduleFor: _scheduleFor,
+      note: note.isEmpty ? null : note,
+      acknowledgeRisk: _riskAcknowledged,
+      acknowledgeImmediateExecution: _immediateAcknowledged,
+    );
+    if (!mounted) return;
+    if (!approved && widget.viewModel.lastErrorCode == 'BLP.BIL35') {
+      // O cinto extra do descompasso de relógio: a recusa vira a caixa de
+      // aceite, no lugar, com o formulário intacto.
+      setState(() {
+        _submitting = false;
+        _serverSaysOverdue = true;
+        _immediateAcknowledged = false;
+      });
+      return;
+    }
+    // Sucesso fecha; outra recusa também — a mensagem do domínio já está no
+    // detalhe pelo caminho de sempre (errorMessage).
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = widget.viewModel;
+    final needsAcknowledgement =
+        viewModel.bill?.requiresRiskAcknowledgement ?? false;
+    final riskLabel = RiskLevels.label(viewModel.bill?.riskLevel);
+    // ADR-017 do BC: boleto vencido é processado NA HORA pelo provedor, sem
+    // janela de reação — aprovar exige o aceite explícito, gravado na
+    // trilha. A caixa aparece quando a tela vê o vencimento, quando a
+    // prévia do servidor diz "imediato" ou quando o próprio servidor
+    // recusou com BLP.BIL35.
+    final needsImmediateAck = viewModel.isOverdue ||
+        _serverSaysOverdue ||
+        (_preview?.immediate ?? false);
+    final preview = _preview;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Autorizar pagamento',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        OutlinedButton.icon(
+          icon: const Icon(Symbols.event),
+          label: Text('Pagar em ${formatDate(_scheduleFor)}'),
+          onPressed: _pickDate,
+        ),
+        if (preview != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            preview.immediate
+                ? 'Pagamento será executado imediatamente, sem agendamento.'
+                : 'Pagamento será executado em '
+                    '${formatDate(preview.effectiveDate)}'
+                    '${preview.slid ? ' (deslizou do dia pedido)' : ''}.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.md),
+        TextField(
+          controller: _noteController,
+          decoration: const InputDecoration(
+            labelText: 'Observação (opcional)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        // ADR-015: boleto em Perigo ou Extremo Perigo só autoriza com o
+        // aceite marcado — e o servidor recusa sem ele, então o botão nem
+        // habilita.
+        if (needsAcknowledgement) ...[
+          const SizedBox(height: AppSpacing.md),
+          CheckboxListTile(
+            value: _riskAcknowledged,
+            onChanged: (value) =>
+                setState(() => _riskAcknowledged = value ?? false),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              'Vi o alerta de $riskLabel e assumo o risco de autorizar '
+              'este pagamento.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ],
+        if (_serverSaysOverdue) ...[
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'O servidor considera este boleto vencido: o pagamento sai '
+            'imediatamente, sem agendamento. Marque o aceite para reenviar.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+          ),
+        ],
+        if (needsImmediateAck) ...[
+          const SizedBox(height: AppSpacing.md),
+          CheckboxListTile(
+            value: _immediateAcknowledged,
+            onChanged: (value) =>
+                setState(() => _immediateAcknowledged = value ?? false),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              'Este boleto está vencido e será pago imediatamente, sem '
+              'agendamento. Confirmo o pagamento na hora.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        FilledButton(
+          onPressed: _submitting ||
+                  (needsAcknowledgement && !_riskAcknowledged) ||
+                  (needsImmediateAck && !_immediateAcknowledged)
+              ? null
+              : _authorize,
+          child: const Text('Autorizar'),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+      ],
+    );
+  }
+}

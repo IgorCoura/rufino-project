@@ -2,11 +2,10 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:rufino_v2/core/utils/document_scanner_service.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_v2/core/utils/document_scanner_service_stub.dart'
     as stub;
 
-import '../../../testing/mocks/mocks.dart';
 
 void main() {
   group('DocumentScannerService', () {
@@ -97,3 +96,8 @@ void main() {
     });
   });
 }
+
+/// Mock local: os mocks dos repositorios do produto foram para o pacote,
+/// e este teste cobre a FACTORY, que ficou na casca.
+class MockDocumentScannerService extends Mock
+    implements DocumentScannerService {}

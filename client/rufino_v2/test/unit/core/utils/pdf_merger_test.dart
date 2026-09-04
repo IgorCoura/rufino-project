@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/core/utils/pdf_merger.dart';
+import 'package:people_management/people_management.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 /// Creates a valid PDF with the given [pageCount] pages, each containing

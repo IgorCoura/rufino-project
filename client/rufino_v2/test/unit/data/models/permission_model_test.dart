@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/data/models/permission_model.dart';
-import 'package:rufino_v2/domain/entities/permission.dart';
+import 'package:rufino_core/rufino_core.dart';
 
 void main() {
   group('PermissionModel', () {

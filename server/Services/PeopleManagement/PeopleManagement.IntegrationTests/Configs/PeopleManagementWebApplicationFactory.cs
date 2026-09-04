@@ -1,4 +1,4 @@
-using Amazon;
+﻿using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
 using Testcontainers.LocalStack;
@@ -54,6 +54,11 @@ namespace PeopleManagement.IntegrationTests.Configs
             {
                 DbAdapter = DbAdapter.Postgres,
                 SchemasToInclude = ["people_management"],
+
+                // O histórico de migrações vive dentro de people_management e NÃO é dado de teste:
+                // apagá-lo faz o próximo host subir achando que o banco está vazio e tentar criar tudo
+                // outra vez, morrendo em 42P07 "relation already exists".
+                TablesToIgnore = [new Respawn.Graph.Table("people_management", "__EFMigrationsHistory")],
             });
         }
 
@@ -61,6 +66,24 @@ namespace PeopleManagement.IntegrationTests.Configs
         {
             // Ambiente dedicado de teste: desliga os workers do Hangfire (gate no Program.cs) e o seed do PopulateDb.
             builder.UseEnvironment("IntegrationTest");
+
+            // O limitador de taxa fica DESLIGADO na suíte: os testes batem no mesmo usuário centenas
+            // de vezes por minuto e estourariam o teto global, produzindo 429 em teste que nada tem a
+            // ver com limite. A prova de que o limitador funciona vive em RateLimitingTests, num host
+            // próprio com teto de 2.
+            builder.ConfigureAppConfiguration((_, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["RateLimiting:Enabled"] = "false",
+
+                    // O cache do retrato de permissoes fica DESLIGADO na suite: os testes
+                    // batem no mesmo host trocando o cenario de permissao, e o cache — que e
+                    // chaveado pelo token, como tem que ser — devolveria o retrato anterior.
+                    // Quem prova que ele funciona e RptCacheTests, que troca o token de proposito.
+                    ["Keycloak:RptCacheEnabled"] = "false",
+                });
+            });
 
             builder.ConfigureTestServices(services =>
             {
@@ -77,6 +100,11 @@ namespace PeopleManagement.IntegrationTests.Configs
                         _dbContainer.GetConnectionString(),
                         npgsqlOptionsAction: sqlOptions =>
                         {
+                            // Repete o que o Program.cs configura. Esta registração é a última, então é
+                            // ela que vale para o contexto resolvido pelo DI — inclusive o que roda o
+                            // Migrate. Sem isto a suíte validaria um layout de histórico que o deploy
+                            // nunca produz, que é justamente o tipo de defeito que ela existe para pegar.
+                            sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", PeopleManagementContext.DEFAULT_SCHEMA);
                             sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
                         }).UseExceptionProcessor()
                         .EnableDetailedErrors()
@@ -119,14 +147,24 @@ namespace PeopleManagement.IntegrationTests.Configs
 
                 services.AddSingleton<IAuthorizationHandler, MockAccessRequirementHandler>();
 
-                services.AddSingleton<IAuthorizationPolicyProvider>(x => new ProtectedResourcePolicyProvider(
-                param =>
+                // O que a suíte substitui é a ida ao Keycloak (o ProtectedResourceRequirement), NUNCA
+                // o nome do parâmetro de rota nem o do claim: os dois vêm do mesmo AuthorizationOptions
+                // que a produção monta. Escritos à mão aqui, trocar o claim no appsettings deixava a
+                // suíte verde exercitando um guard que o deploy não produz — foi o que aconteceu quando
+                // "companies" virou "pm_tenants" e nada quebrou.
+                services.AddSingleton<IAuthorizationPolicyProvider>(x =>
                 {
-                    var policy = new AuthorizationPolicyBuilder(MockAuthenticationHandler.AuthScheme);
-                    policy.AddRequirements(new MockAccessRequirement("company", "companies"));
-                    return policy;
-                })
-            );
+                    var authorizationOptions = x.GetRequiredService<API.Authorization.AuthorizationOptions>();
+
+                    return new ProtectedResourcePolicyProvider(param =>
+                    {
+                        var policy = new AuthorizationPolicyBuilder(MockAuthenticationHandler.AuthScheme);
+                        policy.AddRequirements(new MockAccessRequirement(
+                            authorizationOptions.RouteNameRequirement,
+                            authorizationOptions.RouteClaimTypeRequirement));
+                        return policy;
+                    });
+                });
             });
         }
 

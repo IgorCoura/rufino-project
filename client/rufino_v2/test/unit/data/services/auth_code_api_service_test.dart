@@ -9,7 +9,6 @@ import 'package:rufino_v2/data/services/auth_code_api_service.dart';
 import 'package:rufino_v2/data/services/oauth_login_strategy.dart';
 
 import '../../../testing/fakes/fake_secure_storage.dart';
-
 /// Strategy stub for tests that never reach the browser dance.
 class _UnusedStrategy implements OAuthLoginStrategy {
   @override

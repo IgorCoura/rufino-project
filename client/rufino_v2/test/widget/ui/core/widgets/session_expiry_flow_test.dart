@@ -4,11 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' as http_testing;
 import 'package:provider/provider.dart';
-import 'package:rufino_v2/core/network/session_aware_http_client.dart';
+import 'package:rufino_core/rufino_core.dart';
 import 'package:rufino_v2/domain/repositories/auth_repository.dart';
 import 'package:rufino_v2/ui/core/widgets/session_expired_listener.dart';
 import 'package:rufino_v2/ui/features/auth/viewmodel/auth_session_notifier.dart';
-import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
 
 import '../../../../testing/fakes/fake_auth_repository.dart';
 import '../../../../testing/fakes/fake_permission_repository.dart';

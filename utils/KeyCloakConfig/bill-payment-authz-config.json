@@ -1,0 +1,455 @@
+{
+  "allowRemoteResourceManagement": true,
+  "policyEnforcementMode": "ENFORCING",
+  "resources": [
+    {
+      "name": "bill",
+      "ownerManagedAccess": false,
+      "displayName": "Boletos: entrada, verificacao e decisao",
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "import"
+        },
+        {
+          "name": "validate"
+        },
+        {
+          "name": "approve"
+        },
+        {
+          "name": "deny"
+        },
+        {
+          "name": "cancel"
+        },
+        {
+          "name": "approve-attention"
+        },
+        {
+          "name": "approve-danger"
+        },
+        {
+          "name": "approve-extreme"
+        }
+      ]
+    },
+    {
+      "name": "payer-profile",
+      "ownerManagedAccess": false,
+      "displayName": "Cadastro fiscal do tenant (deriva senha de PDF e roteamento)",
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "manage"
+        }
+      ]
+    },
+    {
+      "name": "payee",
+      "ownerManagedAccess": false,
+      "displayName": "Beneficiarios cadastrados",
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "manage"
+        }
+      ]
+    },
+    {
+      "name": "origin",
+      "ownerManagedAccess": false,
+      "displayName": "Origens confiaveis (remetentes)",
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "manage"
+        }
+      ]
+    },
+    {
+      "name": "capture-source",
+      "ownerManagedAccess": false,
+      "displayName": "Caixas de e-mail monitoradas",
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "manage"
+        },
+        {
+          "name": "sync"
+        }
+      ]
+    },
+    {
+      "name": "capture-item",
+      "ownerManagedAccess": false,
+      "displayName": "Artefatos capturados e quarentena",
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "claim"
+        },
+        {
+          "name": "reprocess"
+        }
+      ]
+    },
+    {
+      "name": "expectation",
+      "ownerManagedAccess": false,
+      "displayName": "Expectativas de boleto e alertas do que nao chegou",
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "manage"
+        },
+        {
+          "name": "waive"
+        }
+      ]
+    },
+    {
+      "name": "captured-message",
+      "displayName": "Livro-caixa da captura",
+      "type": "urn:bill-payment-api:resources:captured-message",
+      "ownerManagedAccess": false,
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "recapture"
+        }
+      ]
+    },
+    {
+      "name": "capture-retention",
+      "displayName": "Retencao do livro-caixa",
+      "type": "urn:bill-payment-api:resources:capture-retention",
+      "ownerManagedAccess": false,
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "manage"
+        }
+      ]
+    }
+  ],
+  "policies": [
+    {
+      "name": "Bill Admin Policy",
+      "description": "Administra o BC inteiro: cadastros, captura, expectativas e decisao sobre boleto.",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\":\"bill-payment-api/bill-admin\",\"required\":false}]"
+      }
+    },
+    {
+      "name": "Bill Approver Policy",
+      "description": "Decide o destino do boleto: aprovar autoriza dinheiro a sair (ADR-007). NAO inclui o bill-admin desde 2026-09-04 (segregacao de funcoes): quem precisa dos dois recebe os dois papeis, e isso fica visivel na auditoria.",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\": \"bill-payment-api/bill-approver\", \"required\": false}]"
+      }
+    },
+    {
+      "name": "Bill Operator Policy",
+      "description": "Opera o dia a dia: importa, revalida, mantem cadastros, sincroniza caixa e reivindica item. NAO decide boleto.",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\":\"bill-payment-api/bill-admin\",\"required\":false},{\"id\":\"bill-payment-api/bill-operator\",\"required\":false}]"
+      }
+    },
+    {
+      "name": "Bill Viewer Policy",
+      "description": "So leitura. Todo papel deste BC alcanca a leitura.",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\":\"bill-payment-api/bill-admin\",\"required\":false},{\"id\":\"bill-payment-api/bill-approver\",\"required\":false},{\"id\":\"bill-payment-api/bill-operator\",\"required\":false},{\"id\":\"bill-payment-api/bill-viewer\",\"required\":false}]"
+      }
+    },
+    {
+      "name": "Bill Read Permission",
+      "description": "Consultar boletos, cadastros, captura e expectativas.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"bill\",\"payer-profile\",\"payee\",\"origin\",\"capture-source\",\"capture-item\",\"expectation\"]",
+        "scopes": "[\"view\"]",
+        "applyPolicies": "[\"Bill Viewer Policy\"]"
+      }
+    },
+    {
+      "name": "Bill Operation Permission",
+      "description": "Importar e revalidar boleto. Cada permissao lista SO os recursos que declaram os escopos dela — a forma cartesiana anterior citava pares que nao existem (bill#manage, payee#import) e tornava a permissao ilegivel no console.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"bill\"]",
+        "scopes": "[\"import\", \"validate\"]",
+        "applyPolicies": "[\"Bill Operator Policy\"]"
+      }
+    },
+    {
+      "name": "Bill Registry Permission",
+      "description": "Manter os cadastros de beneficiario, origem confiavel e expectativa de boleto.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"payee\", \"origin\", \"expectation\"]",
+        "scopes": "[\"manage\"]",
+        "applyPolicies": "[\"Bill Operator Policy\"]"
+      }
+    },
+    {
+      "name": "Capture Item Operation Permission",
+      "description": "Reivindicar e reprocessar artefato da quarentena. O reprocess gasta cota do extrator de visao, e por isso e escopo proprio.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"capture-item\"]",
+        "scopes": "[\"claim\", \"reprocess\"]",
+        "applyPolicies": "[\"Bill Operator Policy\"]"
+      }
+    },
+    {
+      "name": "Capture Source Sync Permission",
+      "description": "Sincronizar uma caixa JA conectada e rotina de operacao. Separado do manage, que conecta a caixa com a credencial do Entra ID do cliente.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"capture-source\"]",
+        "scopes": "[\"sync\"]",
+        "applyPolicies": "[\"Bill Operator Policy\"]"
+      }
+    },
+    {
+      "name": "Bill Credential Permission",
+      "description": "Conectar caixa de e-mail (credencial do Entra ID do cliente — quem a tem passa a ler a correspondencia da empresa) e vincular a chave Asaas do tenant (a credencial que PAGA CONTAS). Decisao de instalacao, como a retencao: administrador, nunca operador.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"capture-source\", \"payer-profile\"]",
+        "scopes": "[\"manage\"]",
+        "applyPolicies": "[\"Bill Admin Policy\"]"
+      }
+    },
+    {
+      "name": "Bill Decision Permission",
+      "description": "Aprovar, recusar e cancelar boleto. Separada da operacao de proposito: quem importa nao decide.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"bill\"]",
+        "scopes": "[\"approve\",\"deny\",\"cancel\"]",
+        "applyPolicies": "[\"Bill Approver Policy\"]"
+      }
+    },
+    {
+      "name": "Expectation Waive Permission",
+      "description": "Dispensar ciclo de expectativa e silenciar a rede de seguranca daquela conta (ADR-014) — por isso vai com quem decide, nao com quem cadastra.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"expectation\"]",
+        "scopes": "[\"waive\"]",
+        "applyPolicies": "[\"Bill Approver Policy\"]"
+      }
+    },
+    {
+      "name": "Captured Message Read Permission",
+      "description": "Consultar o historico de e-mails lidos pela captura. Recurso proprio: a quarentena e fila de trabalho, isto e historico e inclui o e-mail descartado.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"captured-message\"]",
+        "scopes": "[\"view\"]",
+        "applyPolicies": "[\"Bill Viewer Policy\"]"
+      }
+    },
+    {
+      "name": "Captured Message Recapture Permission",
+      "description": "Reprocessar um e-mail do zero. Escopo proprio porque reingerir consome cota do extrator de visao, pela mesma razao que separou capture-item:reprocess.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"captured-message\"]",
+        "scopes": "[\"recapture\"]",
+        "applyPolicies": "[\"Bill Operator Policy\"]"
+      }
+    },
+    {
+      "name": "Capture Retention Read Permission",
+      "description": "Ver o prazo de retencao em vigor. Quem opera precisa dele para interpretar a tela.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"capture-retention\"]",
+        "scopes": "[\"view\"]",
+        "applyPolicies": "[\"Bill Viewer Policy\"]"
+      }
+    },
+    {
+      "name": "Capture Retention Manage Permission",
+      "description": "Ligar, desligar e escolher o prazo de retencao do historico. Decisao de instalacao, nao de operacao — por isso fica com o administrador.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"capture-retention\"]",
+        "scopes": "[\"manage\"]",
+        "applyPolicies": "[\"Bill Admin Policy\"]"
+      }
+    },
+    {
+      "name": "Bill Approve Attention Policy",
+      "description": "Alcada para aprovar boleto de nivel attention.",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\": \"bill-payment-api/bill-approver-attention\", \"required\": false}]"
+      }
+    },
+    {
+      "name": "Bill Approve Attention Permission",
+      "description": "Concede bill:approve-attention.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"bill\"]",
+        "scopes": "[\"approve-attention\"]",
+        "applyPolicies": "[\"Bill Approve Attention Policy\"]"
+      }
+    },
+    {
+      "name": "Bill Approve Danger Policy",
+      "description": "Alcada para aprovar boleto de nivel danger.",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\": \"bill-payment-api/bill-approver-danger\", \"required\": false}]"
+      }
+    },
+    {
+      "name": "Bill Approve Danger Permission",
+      "description": "Concede bill:approve-danger.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"bill\"]",
+        "scopes": "[\"approve-danger\"]",
+        "applyPolicies": "[\"Bill Approve Danger Policy\"]"
+      }
+    },
+    {
+      "name": "Bill Approve Extreme Policy",
+      "description": "Alcada para aprovar boleto de nivel extreme.",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\": \"bill-payment-api/bill-approver-extreme\", \"required\": false}]"
+      }
+    },
+    {
+      "name": "Bill Approve Extreme Permission",
+      "description": "Concede bill:approve-extreme.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"bill\"]",
+        "scopes": "[\"approve-extreme\"]",
+        "applyPolicies": "[\"Bill Approve Extreme Policy\"]"
+      }
+    }
+  ],
+  "scopes": [
+    {
+      "name": "view"
+    },
+    {
+      "name": "import"
+    },
+    {
+      "name": "validate"
+    },
+    {
+      "name": "approve"
+    },
+    {
+      "name": "deny"
+    },
+    {
+      "name": "cancel"
+    },
+    {
+      "name": "manage"
+    },
+    {
+      "name": "sync"
+    },
+    {
+      "name": "claim"
+    },
+    {
+      "name": "reprocess"
+    },
+    {
+      "name": "waive"
+    },
+    {
+      "name": "recapture"
+    },
+    {
+      "name": "approve-attention"
+    },
+    {
+      "name": "approve-danger"
+    },
+    {
+      "name": "approve-extreme"
+    }
+  ],
+  "decisionStrategy": "UNANIMOUS"
+}

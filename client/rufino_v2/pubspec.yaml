@@ -1,12 +1,40 @@
 name: rufino_v2
-description: "Rufino — gestão de pessoas"
+description: "Rufino — app de gestão de pessoas e de contas a pagar"
 publish_to: 'none'
 version: 2.0.0+6
 
+# Dois produtos distintos dividem esta casca de app: gestão de pessoas e contas a
+# pagar. Eles vivem em pacotes separados para que o limite entre os dois seja
+# imposto pelo compilador, e não combinado — um pacote só enxerga o que declara
+# aqui, então `bill_payment` não consegue importar `people_management` nem por
+# engano.
+#
+# É um pub workspace: um único `flutter pub get`, um único lockfile na raiz.
+# Rodar teste de um pacote é `flutter test` de dentro dele.
+workspace:
+  - packages/rufino_core
+  - packages/bill_payment
+  - packages/people_management
+  - packages/tenant_management
+
 environment:
-  sdk: ^3.5.2
+  # 3.6 é o piso do pub workspace. Abaixo disso a resolução acima é ignorada em
+  # silêncio e cada pacote volta a ter o próprio lockfile.
+  sdk: ^3.6.0
 
 dependencies:
+  rufino_core:
+    path: packages/rufino_core
+  # O seletor de tenant é a porta de entrada do app, e o back-office vive no
+  # mesmo pacote. A casca compõe; o pacote não conhece a casca.
+  tenant_management:
+    path: packages/tenant_management
+  # Contas a pagar: captura, verificação, aprovação e expectativas.
+  bill_payment:
+    path: packages/bill_payment
+  # Gestão de pessoas: funcionários, documentos, cargos e locais de trabalho.
+  people_management:
+    path: packages/people_management
   sentry_flutter: ^9.19.0
   flutter:
     sdk: flutter
@@ -18,17 +46,14 @@ dependencies:
   # Auth
   oauth2: ^2.0.2
   flutter_secure_storage: ^9.2.2
-  jwt_decoder: ^2.0.1
   flutter_appauth: ^7.0.1
   url_launcher: ^6.3.1
-  crypto: ^3.0.3
   # HTTP
   http: ^1.2.2
   file_picker: ^8.1.7
   # UI
   google_fonts: ^6.2.1
   material_symbols_icons: ^4.2719.1
-  shimmer: ^3.0.0
   mask_text_input_formatter: ^2.9.0
   flutter_json_view: ^1.1.5
   syncfusion_flutter_pdf: ^27.1.58
@@ -47,8 +72,6 @@ dependencies:
   # Spreadsheet export
   syncfusion_flutter_xlsio: ^27.1.58
   file_saver: ^0.2.13
-  # Brand assets
-  flutter_svg: ^2.0.10+1
 
 dev_dependencies:
   sentry_dart_plugin: ^3.3.0

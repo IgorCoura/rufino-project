@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/ui/core/widgets/error_dialog.dart';
+import 'package:people_management/people_management.dart';
 
 void main() {
   group('showErrorSnackBar', () {

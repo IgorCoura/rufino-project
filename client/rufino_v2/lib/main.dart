@@ -5,9 +5,8 @@ import 'app.dart';
 import 'core/config/app_config.dart';
 import 'core/config/dev_http_overrides_stub.dart'
     if (dart.library.io) 'core/config/dev_http_overrides.dart';
-import 'core/monitoring/error_reporter.dart';
-import 'core/monitoring/noop_error_reporter.dart';
-import 'core/monitoring/sentry_error_reporter.dart';
+import 'package:rufino_core/rufino_core.dart';
+import './core/monitoring/sentry_error_reporter.dart';
 import 'data/services/auth_code_redirect_handler.dart';
 
 void main() async {

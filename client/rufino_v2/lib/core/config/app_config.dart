@@ -25,6 +25,42 @@ abstract final class AppConfig {
     'people_management_url',
   );
 
+  /// Host of the TenantManagement service, which issues the platform's
+  /// customer identity and answers `GET /api/v1/me/tenants`.
+  ///
+  /// Accepts `host:port` (served over HTTPS) or a full origin
+  /// (`http://host:port`) — this bounded context runs over plain HTTP in
+  /// development, and forcing a scheme here would make one environment
+  /// unusable.
+  static const String tenantManagementUrl = String.fromEnvironment(
+    'tenant_management_url',
+  );
+
+  /// Host of the BillPayment service — captura, verificação e aprovação de
+  /// boletos.
+  ///
+  /// Accepts `host:port` (served over HTTPS) or a full origin
+  /// (`http://host:port`) — this bounded context runs over plain HTTP in
+  /// development (docker compose publishes it at `http://<host>:8100`).
+  static const String billPaymentUrl = String.fromEnvironment(
+    'bill_payment_url',
+  );
+
+  /// The Keycloak client id of the People Management resource server.
+  static const String peopleManagementAudience = 'people-management-api';
+
+  /// The Keycloak client id of the BillPayment resource server.
+  ///
+  /// A third audience, asked for separately — a permission granted on one
+  /// resource server says nothing about the others.
+  static const String billPaymentAudience = 'bill-payment-api';
+
+  /// The Keycloak client id of the TenantManagement resource server.
+  ///
+  /// A separate audience, asked for separately: a permission granted on one
+  /// resource server says nothing about the other.
+  static const String tenantManagementAudience = 'tenant-management-api';
+
   /// Environment mode: "develop" or "production".
   static const String environment = String.fromEnvironment(
     'environment',
@@ -143,6 +179,10 @@ abstract final class AppConfig {
     if (endSessionEndpoint.isEmpty) missing.add('end_session_endpoint');
     if (identifier.isEmpty) missing.add('identifier');
     if (peopleManagementUrl.isEmpty) missing.add('people_management_url');
+    // Sem ele o app não tem por onde escolher o cliente — e a seleção é a
+    // porta de entrada, não um detalhe de um produto.
+    if (tenantManagementUrl.isEmpty) missing.add('tenant_management_url');
+    if (billPaymentUrl.isEmpty) missing.add('bill_payment_url');
 
     if (useDirectAccessGrants) {
       if (authorizationEndpoint.isEmpty) {

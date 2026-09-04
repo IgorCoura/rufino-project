@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:rufino_v2/core/utils/page_rotation_finder.dart';
+import 'package:people_management/people_management.dart';
 
 /// Encodes a 60×40 solid-colour JPEG. Asymmetric dimensions let us verify
 /// that 90°/270° rotations swap width and height.

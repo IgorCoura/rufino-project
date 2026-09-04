@@ -1,41 +1,20 @@
-/// Platform-abstracted document scanning service.
+/// Builds the platform implementation of the product's scanner port.
 ///
-/// Provides camera-based document scanning, OCR text recognition,
-/// and image-to-PDF conversion. Platform implementations are selected
-/// at compile time via conditional imports.
+/// The **contract** lives in `people_management` (`DocumentScannerService`);
+/// only the choice of implementation lives here, because scanning needs the
+/// camera, a runtime permission and an OCR engine — three plugins with native
+/// code. This file is the single place that names them.
 library;
 
-import 'dart:typed_data';
+import 'package:people_management/people_management.dart';
 
 import 'document_scanner_service_stub.dart'
     if (dart.library.js_interop) 'document_scanner_service_web.dart'
-    if (dart.library.io) 'document_scanner_service_mobile.dart'
-    as platform;
+    if (dart.library.io) 'document_scanner_service_mobile.dart' as platform;
 
-/// Contract for document scanning operations.
+/// Returns the [DocumentScannerService] for the platform this build targets.
 ///
-/// Platform implementations handle camera access, image processing,
-/// OCR, and PDF creation. Desktop platforms return unsupported.
-abstract class DocumentScannerService {
-  /// Creates the platform-appropriate [DocumentScannerService].
-  factory DocumentScannerService() = platform.DocumentScannerServiceImpl;
-
-  /// Whether document scanning is available on the current platform.
-  bool get isPlatformSupported;
-
-  /// Opens the native document scanner (mobile) or camera (web).
-  ///
-  /// Returns a list of page images as JPEG bytes, or `null` if the
-  /// user cancelled the operation.
-  Future<List<Uint8List>?> scanPages();
-
-  /// Extracts text from a scanned page image using OCR.
-  ///
-  /// Returns an empty string on platforms without OCR support (web, desktop).
-  Future<String> recognizeText(Uint8List imageBytes);
-
-  /// Converts a list of page images into a single multi-page PDF document.
-  ///
-  /// Each image in [pages] becomes one page in the resulting PDF.
-  Future<Uint8List> imagesToPdf(List<Uint8List> pages);
-}
+/// Desktop gets the stub, which answers `isPlatformSupported == false` instead
+/// of throwing — a product that cannot scan here still has to render.
+DocumentScannerService createDocumentScannerService() =>
+    platform.DocumentScannerServiceImpl();

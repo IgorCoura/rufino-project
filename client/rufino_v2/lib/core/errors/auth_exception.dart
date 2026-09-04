@@ -1,30 +1,17 @@
-import 'expected_failure.dart';
-
-sealed class AuthException implements Exception {
-  const AuthException();
-}
-
-final class InvalidCredentialsException extends AuthException
-    with ExpectedFailure {
-  const InvalidCredentialsException();
-}
-
-final class SessionExpiredException extends AuthException with ExpectedFailure {
-  const SessionExpiredException();
-}
-
-final class NoCredentialsException extends AuthException with ExpectedFailure {
-  const NoCredentialsException();
-}
-
-/// The backend answered 403: the session is valid but the user lacks
-/// permission for the requested resource.
-final class AccessDeniedException extends AuthException with ExpectedFailure {
-  const AccessDeniedException();
-}
-
-final class NetworkAuthException extends AuthException {
-  const NetworkAuthException(this.cause);
-
-  final Object cause;
-}
+/// Reexporta a família que agora vive em `rufino_core`.
+///
+/// Ela subiu junto com o cliente UMA: `SessionExpiredException` e
+/// `AccessDeniedException` são o vocabulário que o `checkApiStatus` dos BCs
+/// novos precisa falar para que o listener de sessão do app continue
+/// reconhecendo 401 e 403 vindos de qualquer produto.
+///
+/// Código novo deve importar `package:rufino_core/rufino_core.dart`.
+library;
+export 'package:rufino_core/rufino_core.dart'
+    show
+        AccessDeniedException,
+        AuthException,
+        InvalidCredentialsException,
+        NetworkAuthException,
+        NoCredentialsException,
+        SessionExpiredException;

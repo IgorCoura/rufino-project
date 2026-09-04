@@ -1,4 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
+﻿#pragma warning disable CS0618 // O arquivo INTEIRO e a feature Archive, descontinuada.
+// Os tipos seguem marcados com [Obsolete] para quem estiver de fora; aqui dentro o aviso
+// so produziria ruido no build de uma feature que ninguem deve mexer.
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
@@ -6,6 +9,7 @@ using System.Text.Json;
 
 namespace PeopleManagement.Infra.Mapping
 {
+    [Obsolete("Feature Archive descontinuada em 2026-09-04: o desenvolvimento parou no meio e os endpoints foram removidos. Nao estenda nem use em codigo novo; ver o plano de refatoracao de autorizacao no CLAUDE.md.")]
     public class ArchiveCategoryMap : EntityMap<ArchiveCategory>
     {
         public override void Configure(EntityTypeBuilder<ArchiveCategory> builder)

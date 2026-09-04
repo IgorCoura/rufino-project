@@ -7,8 +7,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'document_scanner_service.dart';
-import 'image_to_pdf_converter.dart';
+import 'package:people_management/people_management.dart';
 
 /// Web implementation that supports camera capture but not OCR.
 ///
@@ -36,4 +35,10 @@ class DocumentScannerServiceImpl implements DocumentScannerService {
   @override
   Future<Uint8List> imagesToPdf(List<Uint8List> pages) =>
       convertImagesToPdf(pages);
+
+  @override
+  Future<void> openAppSettings() async {
+    // Nao existe pagina de configuracoes do app no navegador: quem decide
+    // permissao de camera ali e o proprio navegador, pela barra de endereco.
+  }
 }

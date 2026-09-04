@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:rufino_v2/core/utils/image_to_pdf_converter.dart';
+import 'package:people_management/people_management.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 /// Creates a minimal valid PNG image with the given dimensions.

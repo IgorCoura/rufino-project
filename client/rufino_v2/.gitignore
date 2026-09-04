@@ -60,6 +60,14 @@ domain_errors.json
 !lib/ui/features/debug/
 !lib/ui/features/debug/**
 
+# Override the repo-root `**/packages/*` rule, que veio do template .NET (NuGet
+# Package Restore). Aqui `packages/` e o pub workspace: os tres pacotes SAO
+# codigo-fonte. Sem esta excecao, o Git ignora a pasta inteira e so entram no
+# repositorio os arquivos MOVIDOS com `git mv` — o que deixou rufino_core sem
+# pubspec.yaml e sem o barril durante um commit inteiro.
+!packages/*
+packages/*/build/
+
 # Secrets — never commit
 /secrets/
 
@@ -69,3 +77,7 @@ sentry.properties
 **/key.properties
 **/*.jks
 **/*.keystore
+
+# Saidas temporarias de ferramenta de migracao — nunca versionadas.
+.analyze*.txt
+.symbol_index.json

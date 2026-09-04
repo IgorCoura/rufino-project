@@ -1,0 +1,115 @@
+{
+  "allowRemoteResourceManagement": true,
+  "policyEnforcementMode": "ENFORCING",
+  "resources": [
+    {
+      "name": "tenant",
+      "type": "None",
+      "ownerManagedAccess": false,
+      "displayName": "Cadastro de tenants (PF e PJ)",
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "create"
+        },
+        {
+          "name": "edit"
+        },
+        {
+          "name": "suspend"
+        }
+      ]
+    },
+    {
+      "name": "tenant-access",
+      "type": "None",
+      "ownerManagedAccess": false,
+      "displayName": "Quem acessa cada tenant",
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "edit"
+        }
+      ]
+    },
+    {
+      "name": "tenant-product",
+      "type": "None",
+      "ownerManagedAccess": false,
+      "displayName": "Produtos habilitados por tenant",
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "edit"
+        }
+      ]
+    }
+  ],
+  "policies": [
+    {
+      "name": "Tenant Admin Policy",
+      "description": "Administra o cadastro inteiro: cria, edita, suspende, habilita produto e distribui acesso.",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\":\"tenant-management-api/tenant-admin\",\"required\":false}]"
+      }
+    },
+    {
+      "name": "Tenant Support Policy",
+      "description": "Só leitura — atendimento consulta o cadastro sem poder alterá-lo.",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\":\"tenant-management-api/tenant-admin\",\"required\":false},{\"id\":\"tenant-management-api/tenant-support\",\"required\":false}]"
+      }
+    },
+    {
+      "name": "Tenant Read Permission",
+      "description": "Consultar cadastro, vínculos e produtos.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"tenant\",\"tenant-access\",\"tenant-product\"]",
+        "scopes": "[\"view\"]",
+        "applyPolicies": "[\"Tenant Support Policy\"]"
+      }
+    },
+    {
+      "name": "Tenant Write Permission",
+      "description": "Cadastrar, editar, suspender, habilitar produto e conceder ou revogar acesso.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"tenant\",\"tenant-access\",\"tenant-product\"]",
+        "scopes": "[\"create\",\"edit\",\"suspend\"]",
+        "applyPolicies": "[\"Tenant Admin Policy\"]"
+      }
+    }
+  ],
+  "scopes": [
+    {
+      "name": "view"
+    },
+    {
+      "name": "create"
+    },
+    {
+      "name": "edit"
+    },
+    {
+      "name": "suspend"
+    }
+  ],
+  "decisionStrategy": "UNANIMOUS"
+}

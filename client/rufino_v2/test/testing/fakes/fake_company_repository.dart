@@ -1,22 +1,26 @@
-import 'package:rufino_v2/core/result.dart';
-import 'package:rufino_v2/domain/entities/company.dart';
-import 'package:rufino_v2/domain/entities/company_detail.dart';
-import 'package:rufino_v2/domain/repositories/company_repository.dart';
+import 'package:rufino_core/rufino_core.dart';
+import 'package:people_management/people_management.dart';
 
 class FakeCompanyRepository implements CompanyRepository {
   List<Company> _companies = [
-    const Company(id: 'company-1', corporateName: 'Acme Corp S.A.', fantasyName: 'Acme', cnpj: '12.345.678/0001-90'),
+    const Company(
+      id: 'company-1',
+      corporateName: 'Acme Corp S.A.',
+      fantasyName: 'Acme',
+      cnpj: '12.345.678/0001-90',
+    ),
   ];
   Company? _selectedCompany;
-  bool _verifyResult = false;
-  bool _verifyError = false;
   bool _selectShouldFail = false;
+  bool _detailShouldFail = false;
+
+  /// Whether [clearSelectedCompany] was called.
+  bool selectionCleared = false;
 
   void setCompanies(List<Company> companies) => _companies = companies;
   void setSelectedCompany(Company? company) => _selectedCompany = company;
-  void setVerifyResult(bool result) => _verifyResult = result;
-  void setVerifyError(bool error) => _verifyError = error;
   void setSelectShouldFail(bool value) => _selectShouldFail = value;
+  void setDetailShouldFail(bool value) => _detailShouldFail = value;
 
   @override
   Future<Result<List<Company>>> getCompanies(List<String> ids) async {
@@ -25,6 +29,9 @@ class FakeCompanyRepository implements CompanyRepository {
 
   @override
   Future<Result<CompanyDetail>> getCompanyDetail(String id) async {
+    if (_detailShouldFail) {
+      return Result.error(Exception('Company not found'));
+    }
     return Result.success(CompanyDetail(
       id: id,
       corporateName: 'Acme Corp S.A.',
@@ -41,11 +48,6 @@ class FakeCompanyRepository implements CompanyRepository {
       state: 'SP',
       country: 'Brasil',
     ));
-  }
-
-  @override
-  Future<Result<String>> createCompany(CompanyDetail company) async {
-    return const Result.success('new-company-id');
   }
 
   @override
@@ -71,8 +73,9 @@ class FakeCompanyRepository implements CompanyRepository {
   }
 
   @override
-  Future<Result<bool>> verifyAndSelectCompany(List<String> validIds) async {
-    if (_verifyError) return Result.error(Exception('Verify failed'));
-    return Result.success(_verifyResult);
+  Future<Result<void>> clearSelectedCompany() async {
+    selectionCleared = true;
+    _selectedCompany = null;
+    return const Result.success(null);
   }
 }

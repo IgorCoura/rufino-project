@@ -1,4 +1,7 @@
-﻿using MediatR;
+﻿#pragma warning disable CS0618 // Ultimo consumidor VIVO da feature Archive: o fluxo de
+// admissao ainda cria e confere os arquivos por evento. A superficie HTTP foi removida em
+// 2026-09-04, esta nao. Enquanto isto existir, Archive nao pode ser apagado do banco.
+using MediatR;
 using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;

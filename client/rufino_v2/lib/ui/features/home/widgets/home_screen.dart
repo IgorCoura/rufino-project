@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:tenant_management/tenant_management.dart';
 
-import '../../../../core/theme/app_breakpoints.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/theme_notifier.dart';
-import '../../../core/widgets/permission_guard.dart';
-import '../../auth/viewmodel/permission_notifier.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../viewmodel/home_viewmodel.dart';
 
+/// The hub the app opens on: the features of the products the selected
+/// customer has enabled, and that this person is allowed to use.
+///
+/// Every entry passes **two** gates. `ProductGuard` answers "is this product
+/// on for this customer?", `ModuleGuard` answers "is this person allowed?".
+/// A group whose entries are all hidden does not render its header — a title
+/// with nothing under it is worse than no title.
 class HomeScreen extends StatefulWidget {
+  /// Creates the screen.
   const HomeScreen({super.key, required this.viewModel});
 
+  /// Drives the screen.
   final HomeViewModel viewModel;
 
   @override
@@ -19,46 +25,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  @override
-  void initState() {
-    super.initState();
-    widget.viewModel.addListener(_onStatusChanged);
-    widget.viewModel.loadCompany();
-  }
-
-  @override
-  void didUpdateWidget(covariant HomeScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.viewModel != widget.viewModel) {
-      oldWidget.viewModel.removeListener(_onStatusChanged);
-      widget.viewModel.addListener(_onStatusChanged);
-      widget.viewModel.loadCompany();
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.viewModel.removeListener(_onStatusChanged);
-    super.dispose();
-  }
-
-  void _onStatusChanged() {
-    if (!mounted) return;
-    if (widget.viewModel.status == HomeStatus.error) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(widget.viewModel.errorMessage ?? 'Erro ao carregar.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-    }
-  }
-
   Future<void> _onLogout() async {
+    final router = GoRouter.of(context);
     await widget.viewModel.logout();
-    if (mounted) context.go('/login');
+    router.go('/login');
   }
 
   @override
@@ -71,22 +41,20 @@ class _HomeScreenState extends State<HomeScreen> {
             title: _AppBarTitle(viewModel: widget.viewModel),
             actions: [
               _UserMenu(
-                onChangeCompany: () => context.go('/company'),
+                onChangeTenant: () => context.go(TenantRoutes.select),
                 onEditCompany: () {
-                  final id = widget.viewModel.company?.id;
+                  final id = widget.viewModel.tenant?.id;
                   if (id != null) context.go('/company/edit/$id');
                 },
+                canEditCompany: widget.viewModel.isPeopleManagementReady,
                 onToggleTheme: () => context.read<ThemeNotifier>().toggle(),
                 isDark: context.watch<ThemeNotifier>().isDark,
-                onRefreshPermissions: () =>
-                    context.read<PermissionNotifier>().loadPermissions(),
+                onRefreshPermissions: widget.viewModel.refreshPermissions,
                 onLogout: _onLogout,
               ),
             ],
           ),
-          body: widget.viewModel.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : const _HomeBody(),
+          body: _HomeBody(viewModel: widget.viewModel),
         );
       },
     );
@@ -100,20 +68,37 @@ class _AppBarTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tenant = viewModel.tenant;
+
     return Row(
       children: [
         CircleAvatar(
-          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          backgroundColor: theme.colorScheme.primaryContainer,
           child: Icon(
-            Icons.business,
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
+            tenant?.isIndividual == true ? Icons.person : Icons.business,
+            color: theme.colorScheme.onPrimaryContainer,
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
-          child: Text(
-            viewModel.companyDisplayName,
-            overflow: TextOverflow.ellipsis,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                viewModel.tenantDisplayName,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (viewModel.tenantSubtitle.isNotEmpty)
+                Text(
+                  viewModel.tenantSubtitle,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
           ),
         ),
       ],
@@ -123,16 +108,18 @@ class _AppBarTitle extends StatelessWidget {
 
 class _UserMenu extends StatelessWidget {
   const _UserMenu({
-    required this.onChangeCompany,
+    required this.onChangeTenant,
     required this.onEditCompany,
+    required this.canEditCompany,
     required this.onToggleTheme,
     required this.isDark,
     required this.onRefreshPermissions,
     required this.onLogout,
   });
 
-  final VoidCallback onChangeCompany;
+  final VoidCallback onChangeTenant;
   final VoidCallback onEditCompany;
+  final bool canEditCompany;
   final VoidCallback onToggleTheme;
   final bool isDark;
   final VoidCallback onRefreshPermissions;
@@ -155,8 +142,8 @@ class _UserMenu extends StatelessWidget {
       ),
       onSelected: (value) {
         switch (value) {
-          case 'change-company':
-            onChangeCompany();
+          case 'change-tenant':
+            onChangeTenant();
           case 'edit-company':
             onEditCompany();
           case 'toggle-theme':
@@ -169,18 +156,23 @@ class _UserMenu extends StatelessWidget {
       },
       itemBuilder: (ctx) => [
         const PopupMenuItem(
-            value: 'change-company', child: Text('Alterar Empresa')),
-        if (ctx.read<PermissionNotifier>().hasPermission('company', 'edit'))
+          value: 'change-tenant',
+          child: Text('Trocar cliente'),
+        ),
+        if (canEditCompany &&
+            ctx.read<PermissionNotifier>().hasPermission('company', 'edit'))
           const PopupMenuItem(
-              value: 'edit-company', child: Text('Editar Empresa')),
+            value: 'edit-company',
+            child: Text('Editar dados da empresa'),
+          ),
         const PopupMenuDivider(),
         PopupMenuItem(
           value: 'toggle-theme',
           child: Row(
             children: [
-              Icon(isDark
-                  ? Icons.light_mode_outlined
-                  : Icons.dark_mode_outlined),
+              Icon(
+                isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              ),
               const SizedBox(width: AppSpacing.sm),
               Text(isDark ? 'Modo Claro' : 'Modo Escuro'),
             ],
@@ -204,15 +196,49 @@ class _UserMenu extends StatelessWidget {
   }
 }
 
+
+
+
+
+const _toolEntries = <HomeEntry>[
+  HomeEntry.tool(
+    icon: Icons.bug_report_outlined,
+    label: 'Debug',
+    route: '/debug',
+  ),
+];
+
 class _HomeBody extends StatelessWidget {
-  const _HomeBody();
+  const _HomeBody({required this.viewModel});
+
+  final HomeViewModel viewModel;
 
   @override
   Widget build(BuildContext context) {
-    final permissionStatus = context.watch<PermissionNotifier>().status;
-    if (permissionStatus == PermissionStatus.loading) {
+    final permissions = context.watch<PermissionNotifier>();
+
+    if (permissions.status == PermissionStatus.loading) {
       return const Center(child: CircularProgressIndicator());
     }
+
+    // Cada módulo responde pelas suas duas porteiras — produto habilitado no
+    // tenant e permissão da pessoa —, porque só ele sabe qual produto e qual
+    // notifier são os seus. A casca só pergunta (D6).
+    final modules = context.read<List<AppModule>>();
+    final groups = [
+      for (final module in modules)
+        (title: module.menuTitle, entries: module.visibleEntries(context)),
+    ];
+
+    // A entrada de diagnóstico é da casca: ela fala do app, não de um produto —
+    // e por isso quem a libera é um papel de REALM lido do token, não uma
+    // permissão sobre recurso de API. Até 2026-09-04 ela dependia do recurso
+    // `debug` dentro do people-management-api, o que fazia o diagnóstico do app
+    // quebrar sempre que aquele BC era mexido.
+    final tools = context.watch<DeveloperAccess>().isDeveloper
+        ? _toolEntries
+        : const <HomeEntry>[];
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= AppBreakpoints.tablet;
@@ -221,97 +247,128 @@ class _HomeBody extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Menu',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Wrap(
-                spacing: AppSpacing.md,
-                runSpacing: AppSpacing.md,
-                children: [
-                  ModuleGuard(
-                    resource: 'employee',
-                    child: _MenuCard(
-                      icon: Icons.people_outline,
-                      label: 'Funcionários',
-                      onTap: () => context.go('/employee'),
-                    ),
-                  ),
-                  ModuleGuard(
-                    resource: 'workplace',
-                    child: _MenuCard(
-                      icon: Icons.location_on_outlined,
-                      label: 'Locais de Trabalho',
-                      onTap: () => context.go('/workplace'),
-                    ),
-                  ),
-                  ModuleGuard(
-                    resource: 'department',
-                    child: _MenuCard(
-                      icon: Icons.apartment_outlined,
-                      label: 'Setores',
-                      onTap: () => context.go('/department'),
-                    ),
-                  ),
-                  ModuleGuard(
-                    resource: 'document-group',
-                    child: _MenuCard(
-                      icon: Icons.folder_outlined,
-                      label: 'Grupos de Template de Documentos',
-                      onTap: () => context.go('/document-group'),
-                    ),
-                  ),
-                  ModuleGuard(
-                    resource: 'require-documents',
-                    child: _MenuCard(
-                      icon: Icons.description_outlined,
-                      label: 'Requerimentos de Documentos',
-                      onTap: () => context.go('/require-document'),
-                    ),
-                  ),
-                  ModuleGuard(
-                    resource: 'document',
-                    child: _MenuCard(
-                      icon: Icons.insert_chart_outlined_rounded,
-                      label: 'Dashboard de Documentos',
-                      onTap: () => context.go('/document-dashboard'),
-                    ),
-                  ),
-                  ModuleGuard(
-                    resource: 'document',
-                    child: _MenuCard(
-                      icon: Icons.upload_file_outlined,
-                      label: 'Gestão de Documentos em Lote',
-                      onTap: () => context.go('/batch-document'),
-                    ),
-                  ),
-                  ModuleGuard(
-                    resource: 'document',
-                    child: PermissionGuard(
-                      resource: 'document',
-                      scope: 'download',
-                      child: _MenuCard(
-                        icon: Icons.download_rounded,
-                        label: 'Download em Lote',
-                        onTap: () => context.go('/batch-download'),
-                      ),
-                    ),
-                  ),
-                  ModuleGuard(
-                    resource: 'debug',
-                    child: _MenuCard(
-                      icon: Icons.bug_report_outlined,
-                      label: 'Debug',
-                      onTap: () => context.go('/debug'),
-                    ),
-                  ),
-                ],
-              ),
+              if (viewModel.isPeopleManagementPending)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: AppSpacing.md),
+                  child: _PendingProductNotice(),
+                ),
+              for (final group in groups)
+                _Group(title: group.title, entries: group.entries),
+              _Group(title: 'FERRAMENTAS', entries: tools),
+              if (groups.every((g) => g.entries.isEmpty) && tools.isEmpty)
+                const _NothingAvailable(),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+class _Group extends StatelessWidget {
+  const _Group({required this.title, required this.entries});
+
+  final String title;
+  final Iterable<HomeEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    if (entries.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  letterSpacing: 0.8,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.md,
+            children: [
+              for (final entry in entries)
+                _MenuCard(
+                  icon: entry.icon,
+                  label: entry.label,
+                  onTap: () => context.go(entry.route),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown when the tenant has People Management enabled but no company record
+/// answers for it — the migration made visible, instead of a 403 later on.
+class _PendingProductNotice extends StatelessWidget {
+  const _PendingProductNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Card.filled(
+      color: cs.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline, color: cs.onSecondaryContainer),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(
+                'Gestão de Pessoas ainda não está liberada para este cliente.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: cs.onSecondaryContainer,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NothingAvailable extends StatelessWidget {
+  const _NothingAvailable();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+      child: Column(
+        children: [
+          Icon(
+            Icons.inbox_outlined,
+            size: 56,
+            color: theme.colorScheme.outline,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Nenhuma funcionalidade disponível para este cliente.',
+            style: theme.textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Fale com o responsável pela conta para liberar um produto ou '
+            'conceder permissões.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }

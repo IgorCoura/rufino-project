@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/core/monitoring/pii_scrubber.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 void main() {
   group('scrubJson', () {
     test('replaces top-level Brazilian identifiers with [Filtered]', () {

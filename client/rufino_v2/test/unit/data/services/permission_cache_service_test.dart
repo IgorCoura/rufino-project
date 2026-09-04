@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/data/services/permission_cache_service.dart';
-import 'package:rufino_v2/domain/entities/permission.dart';
+import 'package:rufino_core/rufino_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

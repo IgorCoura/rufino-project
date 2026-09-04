@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tenant_management/tenant_management.dart';
 
-import '../../../../core/theme/app_spacing.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../viewmodel/splash_viewmodel.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -39,16 +40,16 @@ class _SplashScreenState extends State<SplashScreen> {
 
   void _onStatusChanged() {
     if (!mounted) return;
-    switch (widget.viewModel.status) {
-      case SplashStatus.authenticated:
+    if (widget.viewModel.status != SplashStatus.decided) return;
+
+    switch (widget.viewModel.destination) {
+      case SplashDestination.home:
         context.go('/home');
-      case SplashStatus.unauthenticated:
+      case SplashDestination.login:
         context.go('/login');
-      case SplashStatus.noCompany:
-        context.go('/company');
-      case SplashStatus.error:
-        context.go('/login');
-      case SplashStatus.loading:
+      case SplashDestination.selectTenant:
+        context.go(TenantRoutes.select);
+      case null:
         break;
     }
   }

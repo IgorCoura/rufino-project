@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:rufino_v2/domain/entities/permission.dart';
-import 'package:rufino_v2/ui/core/widgets/permission_guard.dart';
-import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
+import 'package:rufino_core/rufino_core.dart';
 
 import '../../../testing/fakes/fake_permission_repository.dart';
 

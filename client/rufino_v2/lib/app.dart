@@ -1,3 +1,6 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
@@ -6,113 +9,71 @@ import 'package:nested/nested.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:bill_payment/bill_payment.dart';
+import 'package:tenant_management/tenant_management.dart';
+
 import 'core/config/app_config.dart';
-import 'core/errors/auth_exception.dart';
-import 'core/monitoring/error_reporter.dart';
-import 'core/network/session_aware_http_client.dart';
-import 'core/storage/secure_storage.dart';
-import 'core/theme/app_theme.dart';
-import 'core/theme/theme_notifier.dart';
+import 'core/tenant/tenant_session_bridge.dart';
+import 'package:rufino_core/rufino_core.dart';
 import 'data/repositories/auth_code_repository_impl.dart';
 import 'data/repositories/auth_repository_impl.dart';
-import 'data/repositories/permission_repository_impl.dart';
 import 'data/services/auth_code_api_service.dart';
 import 'data/services/oauth_login_strategy.dart';
 import 'data/services/oauth_login_strategy_factory.dart';
 import 'data/services/pending_web_redirect_result.dart';
-import 'data/services/permission_cache_service.dart';
-import 'data/repositories/company_repository_impl.dart';
-import 'data/repositories/department_repository_impl.dart';
-import 'data/repositories/employee_repository_impl.dart';
-import 'data/repositories/document_group_repository_impl.dart';
-import 'data/repositories/document_template_repository_impl.dart';
-import 'data/repositories/require_document_repository_impl.dart';
-import 'data/repositories/batch_document_repository_impl.dart';
-import 'data/repositories/batch_download_repository_impl.dart';
-import 'data/repositories/document_content_repository_impl.dart';
-import 'data/repositories/document_dashboard_repository_impl.dart';
-import 'data/repositories/cep_repository_impl.dart';
-import 'data/repositories/document_scanner_repository_impl.dart';
+import 'package:people_management/people_management.dart';
+import 'core/utils/document_date_extractor.dart';
 import 'core/utils/document_scanner_service.dart';
-import 'data/repositories/workplace_repository_impl.dart';
 import 'data/services/auth_api_service.dart';
-import 'data/services/permission_api_service.dart';
-import 'data/services/company_api_service.dart';
-import 'data/services/department_api_service.dart';
-import 'data/services/document_group_api_service.dart';
-import 'data/services/employee_api_service.dart';
-import 'data/services/document_template_api_service.dart';
-import 'data/services/require_document_api_service.dart';
-import 'data/services/batch_document_api_service.dart';
-import 'data/services/batch_download_api_service.dart';
-import 'data/services/document_content_api_service.dart';
-import 'data/services/document_dashboard_api_service.dart';
-import 'data/services/cep_api_service.dart';
-import 'data/services/file_save_service.dart';
-import 'data/services/spreadsheet_service.dart';
-import 'data/services/workplace_api_service.dart';
+import 'data/services/platform_file_picker_service.dart';
+import 'data/services/platform_file_save_service.dart';
 import 'domain/repositories/auth_repository.dart';
-import 'domain/repositories/permission_repository.dart';
-import 'domain/repositories/company_repository.dart';
-import 'domain/repositories/department_repository.dart';
-import 'domain/repositories/document_group_repository.dart';
-import 'domain/repositories/employee_repository.dart';
-import 'domain/repositories/document_template_repository.dart';
-import 'domain/repositories/require_document_repository.dart';
-import 'domain/repositories/batch_document_repository.dart';
-import 'domain/repositories/batch_download_repository.dart';
-import 'domain/repositories/document_content_repository.dart';
-import 'domain/repositories/document_dashboard_repository.dart';
-import 'domain/repositories/cep_repository.dart';
-import 'domain/repositories/workplace_repository.dart';
 import 'ui/core/widgets/session_expired_listener.dart';
 import 'ui/features/auth/viewmodel/auth_session_notifier.dart';
 import 'ui/features/auth/viewmodel/login_sso_viewmodel.dart';
 import 'ui/features/auth/viewmodel/login_viewmodel.dart';
-import 'ui/features/auth/viewmodel/permission_notifier.dart';
 import 'ui/features/auth/viewmodel/splash_viewmodel.dart';
 import 'ui/features/auth/widgets/login_screen.dart';
 import 'ui/features/auth/widgets/login_sso_screen.dart';
 import 'ui/features/auth/widgets/splash_screen.dart';
-import 'ui/features/company/viewmodel/company_form_viewmodel.dart';
-import 'ui/features/company/viewmodel/company_selection_viewmodel.dart';
-import 'ui/features/company/widgets/company_form_screen.dart';
-import 'ui/features/company/widgets/company_selection_screen.dart';
-import 'ui/features/department/viewmodel/department_form_viewmodel.dart';
-import 'ui/features/document_group/viewmodel/document_group_form_viewmodel.dart';
-import 'ui/features/document_group/viewmodel/document_group_with_templates_viewmodel.dart';
-import 'ui/features/document_group/widgets/document_group_form_screen.dart';
-import 'ui/features/document_group/widgets/document_group_with_templates_screen.dart';
-import 'ui/features/document_template/viewmodel/document_template_form_viewmodel.dart';
-import 'ui/features/document_template/widgets/document_template_form_screen.dart';
-import 'ui/features/department/viewmodel/department_list_viewmodel.dart';
-import 'ui/features/department/viewmodel/position_form_viewmodel.dart';
-import 'ui/features/department/viewmodel/role_form_viewmodel.dart';
-import 'ui/features/department/widgets/department_form_screen.dart';
-import 'ui/features/department/widgets/department_list_screen.dart';
-import 'ui/features/department/widgets/position_form_screen.dart';
-import 'ui/features/department/widgets/role_form_screen.dart';
-import 'ui/features/require_document/viewmodel/require_document_form_viewmodel.dart';
-import 'ui/features/require_document/viewmodel/require_document_list_viewmodel.dart';
-import 'ui/features/require_document/widgets/require_document_form_screen.dart';
-import 'ui/features/require_document/widgets/require_document_list_screen.dart';
-import 'ui/features/employee/viewmodel/employee_form_viewmodel.dart';
-import 'ui/features/employee/viewmodel/employee_profile_viewmodel.dart';
-import 'ui/features/employee/widgets/employee_form_screen.dart';
-import 'ui/features/employee/widgets/employee_list_screen.dart';
-import 'ui/features/employee/widgets/employee_profile_screen.dart';
-import 'ui/features/batch_document/viewmodel/batch_document_viewmodel.dart';
-import 'ui/features/batch_document/widgets/batch_document_screen.dart';
-import 'ui/features/batch_download/viewmodel/batch_download_viewmodel.dart';
-import 'ui/features/batch_download/widgets/batch_download_screen.dart';
-import 'ui/features/document_dashboard/widgets/document_dashboard_screen.dart';
 import 'ui/features/debug/widgets/debug_screen.dart';
 import 'ui/features/home/viewmodel/home_viewmodel.dart';
 import 'ui/features/home/widgets/home_screen.dart';
-import 'ui/features/workplace/viewmodel/workplace_form_viewmodel.dart';
-import 'ui/features/workplace/viewmodel/workplace_list_viewmodel.dart';
-import 'ui/features/workplace/widgets/workplace_form_screen.dart';
-import 'ui/features/workplace/widgets/workplace_list_screen.dart';
+
+/// A rota do Home. A casca é dona dela, e os módulos a recebem para saber
+/// para onde o botão de voltar leva quando não há pilha.
+const _homeRoute = '/home';
+
+/// Encerra a sessão a partir de uma tela do módulo de tenants.
+///
+/// Vive na casca, e não no módulo, porque limpar sessão é limpar TUDO: as três
+/// audiências de permissão, o contexto de tenant, a ponte e o usuário do
+/// repórter de erro. Um módulo que soubesse fazer isso saberia da existência
+/// dos outros dois.
+///
+/// Tudo é lido ANTES do primeiro await: depois dele o context pode já não estar
+/// montado, e o logout não pode ficar pela metade.
+Future<void> _logoutFromTenantModule(BuildContext routeContext) async {
+  final auth = routeContext.read<AuthRepository>();
+  final permissions = routeContext.read<PermissionNotifier>();
+  final tenantPermissions = routeContext.read<TenantPermissionNotifier>();
+  final billPaymentPermissions =
+      routeContext.read<BillPaymentPermissionNotifier>();
+  final tenantContext = routeContext.read<TenantContextNotifier>();
+  final bridge = routeContext.read<TenantSessionBridge>();
+  final reporter = routeContext.read<ErrorReporter>();
+  final router = GoRouter.of(routeContext);
+
+  await auth.logout();
+  await permissions.clear();
+  await tenantPermissions.clear();
+  await billPaymentPermissions.clear();
+  await tenantContext.clear();
+  await bridge.clear();
+  reporter.clearUser();
+  router.go('/login');
+}
+
 
 class App extends StatelessWidget {
   const App({
@@ -216,30 +177,29 @@ class App extends StatelessWidget {
         ? () => flagSessionLoss(authCodeApiService!.getAuthorizationHeader)
         : () => flagSessionLoss(authApiService!.getAuthorizationHeader);
 
+    final tokenEndpoint = Uri.parse(
+      AppConfig.useDirectAccessGrants
+          ? AppConfig.authorizationEndpoint
+          : AppConfig.authCodeTokenEndpoint,
+    );
+
     final permissionApiService = PermissionApiService(
       client: httpClient,
-      tokenEndpoint: Uri.parse(
-        AppConfig.useDirectAccessGrants
-            ? AppConfig.authorizationEndpoint
-            : AppConfig.authCodeTokenEndpoint,
-      ),
+      tokenEndpoint: tokenEndpoint,
       getAccessToken: getAccessToken,
-      audience: 'people-management-api',
+      audience: AppConfig.peopleManagementAudience,
     );
 
-    final companyApiService = CompanyApiService(
+    // Segunda audiência: o back-office de tenants vive noutro resource
+    // server, e quem não é operador da plataforma recebe 403 aqui — que o
+    // cliente UMA traduz como "nenhuma permissão", não como erro.
+    final tenantPermissionApiService = PermissionApiService(
       client: httpClient,
-      baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: getAuthHeader,
+      tokenEndpoint: tokenEndpoint,
+      getAccessToken: getAccessToken,
+      audience: AppConfig.tenantManagementAudience,
     );
 
-    final departmentApiService = DepartmentApiService(
-      client: httpClient,
-      baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: getAuthHeader,
-    );
-
-    // Repositories
     final permissionCacheService = PermissionCacheService(prefs: prefs);
     final PermissionRepository permissionRepository =
         PermissionRepositoryImpl(
@@ -251,15 +211,66 @@ class App extends StatelessWidget {
       permissionRepository: permissionRepository,
     );
 
-    // Reload permissions automatically when the access token is refreshed.
+    final tenantPermissionRepository = PermissionRepositoryImpl(
+      permissionApiService: tenantPermissionApiService,
+      permissionCacheService: PermissionCacheService(
+        prefs: prefs,
+        cacheKey: 'cached_permissions_tenant_management',
+      ),
+      reporter: errorReporter,
+    );
+    final tenantPermissionNotifier = TenantPermissionNotifier(
+      permissionRepository: tenantPermissionRepository,
+    );
+
+    final billPaymentPermissionNotifier = BillPaymentPermissionNotifier(
+      permissionRepository: PermissionRepositoryImpl(
+        permissionApiService: PermissionApiService(
+          client: httpClient,
+          tokenEndpoint: tokenEndpoint,
+          getAccessToken: getAccessToken,
+          audience: AppConfig.billPaymentAudience,
+        ),
+        permissionCacheService: PermissionCacheService(
+          prefs: prefs,
+          cacheKey: 'cached_permissions_bill_payment',
+        ),
+        reporter: errorReporter,
+      ),
+    );
+
+    // As ferramentas de diagnóstico são do APLICATIVO, não de um produto: o
+    // papel vem do token (realm role), sem chamada de rede e sem recurso em
+    // API nenhuma. Ver DeveloperAccess.
+    final developerAccess = DeveloperAccess(getAccessToken: getAccessToken);
+
+    // every audience, or one of them silently goes stale.
+    void reloadAllPermissions() {
+      permissionNotifier.loadPermissions();
+      tenantPermissionNotifier.loadPermissions();
+      billPaymentPermissionNotifier.loadPermissions();
+      // Relê junto: o papel vive no token, então token novo pode trazer papel
+      // novo — e um diagnóstico que só aparece depois de reiniciar o app é
+      // exatamente o tipo de coisa que ninguém liga ao papel.
+      developerAccess.load();
+    }
+
     if (authApiService != null) {
-      authApiService.onTokenRefreshed =
-          () => permissionNotifier.loadPermissions();
+      authApiService.onTokenRefreshed = reloadAllPermissions;
     }
     if (authCodeApiService != null) {
-      authCodeApiService.onTokenRefreshed =
-          () => permissionNotifier.loadPermissions();
+      authCodeApiService.onTokenRefreshed = reloadAllPermissions;
     }
+
+    final tenantContextNotifier = TenantContextNotifier(
+      storage: secureStorage,
+    );
+
+    // As capacidades de plataforma: os módulos as recebem, não as criam.
+    final spreadsheetService = SpreadsheetService();
+    final fileSaveService = PlatformFileSaveService();
+    final filePickerService = PlatformFilePickerService();
+    final scannerService = createDocumentScannerService();
 
     final AuthRepository authRepository = AppConfig.useAuthorizationCodeFlow
         ? AuthCodeRepositoryImpl(
@@ -270,153 +281,96 @@ class App extends StatelessWidget {
             authApiService: authApiService!,
             reporter: errorReporter,
           );
-    final CompanyRepository companyRepository = CompanyRepositoryImpl(
-      companyApiService: companyApiService,
+
+    // ─── Os módulos ──────────────────────────────────────────────────────
+    //
+    // Daqui para baixo a casca não conhece produto nenhum: cada módulo traz as
+    // próprias rotas, as próprias dependências e as próprias entradas de menu.
+    // Ligar ou desligar um produto é acrescentar ou tirar uma linha desta
+    // lista (D6).
+    final peopleManagement = PeopleManagementModule(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: getAuthHeader,
+      errorReporter: errorReporter,
       storage: secureStorage,
-      reporter: errorReporter,
-    );
-    final DepartmentRepository departmentRepository = DepartmentRepositoryImpl(
-      apiService: departmentApiService,
-      reporter: errorReporter,
+      homeRoute: _homeRoute,
+      filePicker: filePickerService,
+      fileSaver: fileSaveService,
+      scannerService: scannerService,
+      dateExtractor: extractLastDocumentDate,
+      // A ponte é da casca; o módulo só pergunta se dá para usar.
+      isReady: (ctx) => ctx.watch<TenantSessionBridge>().isPeopleManagementReady,
     );
 
-    final workplaceApiService = WorkplaceApiService(
+    final tenantSessionBridge = TenantSessionBridge(
+      companyRepository: peopleManagement.companyRepository,
+      permissionNotifier: permissionNotifier,
+      tenantPermissionNotifier: tenantPermissionNotifier,
+      billPaymentPermissionNotifier: billPaymentPermissionNotifier,
+      errorReporter: errorReporter,
+    );
+
+    // BillPayment: o tenant corrente vai no caminho de toda rota da API.
+    String getBillPaymentTenantId() {
+      final tenantId = tenantContextNotifier.tenantId;
+      if (tenantId == null) {
+        // As rotas do módulo vivem atrás da seleção de tenant; chegar aqui
+        // sem contexto é bug de navegação, não estado esperado.
+        throw StateError('Nenhum cliente selecionado.');
+      }
+      return tenantId;
+    }
+
+    final billPayment = BillPaymentModule(
       client: httpClient,
-      baseUrl: AppConfig.peopleManagementUrl,
+      baseUrl: AppConfig.billPaymentUrl,
       getAuthHeader: getAuthHeader,
-    );
-    final WorkplaceRepository workplaceRepository = WorkplaceRepositoryImpl(
-      apiService: workplaceApiService,
-      reporter: errorReporter,
+      getTenantId: getBillPaymentTenantId,
+      errorReporter: errorReporter,
+      homeRoute: _homeRoute,
+      onPickDocument: _pickBillDocument,
+      onOpenLink: _openBillLink,
     );
 
-    final documentGroupApiService = DocumentGroupApiService(
+    final tenantManagement = TenantManagementModule(
       client: httpClient,
-      baseUrl: AppConfig.peopleManagementUrl,
+      baseUrl: AppConfig.tenantManagementUrl,
       getAuthHeader: getAuthHeader,
-    );
-    final DocumentGroupRepository documentGroupRepository =
-        DocumentGroupRepositoryImpl(
-      apiService: documentGroupApiService,
-      reporter: errorReporter,
-    );
-
-    final documentTemplateApiService = DocumentTemplateApiService(
-      client: httpClient,
-      baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: getAuthHeader,
-    );
-    final DocumentTemplateRepository documentTemplateRepository =
-        DocumentTemplateRepositoryImpl(
-      apiService: documentTemplateApiService,
-      reporter: errorReporter,
+      errorReporter: errorReporter,
+      homeRoute: _homeRoute,
+      onTenantSelected: tenantSessionBridge.onTenantSelected,
+      onLogout: _logoutFromTenantModule,
+      cepService: CepLookupService(client: httpClient),
     );
 
-    final requireDocumentApiService = RequireDocumentApiService(
-      client: httpClient,
-      baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: getAuthHeader,
-    );
-    final RequireDocumentRepository requireDocumentRepository =
-        RequireDocumentRepositoryImpl(
-      apiService: requireDocumentApiService,
-      reporter: errorReporter,
-    );
-
-    final employeeApiService = EmployeeApiService(
-      client: httpClient,
-      baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: getAuthHeader,
-    );
-    final EmployeeRepository employeeRepository = EmployeeRepositoryImpl(
-      apiService: employeeApiService,
-      reporter: errorReporter,
-    );
-
-    final batchDocumentApiService = BatchDocumentApiService(
-      client: httpClient,
-      baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: getAuthHeader,
-    );
-    final BatchDocumentRepository batchDocumentRepository =
-        BatchDocumentRepositoryImpl(
-      apiService: batchDocumentApiService,
-      reporter: errorReporter,
-    );
-
-    final cepApiService = CepApiService(client: httpClient);
-    final CepRepository cepRepository = CepRepositoryImpl(
-      apiService: cepApiService,
-      reporter: errorReporter,
-    );
-
-    final batchDownloadApiService = BatchDownloadApiService(
-      client: httpClient,
-      baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: getAuthHeader,
-    );
-    final BatchDownloadRepository batchDownloadRepository =
-        BatchDownloadRepositoryImpl(
-      apiService: batchDownloadApiService,
-      reporter: errorReporter,
-    );
-
-    final documentDashboardApiService = DocumentDashboardApiService(
-      client: httpClient,
-      baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: getAuthHeader,
-    );
-    final DocumentDashboardRepository documentDashboardRepository =
-        DocumentDashboardRepositoryImpl(
-      apiService: documentDashboardApiService,
-      reporter: errorReporter,
-    );
-
-    // Snapshot freshness — shared by the profile and the batch screen, so the
-    // check lives in one place instead of one copy per feature service.
-    final documentContentApiService = DocumentContentApiService(
-      client: httpClient,
-      baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: getAuthHeader,
-    );
-    final DocumentContentRepository documentContentRepository =
-        DocumentContentRepositoryImpl(
-      apiService: documentContentApiService,
-      reporter: errorReporter,
-    );
-
-    // Spreadsheet export — stateless, safe to share across the app.
-    final spreadsheetService = SpreadsheetService();
-    final fileSaveService = FileSaveService();
+    // A lista é o contrato inteiro entre a casca e os produtos (D6): rotas,
+    // dependências e entradas de menu vêm dela, e de mais lugar nenhum.
+    final modules = <AppModule>[peopleManagement, billPayment, tenantManagement];
 
     return [
       Provider<ErrorReporter>.value(value: errorReporter),
       ChangeNotifierProvider(create: (_) => ThemeNotifier()),
       ChangeNotifierProvider.value(value: permissionNotifier),
+      ChangeNotifierProvider.value(value: developerAccess),
+      ChangeNotifierProvider.value(value: tenantPermissionNotifier),
+      ChangeNotifierProvider.value(value: billPaymentPermissionNotifier),
+      ChangeNotifierProvider.value(value: tenantContextNotifier),
+      ChangeNotifierProvider.value(value: tenantSessionBridge),
+      // Consulta de CEP compartilhada: o cadastro de tenant exige endereço,
+      // e a chamada é a mesma que o cadastro de funcionário já fazia.
+      Provider<CepLookupService>.value(
+        value: CepLookupService(client: httpClient),
+      ),
       ChangeNotifierProvider.value(value: authSessionNotifier),
       Provider<AuthRepository>.value(value: authRepository),
       Provider<PermissionRepository>.value(value: permissionRepository),
-      Provider<CompanyRepository>.value(value: companyRepository),
-      Provider<DepartmentRepository>.value(value: departmentRepository),
-      Provider<WorkplaceRepository>.value(value: workplaceRepository),
-      Provider<EmployeeRepository>.value(value: employeeRepository),
-      Provider<DocumentGroupRepository>.value(
-          value: documentGroupRepository),
-      Provider<DocumentTemplateRepository>.value(
-          value: documentTemplateRepository),
-      Provider<RequireDocumentRepository>.value(
-          value: requireDocumentRepository),
-      Provider<BatchDocumentRepository>.value(
-          value: batchDocumentRepository),
-      Provider<BatchDownloadRepository>.value(
-          value: batchDownloadRepository),
-      Provider<DocumentDashboardRepository>.value(
-          value: documentDashboardRepository),
-      Provider<DocumentContentRepository>.value(
-          value: documentContentRepository),
-      Provider<CepRepository>.value(value: cepRepository),
       Provider<SpreadsheetService>.value(value: spreadsheetService),
       Provider<FileSaveService>.value(value: fileSaveService),
+      // Cada módulo publica o que é dele — a casca não lista mais
+      // repositório de produto nenhum (D6).
+      for (final module in modules) ...module.providers(),
+      Provider<List<AppModule>>.value(value: modules),
     ];
   }
 }
@@ -445,8 +399,15 @@ class _AppRouterState extends State<_AppRouter> {
           builder: (context, state) => SplashScreen(
             viewModel: SplashViewModel(
               authRepository: context.read<AuthRepository>(),
-              companyRepository: context.read<CompanyRepository>(),
+              tenantRepository: context.read<TenantRepository>(),
+              tenantContext: context.read<TenantContextNotifier>(),
+              tenantSessionBridge: context.read<TenantSessionBridge>(),
               permissionNotifier: context.read<PermissionNotifier>(),
+              tenantPermissionNotifier:
+                  context.read<TenantPermissionNotifier>(),
+              billPaymentPermissionNotifier:
+                  context.read<BillPaymentPermissionNotifier>(),
+              developerAccess: context.read<DeveloperAccess>(),
               errorReporter: context.read<ErrorReporter>(),
             ),
           ),
@@ -468,361 +429,62 @@ class _AppRouterState extends State<_AppRouter> {
             );
           },
         ),
-        GoRoute(
-          path: '/company',
-          builder: (context, state) => CompanySelectionScreen(
-            viewModel: CompanySelectionViewModel(
-              authRepository: context.read<AuthRepository>(),
-              companyRepository: context.read<CompanyRepository>(),
-              permissionNotifier: context.read<PermissionNotifier>(),
-              errorReporter: context.read<ErrorReporter>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/company/create',
-          builder: (context, state) => CompanyFormScreen(
-            viewModel: CompanyFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/company/edit/:id',
-          builder: (context, state) => CompanyFormScreen(
-            viewModel: CompanyFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-            ),
-            companyId: state.pathParameters['id'],
-          ),
-        ),
+        // A seleção de EMPRESA deixou de existir: o contexto do app é o
+        // tenant, escolhido uma vez e lido por todos os produtos. Cadastro de
+        // empresa nova também saiu — cliente novo nasce como tenant.
+        // As rotas dos três módulos, na ordem da lista. A casca não nomeia
+        // nenhuma tela de produto (D6).
+        for (final module in context.read<List<AppModule>>()) ...module.routes(),
         GoRoute(
           path: '/home',
           builder: (context, state) => HomeScreen(
             viewModel: HomeViewModel(
               authRepository: context.read<AuthRepository>(),
-              companyRepository: context.read<CompanyRepository>(),
+              tenantContext: context.read<TenantContextNotifier>(),
+              tenantSessionBridge: context.read<TenantSessionBridge>(),
               permissionNotifier: context.read<PermissionNotifier>(),
+              tenantPermissionNotifier:
+                  context.read<TenantPermissionNotifier>(),
+              billPaymentPermissionNotifier:
+                  context.read<BillPaymentPermissionNotifier>(),
               errorReporter: context.read<ErrorReporter>(),
             ),
           ),
         ),
 
         // ─── Department ───────────────────────────────────────────────────
-        GoRoute(
-          path: '/department',
-          builder: (context, state) => DepartmentListScreen(
-            viewModel: DepartmentListViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/department/create',
-          builder: (context, state) => DepartmentFormScreen(
-            viewModel: DepartmentFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/department/edit/:id',
-          builder: (context, state) => DepartmentFormScreen(
-            viewModel: DepartmentFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-            ),
-            departmentId: state.pathParameters['id'],
-          ),
-        ),
 
         // ─── Position ─────────────────────────────────────────────────────
-        GoRoute(
-          path: '/department/position/create/:departmentId',
-          builder: (context, state) => PositionFormScreen(
-            viewModel: PositionFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-              departmentId: state.pathParameters['departmentId']!,
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/department/position/edit/:departmentId/:id',
-          builder: (context, state) => PositionFormScreen(
-            viewModel: PositionFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-              departmentId: state.pathParameters['departmentId']!,
-            ),
-            positionId: state.pathParameters['id'],
-          ),
-        ),
 
         // ─── Role ─────────────────────────────────────────────────────────
-        GoRoute(
-          path: '/department/role/create/:positionId',
-          builder: (context, state) => RoleFormScreen(
-            viewModel: RoleFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-              positionId: state.pathParameters['positionId']!,
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/department/role/edit/:positionId/:id',
-          builder: (context, state) => RoleFormScreen(
-            viewModel: RoleFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-              positionId: state.pathParameters['positionId']!,
-            ),
-            roleId: state.pathParameters['id'],
-          ),
-        ),
 
         // ─── Document Group ─────────────────────────────────────────────
-        GoRoute(
-          path: '/document-group',
-          builder: (context, state) => DocumentGroupWithTemplatesScreen(
-            viewModel: DocumentGroupWithTemplatesViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              documentGroupRepository:
-                  context.read<DocumentGroupRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/document-group/create',
-          builder: (context, state) => DocumentGroupFormScreen(
-            viewModel: DocumentGroupFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              documentGroupRepository:
-                  context.read<DocumentGroupRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/document-group/edit/:id',
-          builder: (context, state) => DocumentGroupFormScreen(
-            viewModel: DocumentGroupFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              documentGroupRepository:
-                  context.read<DocumentGroupRepository>(),
-            ),
-            groupId: state.pathParameters['id'],
-          ),
-        ),
 
         // ─── Document Template ────────────────────────────────────────────
-        GoRoute(
-          path: '/document-template/create',
-          builder: (context, state) => DocumentTemplateFormScreen(
-            viewModel: DocumentTemplateFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              documentTemplateRepository:
-                  context.read<DocumentTemplateRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/document-template/edit/:id',
-          builder: (context, state) => DocumentTemplateFormScreen(
-            viewModel: DocumentTemplateFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              documentTemplateRepository:
-                  context.read<DocumentTemplateRepository>(),
-            ),
-            templateId: state.pathParameters['id'],
-          ),
-        ),
 
         // ─── Require Document ────────────────────────────────────────────
-        GoRoute(
-          path: '/require-document',
-          builder: (context, state) => RequireDocumentListScreen(
-            viewModel: RequireDocumentListViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              requireDocumentRepository:
-                  context.read<RequireDocumentRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/require-document/create',
-          builder: (context, state) => RequireDocumentFormScreen(
-            viewModel: RequireDocumentFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              requireDocumentRepository:
-                  context.read<RequireDocumentRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/require-document/edit/:id',
-          builder: (context, state) => RequireDocumentFormScreen(
-            viewModel: RequireDocumentFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              requireDocumentRepository:
-                  context.read<RequireDocumentRepository>(),
-            ),
-            requireDocumentId: state.pathParameters['id'],
-          ),
-        ),
 
         // ─── Employee ─────────────────────────────────────────────────────
-        GoRoute(
-          path: '/employee',
-          builder: (context, state) => const EmployeeListPage(),
-        ),
-        GoRoute(
-          path: '/employee/create',
-          builder: (context, state) => EmployeeFormScreen(
-            viewModel: EmployeeFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-              workplaceRepository: context.read<WorkplaceRepository>(),
-              employeeRepository: context.read<EmployeeRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/employee/:id',
-          builder: (context, state) => EmployeeProfileScreen(
-            employeeId: state.pathParameters['id']!,
-            initialTab: switch (state.uri.queryParameters['tab']) {
-              'documents' => EmployeeProfileTab.documents,
-              'contracts' => EmployeeProfileTab.employmentContract,
-              _ => EmployeeProfileTab.personalData,
-            },
-            viewModel: EmployeeProfileViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              employeeRepository: context.read<EmployeeRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-              workplaceRepository: context.read<WorkplaceRepository>(),
-              documentGroupRepository:
-                  context.read<DocumentGroupRepository>(),
-              cepRepository: context.read<CepRepository>(),
-              scannerRepository: DocumentScannerRepositoryImpl(
-                scannerService: DocumentScannerService(),
-                reporter: context.read<ErrorReporter>(),
-              ),
-              documentContentRepository:
-                  context.read<DocumentContentRepository>(),
-            ),
-          ),
-        ),
 
         // ─── Workplace ────────────────────────────────────────────────────
-        GoRoute(
-          path: '/workplace',
-          builder: (context, state) => WorkplaceListScreen(
-            viewModel: WorkplaceListViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              workplaceRepository: context.read<WorkplaceRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/workplace/create',
-          builder: (context, state) => WorkplaceFormScreen(
-            viewModel: WorkplaceFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              workplaceRepository: context.read<WorkplaceRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/workplace/edit/:id',
-          builder: (context, state) => WorkplaceFormScreen(
-            viewModel: WorkplaceFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              workplaceRepository: context.read<WorkplaceRepository>(),
-            ),
-            workplaceId: state.pathParameters['id'],
-          ),
-        ),
 
         // ─── Batch Document ────────────────────────────────────
-        GoRoute(
-          path: '/batch-document',
-          builder: (context, state) {
-            final companyId =
-                context.read<CompanyRepository>();
-            return FutureBuilder(
-              future: companyId.getSelectedCompany(),
-              builder: (context, snapshot) {
-                final company = snapshot.data?.valueOrNull;
-                if (company == null) {
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                return BatchDocumentScreen(
-                  viewModel: BatchDocumentViewModel(
-                    batchDocumentRepository:
-                        context.read<BatchDocumentRepository>(),
-                    documentGroupRepository:
-                        context.read<DocumentGroupRepository>(),
-                    employeeRepository: context.read<EmployeeRepository>(),
-                    companyId: company.id,
-                    scannerRepository: DocumentScannerRepositoryImpl(
-                      scannerService: DocumentScannerService(),
-                      reporter: context.read<ErrorReporter>(),
-                    ),
-                    documentContentRepository:
-                        context.read<DocumentContentRepository>(),
-                  ),
-                );
-              },
-            );
-          },
-        ),
 
         // ─── Document Dashboard ────────────────────────────────
-        GoRoute(
-          path: '/document-dashboard',
-          builder: (context, state) => const DocumentDashboardPage(),
-        ),
 
         // ─── Debug ────────────────────────────────────────────────────────
+        // A rota era ALCANÇÁVEL POR URL sem verificação nenhuma: o card sumia
+        // da home para quem não tinha o papel, mas digitar /debug abria a tela
+        // — que mostra o AppConfig inteiro, com botão de copiar. O guard fecha
+        // isso na única porta que existe.
         GoRoute(
           path: '/debug',
+          redirect: (context, state) =>
+              context.read<DeveloperAccess>().isDeveloper ? null : '/home',
           builder: (context, state) => const DebugScreen(),
         ),
 
         // ─── Batch Download ────────────────────────────────────
-        GoRoute(
-          path: '/batch-download',
-          builder: (context, state) {
-            final companyRepo = context.read<CompanyRepository>();
-            return FutureBuilder(
-              future: companyRepo.getSelectedCompany(),
-              builder: (context, snapshot) {
-                final company = snapshot.data?.valueOrNull;
-                if (company == null) {
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                return BatchDownloadScreen(
-                  viewModel: BatchDownloadViewModel(
-                    batchDownloadRepository:
-                        context.read<BatchDownloadRepository>(),
-                    documentGroupRepository:
-                        context.read<DocumentGroupRepository>(),
-                    workplaceRepository:
-                        context.read<WorkplaceRepository>(),
-                    companyId: company.id,
-                  ),
-                );
-              },
-            );
-          },
-        ),
       ],
     );
   }
@@ -843,5 +505,63 @@ class _AppRouterState extends State<_AppRouter> {
         child: child ?? const SizedBox.shrink(),
       ),
     );
+  }
+}
+
+/// Abre o seletor de arquivos para anexar um boleto obtido à mão.
+///
+/// Mora na casca porque `file_picker` é plugin de plataforma: mantê-lo aqui
+/// deixa o módulo de Contas a Pagar livre de dependência de plataforma, e é a
+/// mesma divisão que já vale para "onde fica o home".
+Future<PickedDocument?> _pickBillDocument() async {
+  final result = await FilePicker.platform.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'webp'],
+    withData: true,
+  );
+
+  final file = result?.files.singleOrNull;
+  if (file?.bytes == null) return null;
+
+  return (
+    bytes: file!.bytes!,
+    fileName: file.name,
+    contentType: _contentTypeOf(file.extension),
+  );
+}
+
+/// O tipo de mídia a partir da extensão escolhida.
+///
+/// O servidor recusa o que a cascata não sabe abrir, então mandar
+/// `application/octet-stream` faria um PNG ser tratado como PDF — e o extrator
+/// receberia imagem rotulada errado, que é o defeito já medido em 2026-08-11.
+String _contentTypeOf(String? extension) => switch (extension?.toLowerCase()) {
+      'png' => 'image/png',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'webp' => 'image/webp',
+      _ => 'application/pdf',
+    };
+
+/// Abre no navegador o endereço onde o emissor publicou o boleto.
+///
+/// Mora na casca pelo mesmo motivo do seletor de arquivos: `url_launcher` é
+/// plugin de plataforma, e o módulo de Contas a Pagar não carrega plugin.
+///
+/// `externalApplication` de propósito — a URL do boleto é credencial ao
+/// portador, e abrir numa webview embutida deixaria a sessão do emissor dentro
+/// do app, fora do navegador onde a pessoa consegue vê-la e encerrá-la.
+Future<bool> _openBillLink(String url) async {
+  final uri = Uri.tryParse(url);
+
+  // Só http(s): um endereço com outro esquema entregaria ao sistema operacional
+  // um alvo que não é página — e ele veio de um e-mail, não do nosso código.
+  if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+    return false;
+  }
+
+  try {
+    return await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } on PlatformException {
+    return false;
   }
 }

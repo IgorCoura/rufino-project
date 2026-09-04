@@ -1,4 +1,4 @@
-using Amazon.S3;
+﻿using Amazon.S3;
 using Amazon.S3.Model;
 using Amazon.S3.Util;
 using Microsoft.Extensions.Options;
@@ -7,9 +7,9 @@ using PeopleManagement.Domain.Options;
 
 namespace PeopleManagement.Infra.Services
 {
-    public class BlobS3Service(IAmazonS3 s3Client, IOptions<S3Options> options) : IBlobService
+    public class BlobS3Service(IAmazonS3 s3Client, IOptions<StorageOptions> options) : IBlobService
     {
-        private readonly S3Options _options = options.Value;
+        private readonly StorageOptions _options = options.Value;
         public async Task UploadAsync(Stream stream, string fileNameWithExtesion, string containerName, bool overwrite = false, CancellationToken cancellationToken = default)
         {
             await EnsureBucketExistsAsync(containerName, cancellationToken);

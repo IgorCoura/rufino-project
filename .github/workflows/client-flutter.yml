@@ -1,0 +1,79 @@
+name: Client — analyze & test
+
+# Roda a análise estática e as suítes do app Flutter `client/rufino_v2`, na
+# casca e em CADA pacote do workspace.
+#
+# Por que o `flutter analyze` é o passo que não pode faltar: o limite entre os
+# produtos (`bill_payment`, `people_management`, `tenant_management`) é a regra
+# `depend_on_referenced_packages: error` no `analysis_options.yaml` de cada
+# pacote. Num pub workspace todos dividem o mesmo `package_config`, então
+# `import 'package:rufino_v2/...'` de dentro de um pacote RESOLVE e COMPILA —
+# `flutter build` passa. Só o analyzer recusa. Sem este workflow, a fronteira
+# entre os produtos é documentação, não garantia.
+#
+# As suítes rodam por pacote (e não só na raiz) porque `flutter test` na casca
+# não alcança `packages/*/test/`.
+
+on:
+  push:
+    paths:
+      - "client/rufino_v2/**"
+      - ".github/workflows/client-flutter.yml"
+  pull_request:
+    paths:
+      - "client/rufino_v2/**"
+      - ".github/workflows/client-flutter.yml"
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: "3.38.7"
+
+jobs:
+  analyze-and-test:
+    name: Analyze & test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client/rufino_v2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # Um só `pub get` resolve o workspace inteiro — é o que a chave
+      # `workspace:` do pubspec da raiz compra (D1).
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Vale para a casca e para todos os pacotes de uma vez: é aqui que a
+      # fronteira entre produtos é verificada.
+      - name: Analyze (shell + all packages)
+        run: flutter analyze
+
+      - name: Test — shell
+        run: flutter test
+
+      # Varre os pacotes em vez de listá-los: pacote novo entra no CI sozinho, e
+      # `flutter test` num pacote SEM nenhum arquivo de teste falha com "No test
+      # files found" — o que puniria um pacote de fundação por ainda não ter
+      # suíte. Pular é reportado, nunca silencioso.
+      - name: Test — packages
+        run: |
+          set -euo pipefail
+          for pkg in packages/*/; do
+            name=$(basename "$pkg")
+            if [ -n "$(find "$pkg/test" -name '*_test.dart' 2>/dev/null | head -1)" ]; then
+              echo "::group::flutter test — $name"
+              (cd "$pkg" && flutter test --no-pub)
+              echo "::endgroup::"
+            else
+              echo "· $name: sem arquivos de teste, pulado"
+            fi
+          done

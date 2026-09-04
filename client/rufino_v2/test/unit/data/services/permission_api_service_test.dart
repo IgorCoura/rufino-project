@@ -3,8 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' as http_testing;
-import 'package:rufino_v2/core/errors/permission_exception.dart';
-import 'package:rufino_v2/data/services/permission_api_service.dart';
+import 'package:rufino_core/rufino_core.dart';
 
 void main() {
   const tokenEndpoint = 'https://keycloak.example.com/token';
@@ -79,10 +78,24 @@ void main() {
       expect(permissions[0].scopes, isEmpty);
     });
 
-    test('fetchPermissions throws PermissionFetchException on non-2xx',
+    test('returns no permissions when Keycloak answers 403 for the audience',
         () async {
       final mockClient = http_testing.MockClient((request) async {
         return http.Response('Forbidden', 403);
+      });
+
+      service = buildService(mockClient);
+
+      // 403 é a resposta normal do Keycloak para quem não tem permissão
+      // nenhuma neste resource server — tratar como erro poria todo usuário
+      // de um produto diante de uma tela de erro por causa do outro.
+      expect(await service.fetchPermissions(), isEmpty);
+    });
+
+    test('fetchPermissions throws PermissionFetchException on non-2xx',
+        () async {
+      final mockClient = http_testing.MockClient((request) async {
+        return http.Response('Server error', 500);
       });
 
       service = buildService(mockClient);

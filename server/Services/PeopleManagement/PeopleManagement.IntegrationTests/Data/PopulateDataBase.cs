@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿#pragma warning disable CS0618 // Seed legado da feature Archive, descontinuada em 2026-09-04.
+// O dado continua no banco e o seed continua o produzindo; o aviso aqui so faria ruido.
+using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;

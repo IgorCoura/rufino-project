@@ -10,9 +10,14 @@ namespace PeopleManagement.API.Authorization
             return Task.FromResult(new AuthorizationPolicyBuilder(JwtBearerDefaults.AuthenticationScheme).RequireAuthenticatedUser().Build());
         }
 
+        // Fallback = exige autenticação: endpoint sem [Authorize]/[ProtectedResource] nasce FECHADO,
+        // não aberto. Até 2026-09-04 era nulo — um controller esquecido, ou uma minimal API fora de
+        // `api/v1` (o único prefixo que o teste de erosão varre), ficava público. Quem precisa ser
+        // anônimo declara [AllowAnonymous]: hoje só o HealthController.
         public Task<AuthorizationPolicy?> GetFallbackPolicyAsync()
         {
-            return Task.FromResult<AuthorizationPolicy?>(null);
+            return Task.FromResult<AuthorizationPolicy?>(
+                new AuthorizationPolicyBuilder(JwtBearerDefaults.AuthenticationScheme).RequireAuthenticatedUser().Build());
         }
 
         public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)

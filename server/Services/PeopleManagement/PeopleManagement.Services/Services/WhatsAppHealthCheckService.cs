@@ -1,4 +1,4 @@
-using Hangfire;
+﻿using Hangfire;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PeopleManagement.Domain.Options;
@@ -15,7 +15,7 @@ namespace PeopleManagement.Services.Services
 
         public WhatsAppHealthCheckService(
             IWhatsAppQueueService whatsAppQueueService,
-            IOptions<WhatsAppOptions> options,
+            IOptions<MessagingOptions> options,
             IOptions<TimeZoneOptions> timeZoneOptions,
             ILogger<WhatsAppHealthCheckService> logger)
         {

@@ -32,8 +32,10 @@ namespace PeopleManagement.API.DependencyInjection
         {
             service.AddScoped<IRequestManager, RequestManager>();
 
+#pragma warning disable CS0618 // Archive: feature descontinuada, mantida so para o dado ja gravado nao ficar orfao. Ver o [Obsolete] nos tipos.
             service.AddScoped<IArchiveCategoryRepository, ArchiveCategoryRepository>();
             service.AddScoped<IArchiveRepository, ArchiveRepository>();
+#pragma warning restore CS0618
             service.AddScoped<ICompanyRepository, CompanyRepository>();
             service.AddScoped<IDepartmentRepository, DepartamentRepository>();
             service.AddScoped<IDocumentTemplateRepository, DocumentTemplateRepository>();
@@ -54,11 +56,29 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IWhatsAppHealthCheckService, WhatsAppHealthCheckService>();
 
             // Configure S3 Options
-            service.Configure<S3Options>(configuration.GetSection(S3Options.SectionName));
+            service.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
 
             service.AddSingleton<IAmazonS3>(sp =>
             {
-                var s3Options = sp.GetRequiredService<IOptions<S3Options>>().Value;
+                var s3Options = sp.GetRequiredService<IOptions<StorageOptions>>().Value;
+
+                // Falha aqui dizendo O QUE falta. Sem esta guarda, credencial ausente estoura lá
+                // dentro do SDK da AWS como ArgumentNullException em 'awsSecretAccessKey' — e não
+                // no arranque, mas na PRIMEIRA requisição que resolve um controller, porque este
+                // singleton é preguiçoso. Foi o que aconteceu em 2026-09-04, quando a seção passou
+                // de "S3" para "Storage" e a chave do 'dotnet user-secrets' ficou órfã: a mensagem
+                // não dizia nem qual configuração, nem que ela havia sido renomeada.
+                if (string.IsNullOrWhiteSpace(s3Options.AccessKey) || string.IsNullOrWhiteSpace(s3Options.SecretKey))
+                {
+                    throw new InvalidOperationException(
+                        $"Armazenamento nao configurado: '{StorageOptions.SectionName}:AccessKey' e "
+                        + $"'{StorageOptions.SectionName}:SecretKey' precisam de valor. O segredo NAO vive no "
+                        + "appsettings versionado — em desenvolvimento vem do 'dotnet user-secrets', em producao "
+                        + $"da variavel de ambiente {StorageOptions.SectionName}__SecretKey. "
+                        + "A secao chamava-se 'S3' ate 2026-09-04; se o valor foi configurado antes disso, "
+                        + "ele ficou na chave antiga.");
+                }
+
                 var config = new AmazonS3Config
                 {
                     ServiceURL = s3Options.ServiceURL,
@@ -69,12 +89,12 @@ namespace PeopleManagement.API.DependencyInjection
             });
 
             // Configure WhatsApp Options
-            service.Configure<WhatsAppOptions>(configuration.GetSection(WhatsAppOptions.SectionName));
+            service.Configure<MessagingOptions>(configuration.GetSection(MessagingOptions.SectionName));
 
             service.AddHttpClient<IDocumentSignatureService, ZapSignDocumentSignatureService>((serviceProvider, httpClient) =>
             {
-                httpClient.BaseAddress = new Uri(configuration.GetSection("SignOptions")["BaseUrl"]!);
-                httpClient.DefaultRequestHeaders.Add(HeaderNames.Authorization, "Bearer " + configuration.GetSection("SignOptions")["AccessToken"]!);
+                httpClient.BaseAddress = new Uri(configuration.GetSection("DocumentSigning")["BaseUrl"]!);
+                httpClient.DefaultRequestHeaders.Add(HeaderNames.Authorization, "Bearer " + configuration.GetSection("DocumentSigning")["AccessToken"]!);
                 httpClient.Timeout = TimeSpan.FromMinutes(2);
             })
             .AddPolicyHandler((serviceProvider, request) =>
@@ -88,8 +108,8 @@ namespace PeopleManagement.API.DependencyInjection
 
             service.AddHttpClient<IWebHookManagementService, ZapSignWebHookManagementService>((serviceProvider, httpClient) =>
             {
-                httpClient.BaseAddress = new Uri(configuration.GetSection("SignOptions")["BaseUrl"]!);
-                httpClient.DefaultRequestHeaders.Add(HeaderNames.Authorization, "Bearer " + configuration.GetSection("SignOptions")["AccessToken"]!);
+                httpClient.BaseAddress = new Uri(configuration.GetSection("DocumentSigning")["BaseUrl"]!);
+                httpClient.DefaultRequestHeaders.Add(HeaderNames.Authorization, "Bearer " + configuration.GetSection("DocumentSigning")["AccessToken"]!);
                 httpClient.Timeout = TimeSpan.FromMinutes(2);
             })
             .AddPolicyHandler((serviceProvider, request) =>
@@ -104,13 +124,13 @@ namespace PeopleManagement.API.DependencyInjection
             .SetHandlerLifetime(TimeSpan.FromMinutes(5));
 
 
-            service.AddHttpClient<IAuthorizationService, AuthorizationService>((serviceProvider, httpClient) =>
+            service.AddHttpClient<ISigningServiceAccountTokenProvider, SigningServiceAccountTokenProvider>((serviceProvider, httpClient) =>
             {
                 httpClient.Timeout = TimeSpan.FromSeconds(30);
             })
             .AddPolicyHandler((serviceProvider, request) =>
             {
-                var logger = serviceProvider.GetRequiredService<ILogger<AuthorizationService>>();
+                var logger = serviceProvider.GetRequiredService<ILogger<SigningServiceAccountTokenProvider>>();
                 var context = new Polly.Context { ["Logger"] = logger };
 
                 return HttpPolicyFactory.GetCombinedPolicy(retryCount: 3, timeoutSeconds: 30);
@@ -119,9 +139,9 @@ namespace PeopleManagement.API.DependencyInjection
 
             service.AddHttpClient<IWhatsAppService, WhatsAppService>((serviceProvider, httpClient) =>
             {
-                var whatsAppOptions = configuration.GetSection(WhatsAppOptions.SectionName);
-                httpClient.BaseAddress = new Uri(whatsAppOptions["BaseUrl"]!);
-                httpClient.DefaultRequestHeaders.Add("apiKey", whatsAppOptions["ApiKey"]!);
+                var messagingOptions = configuration.GetSection(MessagingOptions.SectionName);
+                httpClient.BaseAddress = new Uri(messagingOptions["BaseUrl"]!);
+                httpClient.DefaultRequestHeaders.Add("apiKey", messagingOptions["ApiKey"]!);
                 httpClient.Timeout = TimeSpan.FromSeconds(30);
             })
             .AddPolicyHandler((serviceProvider, request) =>

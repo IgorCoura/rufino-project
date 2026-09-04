@@ -1,10 +1,59 @@
-# CLAUDE.md
+﻿# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
 .NET 8 (C# 12) REST API for employee and document management ("People Management"). Uses Clean Architecture with Domain-Driven Design (DDD) and CQRS pattern via MediatR.
+
+> **Este arquivo descreve o BC `PeopleManagement`.** O servidor tem três Bounded Contexts, cada um
+> com `.sln`, banco e deploy próprios — e os outros dois têm CLAUDE.md próprio, que **sobrepõe**
+> este:
+>
+> | BC | Pasta | O que faz | Portas (host) |
+> |---|---|---|---|
+> | PeopleManagement | `Services/PeopleManagement/` | Funcionários e documentos | 8040–8042 |
+> | BillPayment | `Services/BillPayment/` | Captura, valida e paga boletos | 8100–8104 |
+> | TenantManagement | `Services/TenantManagement/` | **Emite o `TenantId`** e diz quem acessa cada tenant (PF e PJ) | 8110, 8112 |
+>
+> Desde 2026-08-18 a **`RufinoProject.sln` inclui os três BCs** (pastas de solução
+> `Services/TenantManagement` e `Services/BillPayment`) — as `.sln` por BC continuam existindo
+> para trabalho isolado. O `docker-compose.yml` desta pasta sobe a plataforma inteira:
+>
+> ```bash
+> docker compose --profile api up --build   # 3 APIs + 3 bancos + storage S3 + Keycloak local
+> docker compose up -d                      # só as dependências (bancos + storage)
+> docker compose --profile keycloak up -d   # dependências + Keycloak local (realm rufino
+>                                           # importado de utils/KeyCloakConfig na 1ª subida)
+> ```
+>
+> Variáveis opcionais em `server/.env` (ver `.env.example`): `KEYCLOAK_URL` e
+> `KEYCLOAK_LOCAL_URL` — as APIs apontam para a nuvem por padrão; defina as duas, **com a mesma
+> URL**, para usar o Keycloak local. **Segredo NÃO vai no `.env`** (ver o aviso abaixo).
+> ⚠️ O compose da raiz e os composes por BC publicam as mesmas portas —
+> use um OU outro. O realm importado é
+> `utils/KeyCloakConfig/RufinoRealm/realm-import-2026-08-18.json` — o export da nuvem de 18/08
+> **mais** o client `bill-payment-api` (authz completo), os papéis `bill-*`, os mappers
+> `bp_tenants`/`pm_tenants`/audience no `tenant-scope` e a **declaração de `bp_tenants` e
+> `pm_tenants` no User Profile** (gerado em 2026-08-18; o mesmo arquivo
+> serve para importar o BillPayment no Keycloak da nuvem via partial import). ⚠️ Exports do
+> admin console mascaram secrets: depois de importar, regenere os secrets dos clients
+> confidenciais e configure-os nas APIs.
+>
+> ⚠️ **Mapper e atributo são coisas separadas, e faltar o segundo falha em silêncio.** O mapper
+> (em `clientScopes`) só diz como um atributo vira claim; **quem autoriza o atributo a existir é o
+> User Profile** (em `components` → `org.keycloak.userprofile.UserProfileProvider`). Como
+> `unmanagedAttributePolicy` está ausente no realm, atributo não declarado é **descartado na
+> escrita com HTTP 204** — o provisionador recebe "sucesso", marca o vínculo como `Done`, e o
+> atributo nunca existe. Foi o que aconteceu em 2026-08-19: os mappers estavam certos, o claim
+> nunca chegava no token, e todo endpoint do BillPayment respondia 403. **Produto novo exige os
+> dois passos**: o mapper no `tenant-scope` e a declaração no User Profile (multivalorado,
+> `view: [admin, user]`, `edit: [admin]` — copie a entrada de `tenants`).
+>
+> O `Company` deste BC e o `Tenant` do TenantManagement **não são a mesma entidade**: o Tenant é o
+> registro-mestre da identidade, o `Company` continua sendo o cadastro local do RH. **Mas o id é o
+> mesmo** — é isso que o backfill preserva —, e desde 2026-09-03 este BC lê o claim **`pm_tenants`**
+> no lugar do `companies` legado (ver "Auth" abaixo).
 
 ## Build, Run & Test
 
@@ -167,7 +216,73 @@ Services/PeopleManagement/
 
 **Database:** PostgreSQL via EF Core 9 (Npgsql). Schema: `people_management`. Unit of Work pattern implemented in `PeopleManagementContext`. Domain events are dispatched during `SaveEntitiesAsync`.
 
+- **A tabela de histórico de migração TEM que ser declarada com o schema explícito**, nos dois `UseNpgsql` do `Program.cs` **e** no da `PeopleManagementWebApplicationFactory`: `MigrationsHistoryTable("__EFMigrationsHistory", PeopleManagementContext.DEFAULT_SCHEMA)`. A connection string traz `SearchPath=people_management`, e o `Migrate()` cria essa tabela **antes** de aplicar qualquer migração — ou seja, antes do `EnsureSchema` que criaria o schema. Sem o schema explícito o `CREATE TABLE` sai sem qualificação, o Postgres procura num `search_path` que aponta para schema inexistente, e **todo banco virgem morre em `3F000: no schema has been selected to create in`**. Com o schema declarado, o EF emite o `CREATE SCHEMA IF NOT EXISTS` junto com a tabela e a ordem se resolve sozinha. Aconteceu de verdade em 2026-08-19, quando o volume de desenvolvimento foi recriado; o defeito era latente desde que um `ExecuteSqlRaw("CREATE SCHEMA IF NOT EXISTS …")` foi comentado no `Program.cs` sob o raciocínio de que a migração já criava o schema — verdade, mas tarde demais. **Não restaure aquele comando**: SQL cru antes do `Migrate()` abre conexão num database que pode não existir e reintroduz o `3D000` que o comentário acima do `Migrate()` documenta.
+- **O nome tem que continuar `__EFMigrationsHistory`**, o padrão do EF — e **não** o `__ef_migrations_history` que o BillPayment usa. Os ambientes já existentes gravaram o histórico com o nome padrão (o `search_path` resolvia para `people_management` quando o schema existia), então renomear faria o EF não encontrar registro nenhum e tentar reaplicar as 14 migrações num banco que já as tem.
+- **A registração que vale é a última.** `AddDbContextFactory` re-registra `DbContextOptions<PeopleManagementContext>`, então é ela que o contexto resolvido pelo DI recebe — inclusive o que roda o `Migrate()`. É por isso que a fábrica de teste, que só substitui o `IDbContextFactory`, também precisa repetir a configuração: sem isso a suíte validaria um layout de histórico que o deploy nunca produz.
+- **O histórico entra no `TablesToIgnore` do Respawn** (`PeopleManagementWebApplicationFactory`). Ele vive dentro de `people_management`, que está em `SchemasToInclude`, e histórico de migração não é dado de teste — apagá-lo faz o host seguinte concluir que o banco está vazio e morrer em `42P07 relation already exists`. Mesma dupla de armadilhas registrada no `gotchas.md` do BillPayment.
+
 **Auth:** Keycloak JWT Bearer tokens. Custom `[ProtectedResource("resource", "action")]` attribute for route-level authorization. Auth config in `PeopleManagement.API/Authentication/` and `Authorization/`.
+
+- ⚠️ **As convenções de nome de client, papel, recurso, escopo e seção de `appsettings` são
+  normativas e vivem em [`utils/KeyCloakConfig/CONVENCOES.md`](../utils/KeyCloakConfig/CONVENCOES.md).**
+  Leia antes de criar API, papel ou seção nova — o realm já teve três convenções simultâneas.
+- **A permissão é buscada UMA VEZ POR TOKEN, não por requisição** (2026-09-04). O
+  `AuthorizationServerClient` pede o retrato inteiro ao Keycloak (`response_mode=permissions`
+  **sem** o parâmetro `permission`) e o `RptCache` o guarda, chaveado pelo **SHA-256 do token**
+  (nunca pelo `sub`: dois tokens da mesma pessoa podem ter escopos diferentes). O TTL é o menor
+  entre `Keycloak:RptCacheTtl` (60 s) e o que resta do `exp`. **Falha não é cacheada**, mas o
+  retrato anterior sobrevive a ela dentro de `Keycloak:RptStaleGrace` (*fail-static*, 10 min):
+  Keycloak fora do ar deixa de derrubar quem já estava usando. Token RECUSADO nunca é servido por
+  retrato velho. **A suíte roda com `Keycloak:RptCacheEnabled=false`** — quem prova o cache é
+  `Tests/Authorization/RptCacheTests`, que troca o token de propósito.
+- **O tipo do claim casa por igualdade EXATA**, não `Contains` (2026-09-04). Com `Contains`,
+  `"bp_tenants".Contains("tenants")` é verdadeiro e uma API que lesse o `tenants` genérico
+  aceitaria o claim de outro produto.
+- **O fallback de autorização exige autenticação**: endpoint sem atributo nasce FECHADO. Quem
+  precisa ser anônimo declara `[AllowAnonymous]` — hoje só o `HealthController` (`api/health`),
+  que existe desde essa mudança porque antes a única rota anônima era o `GET /Test`, removido.
+- **O `OnChallenge` define o status ANTES de escrever o corpo.** Escrever primeiro faz a resposta
+  ser commitada com o 200 padrão: uma requisição SEM TOKEN devolvia
+  `200 {"error": "Unauthorized access"}`, e qualquer cliente que olhe o status trataria a negativa
+  como sucesso. O defeito viveu aqui desde o início do BC e foi corrigido em 2026-09-04, quando o
+  `RouteGuardTests` novo finalmente o exercitou.
+- **Swagger é gated em Development**, e CORS lê a allowlist de `Cors:AllowedOrigins` (era
+  `AllowAnyOrigin()`). Cabeçalhos de segurança (`nosniff`, `X-Frame-Options: DENY`,
+  `Referrer-Policy`) em toda resposta, `UseHsts()` fora de Development, e limitador de taxa por
+  pessoa (`RateLimiting`, 300/min global).
+
+- **O guard de rota lê `pm_tenants` desde 2026-09-03, não mais o `companies` legado.** O
+  `RouteAccessRequirement` confere o `{company}` da rota contra o claim POR PRODUTO emitido pelo
+  TenantManagement (ADR-005 de lá): ele traz só os tenants em que a pessoa tem vínculo ativo **e**
+  o PeopleManagement está habilitado. O `companies` era **escrito à mão no console do Keycloak** —
+  nenhum código o produzia — e suspender um cliente não o afetava, porque o
+  `KeycloakTenantAccessProvisioner` o preserva de propósito. O valor não mudou: é o mesmo Guid do
+  `Company.Id`, que o backfill preservou, então o nome do parâmetro de rota continua `{company}`.
+  **Não troque o claim por `tenants`**: ele é o genérico e daria acesso a quem só assinou o
+  BillPayment. Desde 2026-09-04 o handler casa o tipo por igualdade exata (antes era `Contains`,
+  e `"bp_tenants".Contains("tenants")` é verdadeiro). **Ordem de deploy obrigatória**: backfill → declarar `pm_tenants` no User Profile do
+  realm → mappers → reprovisionar TODOS os tenants → só então esta configuração; fora dela o
+  atributo nasce vazio e todo cliente legítimo toma 403. Cliente que não tiver o produto
+  `PeopleManagement` ativo no TenantManagement some do claim — auditar antes de virar a chave.
+- **A comparação do valor é case-insensitive** (alinhada ao BillPayment): o parâmetro vem da URL
+  como o cliente escreveu e o claim como o provisionador gravou, e um Guid com caixa diferente dos
+  dois lados produzia 403 sem explicação.
+- ✅ **O guard de produção passou a ser coberto por teste em 2026-09-04.** A fábrica lê o nome do
+  parâmetro de rota e o do claim do MESMO `AuthorizationOptions` que a produção monta (eram
+  escritos à mão como `("company", "companies")` — o claim legado), e
+  `Tests/Authorization/RouteGuardTests` exige que o claim configurado seja o mesmo que a suíte
+  envia. Junto vieram `EndpointProtectionTests` (erosão de rota) e `RealmContractTests` (todo
+  `[ProtectedResource]` do código existe no authz-config versionado).
+- ⚠️ **`CompanyController` está fora do guard, e trocar o claim não muda isso.** Desde 2026-09-04
+  a exceção é NOMEADA em `EndpointProtectionTests.KnownUnguardedRoutes`, com o motivo escrito: o
+  buraco fica visível no código em vez de esquecido, e a próxima rota sem `{company}` reprova o
+  teste. A rota é
+  `api/v1/[controller]`, sem `{company}`, e o handler **concede** quando o parâmetro é nulo — é o
+  que permite endpoint que não é de empresa nenhuma. Os três endpoints de leitura recebem os ids
+  por query string e não os validam contra claim nenhum.
+
+- **Segredo de desenvolvimento vem do `dotnet user-secrets`, e o compose NÃO pode injetá-lo por variável de ambiente.** Vale para os três BCs. A forma `${VAR:-}` do Compose **não deixa a variável ausente** quando `VAR` não está definida: ela define a variável com **string vazia**. E variável de ambiente vem **depois** do user-secrets na ordem de configuração do ASP.NET Core — então a string vazia **sobrescreve o segredo do user-secrets**, em silêncio, porque o valor existe e só está vazio. Aconteceu em 2026-08-19: `TenantProvisioning:ClientSecret` estava corretamente configurado no `secrets.json`, o container montava a pasta e enxergava a chave, e mesmo assim o DI registrava o `UnconfiguredTenantAccessProvisioner` e todo vínculo saía `Failed` — porque `TenantProvisioning__ClientSecret=` chegava vazio pelo compose. Os cinco pontos que faziam isso foram removidos do `server/docker-compose.yml` e do `Services/BillPayment/docker-compose.yml`. **Se algum dia precisar injetar segredo pelo compose, use `${VAR:?mensagem}`** — falha alto quando ausente — **nunca `${VAR:-}`**.
+- **Rodar fora do contêiner aponta para a NUVEM.** Os `appsettings.json` dos três BCs trazem `Keycloak:AuthServerUrl` (e o `TenantProvisioning:AuthServerUrl` do TenantManagement) apontando para `https://keycloak.couratechsafety.cloud`. Quem sobrepõe para o Keycloak local é o compose, via `KEYCLOAK_URL`. Logo, `dotnet run` fora do Docker — workflow documentado nos CLAUDE.md por BC — fala com a nuvem mesmo com a stack local no ar, e o token do Keycloak local é recusado. Para esse caminho, configure a URL local em `appsettings.Development.json` ou no user-secrets da API.
 
 **API routes:** All follow `/api/v1/{company}/{resource}` pattern. The `{company}` segment scopes operations to a company.
 

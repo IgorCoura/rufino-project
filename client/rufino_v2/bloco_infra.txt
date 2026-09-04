@@ -1,0 +1,56 @@
+    final permissionCacheService = PermissionCacheService(prefs: prefs);
+    final PermissionRepository permissionRepository =
+        PermissionRepositoryImpl(
+      permissionApiService: permissionApiService,
+      permissionCacheService: permissionCacheService,
+      reporter: errorReporter,
+    );
+    final permissionNotifier = PermissionNotifier(
+      permissionRepository: permissionRepository,
+    );
+
+    final tenantPermissionRepository = PermissionRepositoryImpl(
+      permissionApiService: tenantPermissionApiService,
+      permissionCacheService: PermissionCacheService(
+        prefs: prefs,
+        cacheKey: 'cached_permissions_tenant_management',
+      ),
+      reporter: errorReporter,
+    );
+    final tenantPermissionNotifier = TenantPermissionNotifier(
+      permissionRepository: tenantPermissionRepository,
+    );
+
+    final billPaymentPermissionNotifier = BillPaymentPermissionNotifier(
+      permissionRepository: PermissionRepositoryImpl(
+        permissionApiService: PermissionApiService(
+          client: httpClient,
+          tokenEndpoint: tokenEndpoint,
+          getAccessToken: getAccessToken,
+          audience: AppConfig.billPaymentAudience,
+        ),
+        permissionCacheService: PermissionCacheService(
+          prefs: prefs,
+          cacheKey: 'cached_permissions_bill_payment',
+        ),
+        reporter: errorReporter,
+      ),
+    );
+
+    // every audience, or one of them silently goes stale.
+    void reloadAllPermissions() {
+      permissionNotifier.loadPermissions();
+      tenantPermissionNotifier.loadPermissions();
+      billPaymentPermissionNotifier.loadPermissions();
+    }
+
+    if (authApiService != null) {
+      authApiService.onTokenRefreshed = reloadAllPermissions;
+    }
+    if (authCodeApiService != null) {
+      authCodeApiService.onTokenRefreshed = reloadAllPermissions;
+    }
+
+    final tenantContextNotifier = TenantContextNotifier(
+      storage: secureStorage,
+    );
