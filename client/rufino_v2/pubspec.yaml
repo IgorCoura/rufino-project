@@ -14,6 +14,7 @@ version: 2.0.0+6
 workspace:
   - packages/rufino_core
   - packages/bill_payment
+  - packages/people_management
   - packages/tenant_management
 
 environment:
@@ -31,6 +32,9 @@ dependencies:
   # Contas a pagar: captura, verificação, aprovação e expectativas.
   bill_payment:
     path: packages/bill_payment
+  # Gestão de pessoas: funcionários, documentos, cargos e locais de trabalho.
+  people_management:
+    path: packages/people_management
   sentry_flutter: ^9.19.0
   flutter:
     sdk: flutter

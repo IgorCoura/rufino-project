@@ -1,0 +1,52 @@
+name: people_management
+description: "Gestão de pessoas: funcionários, documentos, cargos e locais de trabalho."
+publish_to: 'none'
+version: 0.1.0
+
+# Este pacote NÃO declara `bill_payment` nem `tenant_management`, e é isso que
+# garante o isolamento entre os produtos: importar de lá vira erro de análise,
+# não questão de disciplina. O que os produtos precisam dividir sobe para
+# `rufino_core`, pelo critério D3.
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  rufino_core: ^0.1.0
+  # Mesmo conjunto de estado/DI/rotas do resto do app — a casca compõe os três.
+  provider: ^6.1.2
+  go_router: ^14.6.2
+  http: ^1.2.2
+  # x-requestid das escritas.
+  uuid: ^4.5.3
+  mask_text_input_formatter: ^2.9.0
+
+  # Biblioteca Dart pura entra no pacote; PLUGIN de plataforma não. É o critério
+  # que o `bill_payment` já usa na prática — ele declara o visualizador de PDF e
+  # não declara `file_picker` nem `url_launcher`. O que precisa de permissão
+  # nativa, canal de plataforma ou entrada no manifesto fica com quem monta o
+  # app e chega aqui por porta: seleção de arquivo, câmera, scanner, OCR e o
+  # diálogo de salvar.
+  syncfusion_flutter_pdf: ^27.1.58
+  syncfusion_flutter_pdfviewer: ^27.1.58
+  syncfusion_flutter_xlsio: ^27.1.58
+  pdf: ^3.11.1
+  pdf_combiner: ^6.0.4
+  image: ^4.3.0
+  archive: ^3.6.1
+  # Visualizador de JSON do formulário de template de documento.
+  flutter_json_view: ^1.1.5
+  # Compilação condicional para web nos utilitários de PDF.
+  web: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true
