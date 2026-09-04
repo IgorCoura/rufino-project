@@ -35,6 +35,31 @@ namespace PeopleManagement.API.Authorization
         public ScopesValidationMode ScopesValidationMode { get; set; } = ScopesValidationMode.AllOf;
 
         /// <summary>
+        /// Liga o cache do retrato de permissoes. Desligado, cada endpoint volta a perguntar ao
+        /// Keycloak — e o que a suite de integracao usa para exercitar o caminho de rede.
+        /// </summary>
+        public bool RptCacheEnabled { get; set; } = true;
+
+        /// <summary>
+        /// Por quanto tempo o retrato vale. E a janela em que uma permissao revogada no console
+        /// ainda e aceita — mantenha curto. O teto real e sempre o <c>exp</c> do token.
+        /// </summary>
+        public TimeSpan RptCacheTtl { get; set; } = TimeSpan.FromSeconds(60);
+
+        /// <summary>
+        /// Por quanto tempo, DEPOIS de vencido, o retrato ainda pode ser servido caso o servidor de
+        /// autorizacao esteja fora do ar (<em>fail-static</em>). Zero desliga a degradacao e faz a
+        /// indisponibilidade voltar a ser 503 imediato.
+        /// </summary>
+        public TimeSpan RptStaleGrace { get; set; } = TimeSpan.FromMinutes(10);
+
+        /// <summary>
+        /// Teto de retratos guardados. Cada entrada e uma sessao ativa; estourado, o cache descarta
+        /// as mais antigas e elas voltam a ser buscadas.
+        /// </summary>
+        public long RptCacheSizeLimit { get; set; } = 5_000;
+
+        /// <summary>
         /// Nome do claim que lista os clientes desta pessoa. É <c>pm_tenants</c> — o claim POR
         /// PRODUTO emitido pelo BC TenantManagement (ADR-005 de lá), que traz só os tenants em que
         /// ela tem vínculo ativo <strong>e</strong> o PeopleManagement está habilitado. Substituiu

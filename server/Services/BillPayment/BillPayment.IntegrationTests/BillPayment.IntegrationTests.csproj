@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -44,6 +44,16 @@
     <ProjectReference Include="..\BillPayment.API\BillPayment.API.csproj" />
     <ProjectReference Include="..\BillPayment.Infra\BillPayment.Infra.csproj" />
     <ProjectReference Include="..\BillPayment.Domain\BillPayment.Domain.csproj" />
+  </ItemGroup>
+
+  <!-- O arquivo de authz do realm entra no output para o teste de erosao poder conferir
+       que todo [ProtectedResource] do codigo existe no Keycloak. Sem isso o teste teria
+       de caminhar pela arvore de diretorios ate achar o repositorio. -->
+  <ItemGroup>
+    <Content Include="..\..\..\..\utils\KeyCloakConfig\bill-payment-authz-config.json" Link="KeycloakConfig\bill-payment-authz-config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

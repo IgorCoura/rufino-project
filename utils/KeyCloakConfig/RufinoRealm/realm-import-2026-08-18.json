@@ -87,6 +87,13 @@
         "clientRole": false,
         "containerId": "1fc608d6-fbc5-41a5-8d6e-5be99ed5f48a",
         "attributes": {}
+      },
+      {
+        "name": "developer",
+        "description": "Libera as ferramentas de diagnostico do app (tela /debug). Realm role de proposito: descreve a PESSOA, e nenhuma API a le. Ver CONVENCOES.md secao 4-B.",
+        "composite": false,
+        "clientRole": false,
+        "attributes": {}
       }
     ],
     "client": {
@@ -305,7 +312,6 @@
       "rufino-app": [],
       "tenant-management-provisioner": [],
       "security-admin-console": [],
-      "zapsign": [],
       "admin-cli": [],
       "account-console": [],
       "broker": [
@@ -409,24 +415,6 @@
       ],
       "people-management-api": [
         {
-          "id": "8293594d-8284-4fb0-9579-184cb50b9177",
-          "name": "admin",
-          "description": "Permissão maxima do sistema",
-          "composite": false,
-          "clientRole": true,
-          "containerId": "26694b57-f5f0-4aaf-9cda-3e1d3544686e",
-          "attributes": {}
-        },
-        {
-          "id": "1f70c50a-bc79-49cc-86c7-2557bc3d25aa",
-          "name": "zapsign-webhook",
-          "description": "Permissão para o zapsign conseguir enviar via webhook os arquivos assinados para a people management api.",
-          "composite": false,
-          "clientRole": true,
-          "containerId": "26694b57-f5f0-4aaf-9cda-3e1d3544686e",
-          "attributes": {}
-        },
-        {
           "id": "580e5b9c-ceaf-4c17-8826-f6c883a511a1",
           "name": "uma_protection",
           "composite": false,
@@ -435,12 +423,45 @@
           "attributes": {}
         },
         {
-          "id": "ff12e010-3278-48b3-a4c3-c47bac44d41f",
-          "name": "doc-send",
-          "description": "Permissão para visualizar e enviar os documentos dos funcionários. ",
+          "name": "people-viewer",
+          "description": "So leitura: consultar e baixar funcionarios, documentos e cadastros.",
           "composite": false,
           "clientRole": true,
-          "containerId": "26694b57-f5f0-4aaf-9cda-3e1d3544686e",
+          "attributes": {}
+        },
+        {
+          "name": "people-doc-operator",
+          "description": "Trabalha a documentacao de ponta a ponta (cria, edita, envia, gera, manda assinar, reprova) e NAO mexe no cadastro de pessoas.",
+          "composite": false,
+          "clientRole": true,
+          "attributes": {}
+        },
+        {
+          "name": "people-operator",
+          "description": "O people-doc-operator MAIS o cadastro de funcionarios. Nao configura a instalacao.",
+          "composite": false,
+          "clientRole": true,
+          "attributes": {}
+        },
+        {
+          "name": "people-reviewer",
+          "description": "Valida documento: aprova, reprova, deprecia e marca como nao aplicavel. E a decisao de conformidade.",
+          "composite": false,
+          "clientRole": true,
+          "attributes": {}
+        },
+        {
+          "name": "people-admin",
+          "description": "Configuracao da instalacao: modelos, exigencias por cargo, empresa, departamentos, cargos, funcoes e locais. Alcanca tudo.",
+          "composite": false,
+          "clientRole": true,
+          "attributes": {}
+        },
+        {
+          "name": "people-signature-webhook",
+          "description": "Service account do provedor de assinatura. Alcanca UM escopo: document:webhook.",
+          "composite": false,
+          "clientRole": true,
           "attributes": {}
         }
       ],
@@ -516,8 +537,44 @@
           "clientRole": true,
           "containerId": "5b8e2c1a-91d4-4f6b-8a3e-0d7c4b2f9e51",
           "attributes": {}
+        },
+        {
+          "name": "bill-approver-attention",
+          "description": "Alcada para aprovar boleto de risco Atencao.",
+          "composite": false,
+          "clientRole": true,
+          "attributes": {}
+        },
+        {
+          "name": "bill-approver-danger",
+          "description": "Alcada para aprovar boleto de risco Perigo. Cobre Atencao.",
+          "composite": true,
+          "clientRole": true,
+          "attributes": {},
+          "composites": {
+            "client": {
+              "bill-payment-api": [
+                "bill-approver-attention"
+              ]
+            }
+          }
+        },
+        {
+          "name": "bill-approver-extreme",
+          "description": "Alcada para aprovar boleto de risco Extremo Perigo. Cobre Perigo e Atencao.",
+          "composite": true,
+          "clientRole": true,
+          "attributes": {},
+          "composites": {
+            "client": {
+              "bill-payment-api": [
+                "bill-approver-danger"
+              ]
+            }
+          }
         }
-      ]
+      ],
+      "document-signing-client": []
     }
   },
   "groups": [],
@@ -640,12 +697,12 @@
     },
     {
       "id": "9fe06d68-6a7e-4326-b7dc-a428c64cbbe3",
-      "username": "service-account-zapsign",
+      "username": "service-account-document-signing-client",
       "emailVerified": false,
       "enabled": true,
       "createdTimestamp": 1773449268139,
       "totp": false,
-      "serviceAccountClientId": "zapsign",
+      "serviceAccountClientId": "document-signing-client",
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
@@ -653,7 +710,7 @@
       ],
       "clientRoles": {
         "people-management-api": [
-          "zapsign-webhook"
+          "people-signature-webhook"
         ]
       },
       "notBefore": 0,
@@ -691,10 +748,24 @@
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
-        "default-roles-rufino"
+        "default-roles-rufino",
+        "developer"
       ],
       "notBefore": 0,
-      "groups": []
+      "groups": [],
+      "clientRoles": {
+        "people-management-api": [
+          "people-admin"
+        ],
+        "bill-payment-api": [
+          "bill-admin",
+          "bill-approver",
+          "bill-approver-extreme"
+        ],
+        "tenant-management-api": [
+          "tenant-admin"
+        ]
+      }
     }
   ],
   "scopeMappings": [
@@ -969,7 +1040,6 @@
         "resources": [
           {
             "name": "bill",
-            "type": "None",
             "ownerManagedAccess": false,
             "displayName": "Boletos: entrada, verificacao e decisao",
             "scopes": [
@@ -990,12 +1060,20 @@
               },
               {
                 "name": "cancel"
+              },
+              {
+                "name": "approve-attention"
+              },
+              {
+                "name": "approve-danger"
+              },
+              {
+                "name": "approve-extreme"
               }
             ]
           },
           {
             "name": "payer-profile",
-            "type": "None",
             "ownerManagedAccess": false,
             "displayName": "Cadastro fiscal do tenant (deriva senha de PDF e roteamento)",
             "scopes": [
@@ -1009,7 +1087,6 @@
           },
           {
             "name": "payee",
-            "type": "None",
             "ownerManagedAccess": false,
             "displayName": "Beneficiarios cadastrados",
             "scopes": [
@@ -1023,7 +1100,6 @@
           },
           {
             "name": "origin",
-            "type": "None",
             "ownerManagedAccess": false,
             "displayName": "Origens confiaveis (remetentes)",
             "scopes": [
@@ -1037,7 +1113,6 @@
           },
           {
             "name": "capture-source",
-            "type": "None",
             "ownerManagedAccess": false,
             "displayName": "Caixas de e-mail monitoradas",
             "scopes": [
@@ -1054,7 +1129,6 @@
           },
           {
             "name": "capture-item",
-            "type": "None",
             "ownerManagedAccess": false,
             "displayName": "Artefatos capturados e quarentena",
             "scopes": [
@@ -1071,7 +1145,6 @@
           },
           {
             "name": "expectation",
-            "type": "None",
             "ownerManagedAccess": false,
             "displayName": "Expectativas de boleto e alertas do que nao chegou",
             "scopes": [
@@ -1128,12 +1201,12 @@
           },
           {
             "name": "Bill Approver Policy",
-            "description": "Decide o destino do boleto. E o papel sensivel: aprovar e o que autoriza dinheiro sair (ADR-007).",
+            "description": "Decide o destino do boleto: aprovar autoriza dinheiro a sair (ADR-007). NAO inclui o bill-admin desde 2026-09-04 (segregacao de funcoes): quem precisa dos dois recebe os dois papeis, e isso fica visivel na auditoria.",
             "type": "role",
             "logic": "POSITIVE",
             "decisionStrategy": "UNANIMOUS",
             "config": {
-              "roles": "[{\"id\":\"bill-payment-api/bill-admin\",\"required\":false},{\"id\":\"bill-payment-api/bill-approver\",\"required\":false}]"
+              "roles": "[{\"id\": \"bill-payment-api/bill-approver\", \"required\": false}]"
             }
           },
           {
@@ -1170,14 +1243,62 @@
           },
           {
             "name": "Bill Operation Permission",
-            "description": "Importar, revalidar, manter cadastros, sincronizar caixa, reivindicar, reprocessar e cadastrar expectativa.",
+            "description": "Importar e revalidar boleto. Cada permissao lista SO os recursos que declaram os escopos dela — a forma cartesiana anterior citava pares que nao existem (bill#manage, payee#import) e tornava a permissao ilegivel no console.",
             "type": "scope",
             "logic": "POSITIVE",
             "decisionStrategy": "UNANIMOUS",
             "config": {
-              "resources": "[\"bill\",\"payer-profile\",\"payee\",\"origin\",\"capture-source\",\"capture-item\",\"expectation\"]",
-              "scopes": "[\"import\",\"validate\",\"manage\",\"sync\",\"claim\",\"reprocess\"]",
+              "resources": "[\"bill\"]",
+              "scopes": "[\"import\", \"validate\"]",
               "applyPolicies": "[\"Bill Operator Policy\"]"
+            }
+          },
+          {
+            "name": "Bill Registry Permission",
+            "description": "Manter os cadastros de beneficiario, origem confiavel e expectativa de boleto.",
+            "type": "scope",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "resources": "[\"payee\", \"origin\", \"expectation\"]",
+              "scopes": "[\"manage\"]",
+              "applyPolicies": "[\"Bill Operator Policy\"]"
+            }
+          },
+          {
+            "name": "Capture Item Operation Permission",
+            "description": "Reivindicar e reprocessar artefato da quarentena. O reprocess gasta cota do extrator de visao, e por isso e escopo proprio.",
+            "type": "scope",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "resources": "[\"capture-item\"]",
+              "scopes": "[\"claim\", \"reprocess\"]",
+              "applyPolicies": "[\"Bill Operator Policy\"]"
+            }
+          },
+          {
+            "name": "Capture Source Sync Permission",
+            "description": "Sincronizar uma caixa JA conectada e rotina de operacao. Separado do manage, que conecta a caixa com a credencial do Entra ID do cliente.",
+            "type": "scope",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "resources": "[\"capture-source\"]",
+              "scopes": "[\"sync\"]",
+              "applyPolicies": "[\"Bill Operator Policy\"]"
+            }
+          },
+          {
+            "name": "Bill Credential Permission",
+            "description": "Conectar caixa de e-mail (credencial do Entra ID do cliente — quem a tem passa a ler a correspondencia da empresa) e vincular a chave Asaas do tenant (a credencial que PAGA CONTAS). Decisao de instalacao, como a retencao: administrador, nunca operador.",
+            "type": "scope",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "resources": "[\"capture-source\", \"payer-profile\"]",
+              "scopes": "[\"manage\"]",
+              "applyPolicies": "[\"Bill Admin Policy\"]"
             }
           },
           {
@@ -1251,6 +1372,72 @@
               "scopes": "[\"manage\"]",
               "applyPolicies": "[\"Bill Admin Policy\"]"
             }
+          },
+          {
+            "name": "Bill Approve Attention Policy",
+            "description": "Alcada para aprovar boleto de nivel attention.",
+            "type": "role",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "roles": "[{\"id\": \"bill-payment-api/bill-approver-attention\", \"required\": false}]"
+            }
+          },
+          {
+            "name": "Bill Approve Attention Permission",
+            "description": "Concede bill:approve-attention.",
+            "type": "scope",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "resources": "[\"bill\"]",
+              "scopes": "[\"approve-attention\"]",
+              "applyPolicies": "[\"Bill Approve Attention Policy\"]"
+            }
+          },
+          {
+            "name": "Bill Approve Danger Policy",
+            "description": "Alcada para aprovar boleto de nivel danger.",
+            "type": "role",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "roles": "[{\"id\": \"bill-payment-api/bill-approver-danger\", \"required\": false}]"
+            }
+          },
+          {
+            "name": "Bill Approve Danger Permission",
+            "description": "Concede bill:approve-danger.",
+            "type": "scope",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "resources": "[\"bill\"]",
+              "scopes": "[\"approve-danger\"]",
+              "applyPolicies": "[\"Bill Approve Danger Policy\"]"
+            }
+          },
+          {
+            "name": "Bill Approve Extreme Policy",
+            "description": "Alcada para aprovar boleto de nivel extreme.",
+            "type": "role",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "roles": "[{\"id\": \"bill-payment-api/bill-approver-extreme\", \"required\": false}]"
+            }
+          },
+          {
+            "name": "Bill Approve Extreme Permission",
+            "description": "Concede bill:approve-extreme.",
+            "type": "scope",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "resources": "[\"bill\"]",
+              "scopes": "[\"approve-extreme\"]",
+              "applyPolicies": "[\"Bill Approve Extreme Policy\"]"
+            }
           }
         ],
         "scopes": [
@@ -1289,6 +1476,15 @@
           },
           {
             "name": "recapture"
+          },
+          {
+            "name": "approve-attention"
+          },
+          {
+            "name": "approve-danger"
+          },
+          {
+            "name": "approve-extreme"
           }
         ],
         "decisionStrategy": "UNANIMOUS"
@@ -1343,7 +1539,6 @@
         "web-origins",
         "service_account",
         "acr",
-        "company-scope",
         "profile",
         "roles",
         "basic",
@@ -1362,116 +1557,59 @@
         "resources": [
           {
             "name": "Default Resource",
-            "type": "urn:people_management-api:resources:default",
+            "type": "urn:people-management-api:resources:default",
             "ownerManagedAccess": false,
-            "attributes": {},
             "uris": [
               "/*"
             ]
           },
           {
             "name": "employee",
+            "displayName": "Funcionarios",
             "ownerManagedAccess": false,
-            "displayName": "Employee",
-            "attributes": {},
-            "uris": [],
             "scopes": [
               {
                 "name": "view"
-              },
-              {
-                "name": "upload"
-              },
-              {
-                "name": "edit"
               },
               {
                 "name": "download"
               },
               {
                 "name": "create"
-              }
-            ],
-            "icon_uri": ""
-          },
-          {
-            "name": "position",
-            "ownerManagedAccess": false,
-            "displayName": "Position",
-            "attributes": {},
-            "uris": [],
-            "scopes": [
-              {
-                "name": "view"
               },
               {
                 "name": "edit"
               },
               {
-                "name": "create"
+                "name": "upload"
               }
-            ],
-            "icon_uri": ""
-          },
-          {
-            "name": "role",
-            "ownerManagedAccess": false,
-            "displayName": "Role",
-            "attributes": {},
-            "uris": [],
-            "scopes": [
-              {
-                "name": "view"
-              },
-              {
-                "name": "edit"
-              },
-              {
-                "name": "create"
-              }
-            ],
-            "icon_uri": ""
-          },
-          {
-            "name": "department",
-            "ownerManagedAccess": false,
-            "displayName": "Department",
-            "attributes": {},
-            "uris": [],
-            "scopes": [
-              {
-                "name": "view"
-              },
-              {
-                "name": "edit"
-              },
-              {
-                "name": "create"
-              }
-            ],
-            "icon_uri": ""
+            ]
           },
           {
             "name": "document",
+            "displayName": "Documentos do funcionario",
             "ownerManagedAccess": false,
-            "displayName": "Document",
-            "attributes": {},
-            "uris": [],
             "scopes": [
               {
-                "name": "deprecate"
-              },
-              {
-                "name": "webhook"
-              },
-              {
                 "name": "view"
+              },
+              {
+                "name": "download"
+              },
+              {
+                "name": "create"
+              },
+              {
+                "name": "edit"
               },
               {
                 "name": "upload"
               },
               {
-                "name": "edit"
+                "name": "generate"
+              },
+              {
+                "name": "send2sign"
               },
               {
                 "name": "approve"
@@ -1480,461 +1618,395 @@
                 "name": "reject"
               },
               {
-                "name": "send2sign"
-              },
-              {
-                "name": "generate"
+                "name": "deprecate"
               },
               {
                 "name": "mark-not-applicable"
               },
               {
-                "name": "download"
-              },
-              {
-                "name": "create"
+                "name": "webhook"
               }
-            ],
-            "icon_uri": ""
+            ]
           },
           {
             "name": "document-template",
+            "displayName": "Modelos de documento",
             "ownerManagedAccess": false,
-            "displayName": "Document Template",
-            "attributes": {},
-            "uris": [],
             "scopes": [
               {
                 "name": "view"
               },
               {
-                "name": "upload"
+                "name": "download"
+              },
+              {
+                "name": "create"
               },
               {
                 "name": "edit"
               },
               {
-                "name": "download"
-              },
-              {
-                "name": "create"
+                "name": "upload"
               }
-            ],
-            "icon_uri": ""
+            ]
           },
           {
-            "name": "require-documents",
+            "name": "document-group",
+            "displayName": "Grupos de documento",
             "ownerManagedAccess": false,
-            "displayName": "Require Documents",
-            "attributes": {},
-            "uris": [],
             "scopes": [
               {
                 "name": "view"
+              },
+              {
+                "name": "create"
+              },
+              {
+                "name": "edit"
+              }
+            ]
+          },
+          {
+            "name": "require-documents",
+            "displayName": "Documentos exigidos por cargo",
+            "ownerManagedAccess": false,
+            "scopes": [
+              {
+                "name": "view"
+              },
+              {
+                "name": "create"
               },
               {
                 "name": "edit"
               },
               {
                 "name": "generate"
-              },
-              {
-                "name": "create"
               }
-            ],
-            "icon_uri": ""
-          },
-          {
-            "name": "document-group",
-            "ownerManagedAccess": false,
-            "displayName": "Document Group",
-            "attributes": {},
-            "uris": [],
-            "scopes": [
-              {
-                "name": "view"
-              },
-              {
-                "name": "edit"
-              },
-              {
-                "name": "create"
-              }
-            ],
-            "icon_uri": ""
-          },
-          {
-            "name": "workplace",
-            "ownerManagedAccess": false,
-            "displayName": "Workplace",
-            "attributes": {},
-            "uris": [],
-            "scopes": [
-              {
-                "name": "view"
-              },
-              {
-                "name": "edit"
-              },
-              {
-                "name": "create"
-              }
-            ],
-            "icon_uri": ""
-          },
-          {
-            "name": "debug",
-            "ownerManagedAccess": false,
-            "displayName": "Debug Tools",
-            "attributes": {},
-            "uris": [],
-            "scopes": [
-              {
-                "name": "view"
-              }
-            ],
-            "icon_uri": ""
+            ]
           },
           {
             "name": "company",
+            "displayName": "Empresa",
             "ownerManagedAccess": false,
-            "displayName": "Company",
-            "attributes": {},
-            "uris": [],
             "scopes": [
               {
                 "name": "view"
               },
               {
+                "name": "create"
+              },
+              {
                 "name": "edit"
+              }
+            ]
+          },
+          {
+            "name": "department",
+            "displayName": "Departamentos",
+            "ownerManagedAccess": false,
+            "scopes": [
+              {
+                "name": "view"
               },
               {
                 "name": "create"
+              },
+              {
+                "name": "edit"
               }
-            ],
-            "icon_uri": ""
+            ]
+          },
+          {
+            "name": "position",
+            "displayName": "Cargos",
+            "ownerManagedAccess": false,
+            "scopes": [
+              {
+                "name": "view"
+              },
+              {
+                "name": "create"
+              },
+              {
+                "name": "edit"
+              }
+            ]
+          },
+          {
+            "name": "role",
+            "displayName": "Funcoes",
+            "ownerManagedAccess": false,
+            "scopes": [
+              {
+                "name": "view"
+              },
+              {
+                "name": "create"
+              },
+              {
+                "name": "edit"
+              }
+            ]
+          },
+          {
+            "name": "workplace",
+            "displayName": "Locais de trabalho",
+            "ownerManagedAccess": false,
+            "scopes": [
+              {
+                "name": "view"
+              },
+              {
+                "name": "create"
+              },
+              {
+                "name": "edit"
+              }
+            ]
           }
         ],
         "policies": [
           {
-            "name": "debug-only-developers",
-            "type": "user",
-            "logic": "POSITIVE",
-            "decisionStrategy": "UNANIMOUS",
-            "config": {
-              "users": "[\"igor\"]"
-            }
-          },
-          {
-            "name": "Admin Policy",
+            "name": "People Viewer Policy",
+            "description": "So leitura. Todo papel deste BC alcanca a leitura.",
             "type": "role",
             "logic": "POSITIVE",
             "decisionStrategy": "UNANIMOUS",
             "config": {
-              "roles": "[{\"id\":\"people-management-api/admin\",\"required\":false}]"
+              "roles": "[{\"id\":\"people-management-api/people-admin\",\"required\":false},{\"id\":\"people-management-api/people-operator\",\"required\":false},{\"id\":\"people-management-api/people-doc-operator\",\"required\":false},{\"id\":\"people-management-api/people-reviewer\",\"required\":false},{\"id\":\"people-management-api/people-viewer\",\"required\":false}]"
             }
           },
           {
-            "name": "Doc Send Policy",
+            "name": "People Document Operation Policy",
+            "description": "Quem trabalha a documentacao: cria, edita, sobe arquivo, gera e manda assinar. Inclui o operador completo, que faz isso e mais o cadastro de pessoas.",
             "type": "role",
             "logic": "POSITIVE",
             "decisionStrategy": "UNANIMOUS",
             "config": {
-              "roles": "[{\"id\":\"people-management-api/doc-send\",\"required\":false}]"
+              "roles": "[{\"id\":\"people-management-api/people-admin\",\"required\":false},{\"id\":\"people-management-api/people-operator\",\"required\":false},{\"id\":\"people-management-api/people-doc-operator\",\"required\":false}]"
             }
           },
           {
-            "name": "Webhook Policy",
-            "description": "",
+            "name": "People Employee Operation Policy",
+            "description": "Cadastro de pessoas. NAO inclui o people-doc-operator: ele mexe na documentacao e nao no cadastro.",
+            "type": "role",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "roles": "[{\"id\":\"people-management-api/people-admin\",\"required\":false},{\"id\":\"people-management-api/people-operator\",\"required\":false}]"
+            }
+          },
+          {
+            "name": "People Review Policy",
+            "description": "Validacao de conformidade: aprovar e marcar como nao aplicavel. E a decisao que fecha o documento, e por isso tem papel proprio.",
+            "type": "role",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "roles": "[{\"id\":\"people-management-api/people-admin\",\"required\":false},{\"id\":\"people-management-api/people-reviewer\",\"required\":false}]"
+            }
+          },
+          {
+            "name": "People Document Rejection Policy",
+            "description": "Reprovar e depreciar documento. Fica com quem revisa E com quem opera: recusar um arquivo ilegivel e devolve-lo para reenvio e trabalho de operacao, nao decisao de conformidade.",
+            "type": "role",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "roles": "[{\"id\":\"people-management-api/people-admin\",\"required\":false},{\"id\":\"people-management-api/people-reviewer\",\"required\":false},{\"id\":\"people-management-api/people-operator\",\"required\":false},{\"id\":\"people-management-api/people-doc-operator\",\"required\":false}]"
+            }
+          },
+          {
+            "name": "People Admin Policy",
+            "description": "Configuracao da instalacao: modelos, exigencias por cargo, empresa, departamentos, cargos, funcoes e locais.",
+            "type": "role",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "roles": "[{\"id\":\"people-management-api/people-admin\",\"required\":false}]"
+            }
+          },
+          {
+            "name": "People Signature Webhook Policy",
+            "description": "Retorno do provedor de assinatura. Vive numa service account e alcanca UM escopo.",
             "type": "role",
             "logic": "POSITIVE",
             "decisionStrategy": "UNANIMOUS",
             "config": {
               "fetchRoles": "false",
-              "roles": "[{\"id\":\"people-management-api/zapsign-webhook\",\"required\":false}]"
+              "roles": "[{\"id\":\"people-management-api/people-signature-webhook\",\"required\":false}]"
             }
           },
           {
-            "name": "Role Permission",
-            "description": "",
+            "name": "People Read Permission",
+            "description": "Consultar. Todo papel do BC alcanca.",
             "type": "scope",
             "logic": "POSITIVE",
             "decisionStrategy": "UNANIMOUS",
             "config": {
-              "resources": "[\"role\"]",
-              "scopes": "[\"create\",\"view\",\"edit\"]",
-              "applyPolicies": "[\"Admin Policy\"]"
-            }
-          },
-          {
-            "name": "Workplace View Permission",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
-            "config": {
-              "resources": "[\"workplace\"]",
+              "resources": "[\"employee\", \"document\", \"document-template\", \"document-group\", \"require-documents\", \"company\", \"department\", \"position\", \"role\", \"workplace\"]",
               "scopes": "[\"view\"]",
-              "applyPolicies": "[\"Admin Policy\",\"Doc Send Policy\"]"
+              "applyPolicies": "[\"People Viewer Policy\"]"
             }
           },
           {
-            "name": "Document Edit permission",
-            "description": "",
+            "name": "People Download Permission",
+            "description": "Baixar arquivo. So os tres recursos que tem arquivo declaram o escopo.",
             "type": "scope",
             "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "resources": "[\"employee\", \"document\", \"document-template\"]",
+              "scopes": "[\"download\"]",
+              "applyPolicies": "[\"People Viewer Policy\"]"
+            }
+          },
+          {
+            "name": "People Document Operation Permission",
+            "description": "Trabalhar a documentacao: criar, editar, subir arquivo, gerar e mandar assinar.",
+            "type": "scope",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
             "config": {
               "resources": "[\"document\"]",
-              "scopes": "[\"send2sign\",\"create\",\"upload\",\"generate\",\"edit\"]",
-              "applyPolicies": "[\"Admin Policy\",\"Doc Send Policy\"]"
+              "scopes": "[\"create\", \"edit\", \"upload\", \"generate\", \"send2sign\"]",
+              "applyPolicies": "[\"People Document Operation Policy\"]"
             }
           },
           {
-            "name": "Webhook Permission",
-            "description": "",
+            "name": "People Require Documents Generate Permission",
+            "description": "Disparar a geracao dos documentos exigidos por um cargo. E ROTINA — definir QUAIS documentos o cargo exige e configuracao, e vive na permissao de admin.",
+            "type": "scope",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "resources": "[\"require-documents\"]",
+              "scopes": "[\"generate\"]",
+              "applyPolicies": "[\"People Document Operation Policy\"]"
+            }
+          },
+          {
+            "name": "People Employee Operation Permission",
+            "description": "Cadastro de pessoas. Separado do documento de proposito: e o que distingue o people-operator do people-doc-operator.",
+            "type": "scope",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "resources": "[\"employee\"]",
+              "scopes": "[\"create\",\"edit\",\"upload\"]",
+              "applyPolicies": "[\"People Employee Operation Policy\"]"
+            }
+          },
+          {
+            "name": "People Document Review Permission",
+            "description": "Aprovar e marcar como nao aplicavel: e a decisao de conformidade que fecha o documento.",
+            "type": "scope",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "resources": "[\"document\"]",
+              "scopes": "[\"approve\",\"mark-not-applicable\"]",
+              "applyPolicies": "[\"People Review Policy\"]"
+            }
+          },
+          {
+            "name": "People Document Rejection Permission",
+            "description": "Reprovar e depreciar. Alcanca tambem os dois operadores — devolver arquivo ilegivel e trabalho do dia a dia.",
+            "type": "scope",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "resources": "[\"document\"]",
+              "scopes": "[\"reject\",\"deprecate\"]",
+              "applyPolicies": "[\"People Document Rejection Policy\"]"
+            }
+          },
+          {
+            "name": "People Configuration Permission",
+            "description": "Configuracao da instalacao: quem define o que a empresa exige. require-documents:create/edit esta AQUI, e nao na operacao — definir quais documentos um cargo exige e politica da empresa.",
+            "type": "scope",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "resources": "[\"require-documents\", \"document-group\", \"company\", \"department\", \"position\", \"role\", \"workplace\"]",
+              "scopes": "[\"create\", \"edit\"]",
+              "applyPolicies": "[\"People Admin Policy\"]"
+            }
+          },
+          {
+            "name": "People Document Template Permission",
+            "description": "Modelos de documento: o unico recurso de configuracao que tambem recebe arquivo.",
+            "type": "scope",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "config": {
+              "resources": "[\"document-template\"]",
+              "scopes": "[\"create\", \"edit\", \"upload\"]",
+              "applyPolicies": "[\"People Admin Policy\"]"
+            }
+          },
+          {
+            "name": "People Signature Webhook Permission",
+            "description": "O unico escopo que a service account do provedor de assinatura alcanca.",
             "type": "scope",
             "logic": "POSITIVE",
             "decisionStrategy": "UNANIMOUS",
             "config": {
               "resources": "[\"document\"]",
               "scopes": "[\"webhook\"]",
-              "applyPolicies": "[\"Webhook Policy\"]"
-            }
-          },
-          {
-            "name": "Document View permission",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
-            "config": {
-              "resources": "[\"document\"]",
-              "scopes": "[\"view\",\"download\"]",
-              "applyPolicies": "[\"Admin Policy\",\"Doc Send Policy\"]"
-            }
-          },
-          {
-            "name": "Document Review permission",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
-            "config": {
-              "resources": "[\"document\"]",
-              "scopes": "[\"mark-not-applicable\",\"deprecate\",\"approve\",\"reject\"]",
-              "applyPolicies": "[\"Admin Policy\"]"
-            }
-          },
-          {
-            "name": "Document Template Permission",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "UNANIMOUS",
-            "config": {
-              "resources": "[\"document-template\"]",
-              "scopes": "[\"create\",\"view\",\"upload\",\"download\",\"edit\"]",
-              "applyPolicies": "[\"Admin Policy\"]"
-            }
-          },
-          {
-            "name": "Position Permission",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "UNANIMOUS",
-            "config": {
-              "resources": "[\"position\"]",
-              "scopes": "[\"create\",\"view\",\"edit\"]",
-              "applyPolicies": "[\"Admin Policy\"]"
-            }
-          },
-          {
-            "name": "Require Documents Permission",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "UNANIMOUS",
-            "config": {
-              "resources": "[\"require-documents\"]",
-              "scopes": "[\"view\",\"create\",\"generate\",\"edit\"]",
-              "applyPolicies": "[\"Admin Policy\"]"
-            }
-          },
-          {
-            "name": "Debug View",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
-            "config": {
-              "resources": "[\"debug\"]",
-              "scopes": "[\"view\"]",
-              "applyPolicies": "[\"debug-only-developers\"]"
-            }
-          },
-          {
-            "name": "Company View Permission",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
-            "config": {
-              "resources": "[\"company\"]",
-              "scopes": "[\"view\"]",
-              "applyPolicies": "[\"Admin Policy\",\"Doc Send Policy\"]"
-            }
-          },
-          {
-            "name": "Company Permission",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
-            "config": {
-              "resources": "[\"company\"]",
-              "scopes": "[\"create\",\"edit\"]",
-              "applyPolicies": "[\"Admin Policy\"]"
-            }
-          },
-          {
-            "name": "Employee Permission",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
-            "config": {
-              "resources": "[\"employee\"]",
-              "scopes": "[\"create\",\"upload\",\"edit\"]",
-              "applyPolicies": "[\"Admin Policy\"]"
-            }
-          },
-          {
-            "name": "Employee View Permission",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
-            "config": {
-              "resources": "[\"employee\"]",
-              "scopes": "[\"view\",\"download\"]",
-              "applyPolicies": "[\"Admin Policy\",\"Doc Send Policy\"]"
-            }
-          },
-          {
-            "name": "Department Permission",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
-            "config": {
-              "resources": "[\"department\"]",
-              "scopes": "[\"create\",\"edit\"]",
-              "applyPolicies": "[\"Admin Policy\"]"
-            }
-          },
-          {
-            "name": "Department View Permission",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
-            "config": {
-              "resources": "[\"department\"]",
-              "scopes": "[\"view\"]",
-              "applyPolicies": "[\"Admin Policy\",\"Doc Send Policy\"]"
-            }
-          },
-          {
-            "name": "Document Group Permission",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
-            "config": {
-              "resources": "[\"document-group\"]",
-              "scopes": "[\"create\",\"edit\"]",
-              "applyPolicies": "[\"Admin Policy\"]"
-            }
-          },
-          {
-            "name": "Document Group View Permission",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
-            "config": {
-              "resources": "[\"document-group\"]",
-              "scopes": "[\"view\"]",
-              "applyPolicies": "[\"Admin Policy\",\"Doc Send Policy\"]"
-            }
-          },
-          {
-            "name": "Workplace Permission",
-            "description": "",
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
-            "config": {
-              "resources": "[\"workplace\"]",
-              "scopes": "[\"create\",\"edit\"]",
-              "applyPolicies": "[\"Admin Policy\"]"
+              "applyPolicies": "[\"People Signature Webhook Policy\"]"
             }
           }
         ],
         "scopes": [
           {
-            "name": "create",
-            "displayName": "Create"
-          },
-          {
-            "name": "edit",
-            "displayName": "Edit"
-          },
-          {
             "name": "view",
-            "displayName": "View"
-          },
-          {
-            "name": "send",
-            "displayName": "Send"
-          },
-          {
-            "name": "webhook",
-            "displayName": "Webhook"
-          },
-          {
-            "name": "upload",
-            "displayName": "Upload"
+            "displayName": "Consultar"
           },
           {
             "name": "download",
-            "displayName": "Download"
+            "displayName": "Baixar"
           },
           {
-            "name": "send2sign",
-            "displayName": "Send To Sign"
+            "name": "create",
+            "displayName": "Criar"
+          },
+          {
+            "name": "edit",
+            "displayName": "Editar"
+          },
+          {
+            "name": "upload",
+            "displayName": "Enviar arquivo"
           },
           {
             "name": "generate",
-            "displayName": "Generate"
+            "displayName": "Gerar"
           },
           {
-            "name": "reject",
-            "displayName": "Reject"
+            "name": "send2sign",
+            "displayName": "Enviar para assinatura"
           },
           {
             "name": "approve",
-            "displayName": "Approve"
+            "displayName": "Aprovar"
           },
           {
-            "name": "mark-not-applicable",
-            "displayName": "Mark Not Applicable"
+            "name": "reject",
+            "displayName": "Reprovar"
           },
           {
             "name": "deprecate",
-            "displayName": "Deprecate"
+            "displayName": "Depreciar"
+          },
+          {
+            "name": "mark-not-applicable",
+            "displayName": "Marcar como nao aplicavel"
+          },
+          {
+            "name": "webhook",
+            "displayName": "Retorno do provedor de assinatura"
           }
         ],
         "decisionStrategy": "UNANIMOUS"
@@ -2054,13 +2126,13 @@
       "defaultClientScopes": [
         "web-origins",
         "acr",
-        "company-scope",
-        "tenant-scope",
+        "tenant-access",
         "profile",
         "roles",
         "basic",
-        "people-management-api-scope",
-        "email"
+        "people-management-access",
+        "email",
+        "bill-payment-access"
       ],
       "optionalClientScopes": [
         "address",
@@ -2388,9 +2460,9 @@
     },
     {
       "id": "a767ae39-6e70-4e73-b03a-49caab1241ee",
-      "clientId": "zapsign",
-      "name": "ZapSign",
-      "description": "",
+      "clientId": "document-signing-client",
+      "name": "Provedor de assinatura de documento",
+      "description": "Client da integracao de assinatura eletronica. O nome nao cita o fornecedor de proposito: trocar de provedor passa a ser um adapter novo, nao a renomeacao de um client do realm.",
       "rootUrl": "",
       "adminUrl": "",
       "baseUrl": "",
@@ -2454,7 +2526,7 @@
         "profile",
         "roles",
         "basic",
-        "people-management-api-scope",
+        "people-management-access",
         "email"
       ],
       "optionalClientScopes": [
@@ -2467,38 +2539,6 @@
     }
   ],
   "clientScopes": [
-    {
-      "id": "c27b7c52-3d70-4d0f-8949-0e5ca37c451d",
-      "name": "company-scope",
-      "description": "",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "true",
-        "gui.order": "",
-        "consent.screen.text": ""
-      },
-      "protocolMappers": [
-        {
-          "id": "997c62cd-3dbb-4ea7-99f5-7f284dc40c42",
-          "name": "companies-user-attribute",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-usermodel-attribute-mapper",
-          "consentRequired": false,
-          "config": {
-            "introspection.token.claim": "true",
-            "multivalued": "true",
-            "userinfo.token.claim": "true",
-            "user.attribute": "companies",
-            "id.token.claim": "true",
-            "lightweight.claim": "false",
-            "access.token.claim": "true",
-            "claim.name": "companies",
-            "jsonType.label": "String"
-          }
-        }
-      ]
-    },
     {
       "id": "6dffdd27-7497-439c-9f4a-3fb8c1008683",
       "name": "web-origins",
@@ -2913,8 +2953,8 @@
     },
     {
       "id": "9c0a7c40-8a4c-40bf-9b45-a027ddce8ce9",
-      "name": "people-management-api-scope",
-      "description": "",
+      "name": "people-management-access",
+      "description": "Acesso ao PeopleManagement: papeis do client e a audience da API.",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
@@ -2945,7 +2985,7 @@
           "protocolMapper": "oidc-audience-mapper",
           "consentRequired": false,
           "config": {
-            "included.client.audience": "people_management-api",
+            "included.client.audience": "people-management-api",
             "id.token.claim": "false",
             "lightweight.claim": "false",
             "access.token.claim": "true",
@@ -3068,8 +3108,8 @@
     },
     {
       "id": "ce18d2f4-9430-4866-8dc0-eab4df2a0d8e",
-      "name": "tenant-scope",
-      "description": "Tenants que a pessoa acessa: claim `tenants` (identidade) e um claim por produto (`bp_tenants`, `pm_tenants`) com os tenants em que aquele produto esta habilitado.",
+      "name": "tenant-access",
+      "description": "Tenants da pessoa por produto, e a audience do TenantManagement.",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
@@ -3108,20 +3148,6 @@
             "access.token.claim": "true",
             "claim.name": "tenants",
             "jsonType.label": "String"
-          }
-        },
-        {
-          "id": "5b8e2c1a-0007-4f6b-8a3e-0d7c4b2f9e51",
-          "name": "bill-payment-api-audience",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "bill-payment-api",
-            "id.token.claim": "false",
-            "lightweight.claim": "false",
-            "access.token.claim": "true",
-            "introspection.token.claim": "false"
           }
         },
         {
@@ -3314,6 +3340,45 @@
             "claim.name": "organization",
             "jsonType.label": "String",
             "multivalued": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "bill-payment-access",
+      "description": "Acesso ao BillPayment: papeis do client e a audience da API.",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "client roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "foo",
+            "introspection.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "resource_access.${client_id}.roles",
+            "jsonType.label": "String",
+            "multivalued": "true"
+          }
+        },
+        {
+          "id": "5b8e2c1a-0007-4f6b-8a3e-0d7c4b2f9e51",
+          "name": "bill-payment-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "bill-payment-api",
+            "id.token.claim": "false",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "false"
           }
         }
       ]
@@ -3587,7 +3652,7 @@
         "subComponents": {},
         "config": {
           "kc.user.profile.config": [
-            "{\"attributes\": [{\"name\": \"username\", \"displayName\": \"${username}\", \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}, \"up-username-not-idn-homograph\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"multivalued\": false}, {\"name\": \"email\", \"displayName\": \"${email}\", \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}, \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"multivalued\": false}, {\"name\": \"firstName\", \"displayName\": \"${firstName}\", \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}, \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"multivalued\": false}, {\"name\": \"lastName\", \"displayName\": \"${lastName}\", \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}, \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"multivalued\": false}, {\"name\": \"companies\", \"displayName\": \"companies\", \"validations\": {}, \"annotations\": {}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": true}, {\"name\": \"tenants\", \"displayName\": \"tenants\", \"validations\": {}, \"annotations\": {}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": true}, {\"name\": \"pm_tenants\", \"displayName\": \"pm_tenants\", \"validations\": {}, \"annotations\": {}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": true}, {\"name\": \"bp_tenants\", \"displayName\": \"bp_tenants\", \"validations\": {}, \"annotations\": {}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": true}], \"groups\": [{\"name\": \"user-metadata\", \"displayHeader\": \"User metadata\", \"displayDescription\": \"Attributes, which refer to user metadata\"}]}"
+            "{\"attributes\": [{\"name\": \"username\", \"displayName\": \"${username}\", \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}, \"up-username-not-idn-homograph\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"multivalued\": false}, {\"name\": \"email\", \"displayName\": \"${email}\", \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}, \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"multivalued\": false}, {\"name\": \"firstName\", \"displayName\": \"${firstName}\", \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}, \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"multivalued\": false}, {\"name\": \"lastName\", \"displayName\": \"${lastName}\", \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}, \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"multivalued\": false}, {\"name\": \"tenants\", \"displayName\": \"tenants\", \"validations\": {}, \"annotations\": {}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": true}, {\"name\": \"pm_tenants\", \"displayName\": \"pm_tenants\", \"validations\": {}, \"annotations\": {}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": true}, {\"name\": \"bp_tenants\", \"displayName\": \"bp_tenants\", \"validations\": {}, \"annotations\": {}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}, \"multivalued\": true}], \"groups\": [{\"name\": \"user-metadata\", \"displayHeader\": \"User metadata\", \"displayDescription\": \"Attributes, which refer to user metadata\"}]}"
           ]
         }
       }

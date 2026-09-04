@@ -26,23 +26,34 @@ namespace PeopleManagement.API.Authentication
                 options.SetKeycloakOption(keycloakAuthenticationOptions);
                 options.Events = new JwtBearerEvents
                 {
+                    // Só registra. Quem escreve a resposta é o OnChallenge, que roda logo em
+                    // seguida — escrever aqui também produziria dois corpos JSON concatenados.
                     OnAuthenticationFailed = context =>
                     {
-                        // Log the exception details for debugging
                         var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                        logger.LogInformation(context.Exception, "Authentication failed. Exception: {ExceptionMessage}", context.Exception.Message);
+                        if (logger.IsEnabled(LogLevel.Information))
+                            logger.LogInformation(context.Exception, "Authentication failed. Exception: {ExceptionMessage}", context.Exception.Message);
 
-                        context.Response.StatusCode = 401;
-                        context.Response.ContentType = "application/json";
-                        return context.Response.WriteAsync("{\"error\": \"Authentication failed\"}");
+                        return Task.CompletedTask;
                     },
+
+                    // A ORDEM AQUI É O QUE DEFINE O STATUS DA RESPOSTA, e errá-la é silencioso.
+                    // Escrever o corpo sem HandleResponse() e sem StatusCode faz a resposta ser
+                    // commitada com o 200 padrão: uma requisição SEM TOKEN devolvia
+                    // `200 {"error": "Unauthorized access"}`, e qualquer cliente que olhe o status
+                    // — o nosso olha — trataria a negativa como sucesso. O defeito viveu aqui desde
+                    // o início do BC; foi corrigido no BillPayment primeiro e portado em 2026-09-04,
+                    // quando o RouteGuardTests novo finalmente o exercitou.
                     OnChallenge = context =>
                     {
-                        // Log the challenge details for debugging
                         var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                        logger.LogInformation("Authentication challenge triggered. Scheme: {Scheme}, Error: {Error}, ErrorDescription: {ErrorDescription}",
-                            context.Scheme.Name, context.Error, context.ErrorDescription);
+                        if (logger.IsEnabled(LogLevel.Information))
+                            logger.LogInformation("Authentication challenge triggered. Scheme: {Scheme}, Error: {Error}, ErrorDescription: {ErrorDescription}",
+                                context.Scheme.Name, context.Error, context.ErrorDescription);
 
+                        context.HandleResponse();
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.Response.ContentType = "application/json";
                         return context.Response.WriteAsync("{\"error\": \"Unauthorized access\"}");
                     }
                 };

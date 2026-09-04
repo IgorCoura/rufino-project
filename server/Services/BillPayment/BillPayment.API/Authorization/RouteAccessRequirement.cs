@@ -1,4 +1,4 @@
-namespace BillPayment.API.Authorization;
+﻿namespace BillPayment.API.Authorization;
 
 using Microsoft.AspNetCore.Authorization;
 
@@ -20,6 +20,13 @@ public record RouteAccessRequirement(string ParamRouteName, string ClaimType) : 
 /// guard em silêncio; quem impede é o teste de erosão da suíte, que varre o
 /// <c>EndpointDataSource</c>.
 /// </para>
+/// <para>
+/// O <strong>tipo</strong> do claim casa por igualdade exata desde 2026-09-04. Antes era
+/// <c>Contains</c>, e com ele <c>"bp_tenants".Contains("tenants")</c> é verdadeiro: uma API
+/// configurada para ler o <c>tenants</c> genérico aceitaria também os valores do claim de outro
+/// produto. O sentido que nos protegia era acidente de nomenclatura, não desenho — e a próxima
+/// API a se chamar <c>&lt;sigla&gt;_tenants</c> reabriria o buraco.
+/// </para>
 /// </remarks>
 public class RouteAccessRequirementHandler(IHttpContextAccessor httpContextAccessor) : AuthorizationHandler<RouteAccessRequirement>
 {
@@ -39,7 +46,7 @@ public class RouteAccessRequirementHandler(IHttpContextAccessor httpContextAcces
         }
 
         var claims = context.User
-            .FindAll(x => x.Type.Contains(requirement.ClaimType, StringComparison.OrdinalIgnoreCase))
+            .FindAll(x => string.Equals(x.Type, requirement.ClaimType, StringComparison.OrdinalIgnoreCase))
             .Select(x => x.Value)
             .ToList();
 

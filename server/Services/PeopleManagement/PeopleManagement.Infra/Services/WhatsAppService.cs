@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PeopleManagement.Domain.Options;
 using PeopleManagement.Domain.Services;
@@ -10,12 +10,12 @@ namespace PeopleManagement.Infra.Services
     public class WhatsAppService : IWhatsAppService
     {
         private readonly HttpClient _httpClient;
-        private readonly WhatsAppOptions _options;
+        private readonly MessagingOptions _options;
         private readonly ILogger<WhatsAppService> _logger;
 
         public WhatsAppService(
             HttpClient httpClient,
-            IOptions<WhatsAppOptions> options,
+            IOptions<MessagingOptions> options,
             ILogger<WhatsAppService> logger)
         {
             _httpClient = httpClient;

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces
 {
-    public interface IAuthorizationService
+    public interface ISigningServiceAccountTokenProvider
     {
         Task<string> GetAuthorizationToken();
     }

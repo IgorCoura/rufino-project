@@ -5,7 +5,6 @@ import 'package:tenant_management/tenant_management.dart';
 
 import 'package:rufino_core/rufino_core.dart';
 import '../viewmodel/home_viewmodel.dart';
-import 'package:people_management/people_management.dart';
 
 /// The hub the app opens on: the features of the products the selected
 /// customer has enabled, and that this person is allowed to use.
@@ -202,11 +201,10 @@ class _UserMenu extends StatelessWidget {
 
 
 const _toolEntries = <HomeEntry>[
-  HomeEntry(
+  HomeEntry.tool(
     icon: Icons.bug_report_outlined,
     label: 'Debug',
     route: '/debug',
-    resource: PeopleManagementResources.debug,
   ),
 ];
 
@@ -232,10 +230,14 @@ class _HomeBody extends StatelessWidget {
         (title: module.menuTitle, entries: module.visibleEntries(context)),
     ];
 
-    // A entrada de diagnóstico é da casca: ela fala do app, não de um produto.
-    final tools = _toolEntries
-        .where((e) => permissions.hasAnyScope(e.resource))
-        .toList();
+    // A entrada de diagnóstico é da casca: ela fala do app, não de um produto —
+    // e por isso quem a libera é um papel de REALM lido do token, não uma
+    // permissão sobre recurso de API. Até 2026-09-04 ela dependia do recurso
+    // `debug` dentro do people-management-api, o que fazia o diagnóstico do app
+    // quebrar sempre que aquele BC era mexido.
+    final tools = context.watch<DeveloperAccess>().isDeveloper
+        ? _toolEntries
+        : const <HomeEntry>[];
 
     return LayoutBuilder(
       builder: (context, constraints) {

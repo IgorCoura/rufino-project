@@ -1,4 +1,7 @@
-﻿using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
+﻿#pragma warning disable CS0618 // O arquivo INTEIRO e a feature Archive, descontinuada.
+// Os tipos seguem marcados com [Obsolete] para quem estiver de fora; aqui dentro o aviso
+// so produziria ruido no build de uma feature que ninguem deve mexer.
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 
 namespace PeopleManagement.Domain.AggregatesModel.ArchiveAggregate
 {

@@ -29,7 +29,9 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IDepartmentQueries, DepartmentQueries>();
             service.AddScoped<IPositionQueries, PositionQueries>();
             service.AddScoped<IWorkplaceQueries, WorkplaceQueries>();
+#pragma warning disable CS0618 // Archive: feature descontinuada, mantida so para o dado ja gravado nao ficar orfao. Ver o [Obsolete] nos tipos.
             service.AddScoped<IArchiveCategoryQueries, ArchiveCategoryQueries>();
+#pragma warning restore CS0618
             service.AddScoped<IDocumentTemplateQueries, DocumentTemplateQueries>();
             service.AddScoped<IRequireDocumentsQueries, RequireDocumentsQueries>();
             service.AddScoped<IDocumentQueries, DocumentQueries>();

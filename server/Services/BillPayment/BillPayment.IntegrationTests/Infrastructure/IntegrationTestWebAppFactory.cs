@@ -40,6 +40,14 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
         // A suíte bate no mesmo usuário centenas de vezes por minuto; o limitador tem host próprio.
         builder.UseSetting("RateLimiting:Enabled", "false");
 
+        // O cache do retrato de permissões fica DESLIGADO na suíte, e não por conveniência: os
+        // testes de alçada variam os escopos pelo header `bp_scopes` mantendo o MESMO token, e o
+        // cache — que é chaveado pelo token, como tem que ser — devolveria à segunda requisição o
+        // retrato da primeira. Em produção isso não acontece: permissão vem da identidade do
+        // token, não de um header. Quem prova que o cache funciona é RptCacheTests, que troca o
+        // token de propósito.
+        builder.UseSetting("Keycloak:RptCacheEnabled", "false");
+
         // Master key descartável, gerada por execução. O cofre precisa de uma para existir, e
         // a suíte não pode depender de segredo de máquina nem carregar um valor versionado.
         // Nenhuma chave do Asaas é configurada de propósito: os testes não devem ter

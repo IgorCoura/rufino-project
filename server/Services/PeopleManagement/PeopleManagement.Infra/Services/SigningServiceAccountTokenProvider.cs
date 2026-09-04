@@ -6,11 +6,11 @@ using System.Text.Json;
 
 namespace PeopleManagement.Infra.Services
 {
-    public class AuthorizationService(HttpClient httpClient, ILogger<AuthorizationService> logger, AuthorizationOptions options, IMemoryCache cache) : IAuthorizationService
+    public class SigningServiceAccountTokenProvider(HttpClient httpClient, ILogger<SigningServiceAccountTokenProvider> logger, SigningServiceAccountOptions options, IMemoryCache cache) : ISigningServiceAccountTokenProvider
     {
         private readonly HttpClient _httpClient = httpClient;
-        private readonly ILogger<AuthorizationService> _logger = logger;
-        private readonly AuthorizationOptions _options = options;
+        private readonly ILogger<SigningServiceAccountTokenProvider> _logger = logger;
+        private readonly SigningServiceAccountOptions _options = options;
         private readonly IMemoryCache _cache = cache;
         private const string TokenCacheKey = "KeycloakAccessToken";
         private readonly SemaphoreSlim _semaphore = new(1, 1);
@@ -44,9 +44,9 @@ namespace PeopleManagement.Infra.Services
 
         private async Task<string> RequestNewToken()
         {
-            _logger.LogInformation("Requesting new authorization token from Keycloak at {KeycloakUrl}", _options.KeycloakUrl);
+            _logger.LogInformation("Requesting new authorization token from Keycloak at {TokenEndpoint}", _options.TokenEndpoint);
 
-            var request = new HttpRequestMessage(HttpMethod.Post, _options.KeycloakUrl);
+            var request = new HttpRequestMessage(HttpMethod.Post, _options.TokenEndpoint);
             request.Content = new FormUrlEncodedContent(new[]
             {
                 new KeyValuePair<string, string>("grant_type", "client_credentials"),

@@ -239,11 +239,20 @@ class App extends StatelessWidget {
       ),
     );
 
+    // As ferramentas de diagnóstico são do APLICATIVO, não de um produto: o
+    // papel vem do token (realm role), sem chamada de rede e sem recurso em
+    // API nenhuma. Ver DeveloperAccess.
+    final developerAccess = DeveloperAccess(getAccessToken: getAccessToken);
+
     // every audience, or one of them silently goes stale.
     void reloadAllPermissions() {
       permissionNotifier.loadPermissions();
       tenantPermissionNotifier.loadPermissions();
       billPaymentPermissionNotifier.loadPermissions();
+      // Relê junto: o papel vive no token, então token novo pode trazer papel
+      // novo — e um diagnóstico que só aparece depois de reiniciar o app é
+      // exatamente o tipo de coisa que ninguém liga ao papel.
+      developerAccess.load();
     }
 
     if (authApiService != null) {
@@ -343,6 +352,7 @@ class App extends StatelessWidget {
       Provider<ErrorReporter>.value(value: errorReporter),
       ChangeNotifierProvider(create: (_) => ThemeNotifier()),
       ChangeNotifierProvider.value(value: permissionNotifier),
+      ChangeNotifierProvider.value(value: developerAccess),
       ChangeNotifierProvider.value(value: tenantPermissionNotifier),
       ChangeNotifierProvider.value(value: billPaymentPermissionNotifier),
       ChangeNotifierProvider.value(value: tenantContextNotifier),
@@ -397,6 +407,7 @@ class _AppRouterState extends State<_AppRouter> {
                   context.read<TenantPermissionNotifier>(),
               billPaymentPermissionNotifier:
                   context.read<BillPaymentPermissionNotifier>(),
+              developerAccess: context.read<DeveloperAccess>(),
               errorReporter: context.read<ErrorReporter>(),
             ),
           ),
@@ -462,8 +473,14 @@ class _AppRouterState extends State<_AppRouter> {
         // ─── Document Dashboard ────────────────────────────────
 
         // ─── Debug ────────────────────────────────────────────────────────
+        // A rota era ALCANÇÁVEL POR URL sem verificação nenhuma: o card sumia
+        // da home para quem não tinha o papel, mas digitar /debug abria a tela
+        // — que mostra o AppConfig inteiro, com botão de copiar. O guard fecha
+        // isso na única porta que existe.
         GoRoute(
           path: '/debug',
+          redirect: (context, state) =>
+              context.read<DeveloperAccess>().isDeveloper ? null : '/home',
           builder: (context, state) => const DebugScreen(),
         ),
 

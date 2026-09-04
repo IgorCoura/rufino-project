@@ -6,6 +6,7 @@
 library;
 
 export 'src/auth/auth_exception.dart';
+export 'src/auth/developer_access.dart';
 export 'src/auth/permission.dart';
 export 'src/auth/permission_api_service.dart';
 export 'src/auth/permission_cache_service.dart';

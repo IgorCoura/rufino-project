@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Net.Http.Headers;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
@@ -28,6 +29,20 @@ namespace PeopleManagement.API.Authorization
                     return policy;
                 })
             );
+            // O cache do retrato de permissoes (plano de 2026-09-04). MemoryCache PROPRIO, com teto
+            // de entradas: o cache compartilhado da aplicacao nao tem SizeLimit, e misturar
+            // permissoes com o resto faria uma coisa despejar a outra.
+            services.AddSingleton(_ => new MemoryCache(new MemoryCacheOptions
+            {
+                SizeLimit = authorizationOptions.RptCacheSizeLimit,
+            }));
+            services.AddSingleton<IRptCache>(provider => new RptCache(
+                provider.GetRequiredService<IHttpContextAccessor>(),
+                provider.GetRequiredService<IAuthorizationServerClient>(),
+                provider.GetRequiredService<MemoryCache>(),
+                authorizationOptions,
+                provider.GetRequiredService<ILogger<RptCache>>()));
+
             services.AddSingleton<IAuthorizationHandler, ProtectedResourceRequirementHandler>();
             services.AddSingleton<IAuthorizationHandler, RouteAccessRequirementHandler>();
             services.AddSingleton<IAuthorizationMiddlewareResultHandler, AuthorizationResultHandler>();

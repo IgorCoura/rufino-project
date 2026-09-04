@@ -1,4 +1,4 @@
-using Hangfire;
+﻿using Hangfire;
 using Microsoft.Extensions.Options;
 using PeopleManagement.Domain.Options;
 using PeopleManagement.Domain.Services;
@@ -7,9 +7,9 @@ namespace PeopleManagement.Services.Services
 {
     public class WhatsAppQueueService : IWhatsAppQueueService
     {
-        private readonly WhatsAppQueueOptions _options;
+        private readonly MessagingQueueOptions _options;
 
-        public WhatsAppQueueService(IOptions<WhatsAppQueueOptions> options)
+        public WhatsAppQueueService(IOptions<MessagingQueueOptions> options)
         {
             _options = options.Value;
         }

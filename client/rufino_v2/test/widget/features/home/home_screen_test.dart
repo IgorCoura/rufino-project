@@ -97,6 +97,11 @@ void main() {
             value: tenantContext,
           ),
           ChangeNotifierProvider<ThemeNotifier>(create: (_) => ThemeNotifier()),
+          // Sem o papel de realm: o card de diagnóstico não aparece, que é o
+          // padrão de toda pessoa comum.
+          ChangeNotifierProvider<DeveloperAccess>(
+            create: (_) => DeveloperAccess(getAccessToken: () async => ''),
+          ),
           ChangeNotifierProvider<TenantSessionBridge>.value(value: bridge),
           // O menu do Home é montado a partir desta lista (D6): cada módulo
           // responde pelas suas duas porteiras. Os módulos de verdade entram

@@ -18,16 +18,14 @@ public enum ResourceAccessResult
 
 public interface IAuthorizationServerClient
 {
-    Task<ResourceAccessResult> VerifyAccessToResouce(string permission, CancellationToken cancellationToken = default);
-
     /// <summary>
-    /// Pergunta ao servidor de autorização QUAIS dos escopos pedidos o token concede sobre o
-    /// recurso, e devolve o subconjunto concedido — é a base da alçada por nível de risco.
-    /// Falha de rede ou recusa devolvem o conjunto vazio: negar por indisponibilidade é o lado
-    /// seguro, e a porta de entrada do endpoint já validou o token e o escopo base.
+    /// Busca o retrato com TODAS as permissões que o token concede — uma pergunta por token, não
+    /// por endpoint.
     /// </summary>
-    Task<IReadOnlyCollection<string>> GetGrantedScopesAsync(
-        string resource,
-        IReadOnlyCollection<string> scopes,
-        CancellationToken cancellationToken = default);
+    /// <remarks>
+    /// É a chamada que sustenta o <see cref="IRptCache"/>. Vai ao endpoint de token com
+    /// <c>response_mode=permissions</c> e <strong>sem</strong> o parâmetro <c>permission</c>: sem
+    /// ele o Keycloak avalia tudo que a pessoa alcança naquele resource server e devolve a lista.
+    /// </remarks>
+    Task<RptFetchResult> FetchAllPermissionsAsync(CancellationToken cancellationToken = default);
 }

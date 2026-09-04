@@ -43,6 +43,7 @@ class SplashViewModel extends ChangeNotifier {
     required PermissionNotifier permissionNotifier,
     required TenantPermissionNotifier tenantPermissionNotifier,
     required BillPaymentPermissionNotifier billPaymentPermissionNotifier,
+    required DeveloperAccess developerAccess,
     required ErrorReporter errorReporter,
   })  : _authRepository = authRepository,
         _tenantRepository = tenantRepository,
@@ -51,6 +52,7 @@ class SplashViewModel extends ChangeNotifier {
         _permissionNotifier = permissionNotifier,
         _tenantPermissionNotifier = tenantPermissionNotifier,
         _billPaymentPermissionNotifier = billPaymentPermissionNotifier,
+        _developerAccess = developerAccess,
         _errorReporter = errorReporter;
 
   final AuthRepository _authRepository;
@@ -60,6 +62,7 @@ class SplashViewModel extends ChangeNotifier {
   final PermissionNotifier _permissionNotifier;
   final TenantPermissionNotifier _tenantPermissionNotifier;
   final BillPaymentPermissionNotifier _billPaymentPermissionNotifier;
+  final DeveloperAccess _developerAccess;
   final ErrorReporter _errorReporter;
 
   SplashStatus _status = SplashStatus.loading;
@@ -96,6 +99,8 @@ class SplashViewModel extends ChangeNotifier {
         _permissionNotifier.loadPermissions(),
         _tenantPermissionNotifier.loadPermissions(),
         _billPaymentPermissionNotifier.loadPermissions(),
+        // Não é permissão de API: lê o papel de realm do token, sem rede.
+        _developerAccess.load(),
         _tenantContext.restore(),
       ]);
 

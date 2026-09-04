@@ -18,9 +18,6 @@ abstract final class PeopleManagementResources {
   /// Cadastro da empresa (o `Company` local, não o tenant).
   static const String company = 'company';
 
-  /// Ferramentas de diagnóstico.
-  static const String debug = 'debug';
-
   /// Departamentos.
   static const String department = 'department';
 

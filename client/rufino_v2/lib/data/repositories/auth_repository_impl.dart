@@ -24,18 +24,6 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Result<List<String>>> getCompanyIds() async {
-    try {
-      final ids = await authApiService.getCompanyIds();
-      return Result.success(ids);
-    } on AuthException catch (e, st) {
-      return reporter.failure(e, st);
-    } catch (e, st) {
-      return reporter.failure(NetworkAuthException(e), st);
-    }
-  }
-
-  @override
   Future<Result<bool>> hasValidCredentials() async {
     try {
       final valid = await authApiService.hasValidCredentials();

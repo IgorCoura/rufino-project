@@ -1,4 +1,4 @@
-using Hangfire;
+﻿using Hangfire;
 using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Models;
@@ -17,21 +17,21 @@ public class ClickSignWebHookManagementService : IWebHookManagementService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<ClickSignWebHookManagementService> _logger;
-    private readonly IAuthorizationService _authorizationService;
-    private readonly SignOptions _options;
+    private readonly ISigningServiceAccountTokenProvider _signingTokenProvider;
+    private readonly SignatureProviderOptions _options;
     private readonly IWebHookRepository _webHookRepository;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
 
     public ClickSignWebHookManagementService(
         HttpClient httpClient,
         ILogger<ClickSignWebHookManagementService> logger,
-        IAuthorizationService authorizationService,
-        SignOptions options,
+        ISigningServiceAccountTokenProvider signingTokenProvider,
+        SignatureProviderOptions options,
         IWebHookRepository webHookRepository)
     {
         _httpClient = httpClient;
         _logger = logger;
-        _authorizationService = authorizationService;
+        _signingTokenProvider = signingTokenProvider;
         _options = options;
         _webHookRepository = webHookRepository;
     }
@@ -40,7 +40,7 @@ public class ClickSignWebHookManagementService : IWebHookManagementService
     {
         try
         {
-            var authorizationToken = await _authorizationService.GetAuthorizationToken();
+            var authorizationToken = await _signingTokenProvider.GetAuthorizationToken();
 
             var body = new JsonObject
             {

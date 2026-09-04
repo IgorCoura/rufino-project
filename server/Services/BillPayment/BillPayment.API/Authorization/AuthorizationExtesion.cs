@@ -1,7 +1,8 @@
-namespace BillPayment.API.Authorization;
+﻿namespace BillPayment.API.Authorization;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
+using Microsoft.Extensions.Caching.Memory;
 
 /// <summary>
 /// Autorização idêntica à do PeopleManagement e à do TenantManagement (ADR-004 daquele BC):
@@ -39,6 +40,20 @@ public static class AuthorizationExtesion
                 policy.AddRequirements(new ProtectedResourceRequirement(param));
                 return policy;
             }));
+
+        // O cache do retrato de permissões (ADR-004 + plano de 2026-09-04). MemoryCache PRÓPRIO,
+        // com teto de entradas: o cache compartilhado da aplicação não tem SizeLimit, e misturar
+        // permissões com o resto faria uma coisa despejar a outra.
+        services.AddSingleton(_ => new MemoryCache(new MemoryCacheOptions
+        {
+            SizeLimit = authorizationOptions.RptCacheSizeLimit,
+        }));
+        services.AddSingleton<IRptCache>(provider => new RptCache(
+            provider.GetRequiredService<IHttpContextAccessor>(),
+            provider.GetRequiredService<IAuthorizationServerClient>(),
+            provider.GetRequiredService<MemoryCache>(),
+            authorizationOptions,
+            provider.GetRequiredService<ILogger<RptCache>>()));
 
         services.AddSingleton<IAuthorizationHandler, ProtectedResourceRequirementHandler>();
         services.AddSingleton<IAuthorizationHandler, RouteAccessRequirementHandler>();

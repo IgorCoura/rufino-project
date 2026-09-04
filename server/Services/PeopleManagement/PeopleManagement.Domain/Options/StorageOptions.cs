@@ -1,8 +1,8 @@
-namespace PeopleManagement.Domain.Options
+﻿namespace PeopleManagement.Domain.Options
 {
-    public class S3Options
+    public class StorageOptions
     {
-        public const string SectionName = "S3";
+        public const string SectionName = "Storage";
 
         public string ServiceURL { get; set; } = string.Empty;
         public string AccessKey { get; set; } = string.Empty;

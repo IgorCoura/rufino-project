@@ -35,6 +35,31 @@ public class AuthorizationOptions
     public ScopesValidationMode ScopesValidationMode { get; set; } = ScopesValidationMode.AllOf;
 
     /// <summary>
+    /// Liga o cache do retrato de permissões. Desligado, cada endpoint volta a perguntar ao
+    /// Keycloak — é o que a suíte de integração usa para exercitar o caminho de rede.
+    /// </summary>
+    public bool RptCacheEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Por quanto tempo o retrato vale. É a janela em que uma permissão revogada no console ainda
+    /// é aceita — mantenha curto. O teto real é sempre o <c>exp</c> do token.
+    /// </summary>
+    public TimeSpan RptCacheTtl { get; set; } = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// Por quanto tempo, DEPOIS de vencido, o retrato ainda pode ser servido caso o servidor de
+    /// autorização esteja fora do ar (<em>fail-static</em>). Zero desliga a degradação e faz a
+    /// indisponibilidade voltar a ser 503 imediato.
+    /// </summary>
+    public TimeSpan RptStaleGrace { get; set; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// Teto de retratos guardados. Cada entrada é uma sessão ativa; estourado, o cache descarta as
+    /// mais antigas e elas voltam a ser buscadas.
+    /// </summary>
+    public long RptCacheSizeLimit { get; set; } = 5_000;
+
+    /// <summary>
     /// Nome do claim que lista os tenants da pessoa. É <c>tenants</c>, e não <c>tenant_ids</c>,
     /// porque o handler compara por <c>Contains</c>: com o nome alternativo,
     /// <c>"tenant_ids".Contains("tenants")</c> é falso e o guard reprovaria todo mundo. Quem

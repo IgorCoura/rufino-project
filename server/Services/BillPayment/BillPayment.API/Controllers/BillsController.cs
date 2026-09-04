@@ -26,7 +26,7 @@ public sealed class BillsController(
     IBillQueries queries,
     ICapturedMessageQueries capturedMessages,
     IPaymentSchedulePreviewQueries schedulePreviews,
-    IAuthorizationServerClient authorizationServer,
+    IRptCache rptCache,
     ILogger<BillsController> logger) : BaseController(logger)
 {
     // Alçada de aprovação por nível de risco, do maior para o menor. Quem só tem bill:approve
@@ -351,15 +351,23 @@ public sealed class BillsController(
     }
 
     /// <summary>
-    /// Resolve a alçada de risco de quem aprova: uma pergunta UMA pelos três escopos, e o maior
-    /// concedido vira a alçada (hierárquica — cobre os níveis abaixo). Sem nenhum, a alçada é
-    /// Verde, que o <c>bill:approve</c> da porta de entrada já garante. Quem COMPARA alçada com
+    /// Resolve a alçada de risco de quem aprova: lê o retrato de permissões do token e o maior
+    /// escopo concedido vira a alçada (hierárquica — cobre os níveis abaixo). Sem nenhum, a alçada
+    /// é Verde, que o <c>bill:approve</c> da porta de entrada já garante. Quem COMPARA alçada com
     /// o risco atual do boleto é o domínio (BLP.BIL32) — aqui só se descobre quem a pessoa é.
     /// </summary>
+    /// <remarks>
+    /// Desde 2026-09-04 isto NÃO custa uma segunda ida ao Keycloak: o retrato já foi buscado (e
+    /// cacheado) quando a policy do próprio endpoint foi avaliada, e as duas leituras saem da mesma
+    /// lista. Retrato indisponível devolve alçada Verde — negar por indisponibilidade é o lado
+    /// seguro, e a policy do endpoint já teria respondido 503 antes de chegar aqui.
+    /// </remarks>
     private async Task<string> ResolveRiskClearanceAsync(CancellationToken cancellationToken)
     {
-        var granted = await authorizationServer.GetGrantedScopesAsync(
-            "bill", RiskClearanceScopes, cancellationToken);
+        var rpt = await rptCache.GetAsync(cancellationToken);
+        var granted = rpt.Outcome == RptFetchOutcome.Resolved
+            ? rpt.Snapshot.GrantedScopes("bill", RiskClearanceScopes)
+            : [];
 
         if (granted.Contains("approve-extreme"))
             return RiskLevel.ExtremeDanger.Name;

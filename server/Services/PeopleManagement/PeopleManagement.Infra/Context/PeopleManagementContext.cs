@@ -26,8 +26,10 @@ namespace PeopleManagement.Infra.Context
     {
         public const string DEFAULT_SCHEMA = "people_management";
 
+#pragma warning disable CS0618 // Archive: feature descontinuada, mantida so para o dado ja gravado nao ficar orfao. Ver o [Obsolete] nos tipos.
         public DbSet<ArchiveCategory> ArchiveCategories { get; set; } = null!;
         public DbSet<Archive> Archives { get; set; } = null!;
+#pragma warning restore CS0618
         public DbSet<Company> Companies { get; set; } = null!;
         public DbSet<Department> Departments { get; set; } = null!;
         public DbSet<DocumentGroup> DocumentGroups { get; set; } = null!;
@@ -57,8 +59,10 @@ namespace PeopleManagement.Infra.Context
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.HasDefaultSchema(DEFAULT_SCHEMA);
+#pragma warning disable CS0618 // Archive: feature descontinuada, mantida so para o dado ja gravado nao ficar orfao. Ver o [Obsolete] nos tipos.
             modelBuilder.ApplyConfiguration(new ArchiveCategoryMap());
             modelBuilder.ApplyConfiguration(new ArchiveMap());
+#pragma warning restore CS0618
             modelBuilder.ApplyConfiguration(new ClientRequestMap());
             modelBuilder.ApplyConfiguration(new CompanyMap());
             modelBuilder.ApplyConfiguration(new DepartmentMap());

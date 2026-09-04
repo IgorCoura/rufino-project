@@ -18,6 +18,19 @@ class HomeEntry {
     this.scope,
   });
 
+  /// Cria uma entrada de FERRAMENTA do aplicativo — não de um produto.
+  ///
+  /// A diferença é de quem decide se ela aparece: a entrada de produto é
+  /// filtrada por permissão de API ([resource] + [scope]); a de ferramenta é
+  /// filtrada pela casca, por papel de realm lido do token. Por isso [resource]
+  /// fica vazio aqui, e nenhum módulo lê esta lista.
+  const HomeEntry.tool({
+    required this.icon,
+    required this.label,
+    required this.route,
+  })  : resource = '',
+        scope = null;
+
   /// Ícone do cartão.
   final IconData icon;
 

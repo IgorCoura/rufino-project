@@ -1,8 +1,8 @@
-namespace PeopleManagement.Domain.Options
+﻿namespace PeopleManagement.Domain.Options
 {
-    public class WhatsAppOptions
+    public class MessagingOptions
     {
-        public const string SectionName = "WhatsApp";
+        public const string SectionName = "Messaging";
 
         public string BaseUrl { get; set; } = string.Empty;
         public string Instance { get; set; } = string.Empty;

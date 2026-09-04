@@ -28,10 +28,14 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IRecoverWorkplaceInfoToDocumentTemplateService, RecoverWorkplaceInfoToDocumentTemplateService>();
             service.AddScoped<IRecoverComplementaryInfoToDocumentTemplateService, RecoverComplementaryInfoToDocumentTemplateService>();
 
+#pragma warning disable CS0618 // Archive: feature descontinuada, mantida so para o dado ja gravado nao ficar orfao. Ver o [Obsolete] nos tipos.
             service.AddScoped<IArchiveService, ArchiveService>();
+#pragma warning restore CS0618
             service.AddScoped<ICompleteAdmissionService, CompleteAdmissionService>();
             service.AddScoped<IDocumentService, DocumentService>();
+#pragma warning disable CS0618 // Archive: feature descontinuada, mantida so para o dado ja gravado nao ficar orfao. Ver o [Obsolete] nos tipos.
             service.AddScoped<IArchiveCategoryService, ArchiveCategoryService>();
+#pragma warning restore CS0618
             service.AddScoped<ISignDocumentService, SignDocumentService>();
             service.AddScoped<IDocumentDepreciationService, DocumentDepreciationService>();
             service.AddScoped<IDocumentSignatureReminderService, DocumentSignatureReminderService>();
@@ -52,19 +56,19 @@ namespace PeopleManagement.API.DependencyInjection
             configuration.GetSection(DocumentOptions.ConfigurationSection).Bind(documentOptions);
             service.AddSingleton(documentOptions);
 
-            var authorizationOption = new AuthorizationOptions();
-            configuration.GetSection(AuthorizationOptions.ConfigurationSection).Bind(authorizationOption);
-            service.AddSingleton(authorizationOption);
+            var signingServiceAccountOptions = new SigningServiceAccountOptions();
+            configuration.GetSection(SigningServiceAccountOptions.ConfigurationSection).Bind(signingServiceAccountOptions);
+            service.AddSingleton(signingServiceAccountOptions);
 
-            var signOptions = new SignOptions();
-            configuration.GetSection(SignOptions.ConfigurationSection).Bind(signOptions);
+            var signOptions = new SignatureProviderOptions();
+            configuration.GetSection(SignatureProviderOptions.ConfigurationSection).Bind(signOptions);
             service.AddSingleton(signOptions);
 
             var timeZoneOptions = new TimeZoneOptions();
             configuration.GetSection(TimeZoneOptions.SectionName).Bind(timeZoneOptions);
             service.AddSingleton(timeZoneOptions);
 
-            service.Configure<WhatsAppQueueOptions>(configuration.GetSection(WhatsAppQueueOptions.SectionName));
+            service.Configure<MessagingQueueOptions>(configuration.GetSection(MessagingQueueOptions.SectionName));
 
             return service;
         }

@@ -53,6 +53,7 @@ void main() {
       permissionNotifier: permissionNotifier,
       tenantPermissionNotifier: tenantPermissionNotifier,
       billPaymentPermissionNotifier: billPaymentPermissionNotifier,
+      developerAccess: DeveloperAccess(getAccessToken: () async => ''),
       errorReporter: FakeErrorReporter(),
     );
   }

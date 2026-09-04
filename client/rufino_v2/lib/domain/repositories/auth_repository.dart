@@ -5,8 +5,6 @@ abstract class AuthRepository {
     required String password,
   });
 
-  Future<Result<List<String>>> getCompanyIds();
-
   Future<Result<bool>> hasValidCredentials();
 
   Future<Result<void>> logout();

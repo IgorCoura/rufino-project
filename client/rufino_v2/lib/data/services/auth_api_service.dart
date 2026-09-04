@@ -1,7 +1,6 @@
 import 'dart:ui';
 
 import 'package:http/http.dart' as http;
-import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:oauth2/oauth2.dart' as oauth2;
 
 import 'package:rufino_core/rufino_core.dart';
@@ -111,18 +110,6 @@ class AuthApiService {
   Future<String> getAuthorizationHeader() async {
     final credentials = await getCredentials();
     return 'Bearer ${credentials.accessToken}';
-  }
-
-  Future<List<String>> getCompanyIds() async {
-    final credentials = await getCredentials();
-    try {
-      final decoded = JwtDecoder.decode(credentials.accessToken);
-      final raw = decoded['companies'];
-      if (raw == null) return [];
-      return (raw as List<dynamic>).map((e) => e.toString()).toList();
-    } catch (_) {
-      throw const SessionExpiredException();
-    }
   }
 
   Future<bool> hasValidCredentials() async {

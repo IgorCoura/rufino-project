@@ -1,4 +1,4 @@
-using Hangfire;
+﻿using Hangfire;
 using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Models;
@@ -15,21 +15,21 @@ namespace PeopleManagement.Infra.Services
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<ZapSignWebHookManagementService> _logger;
-        private readonly IAuthorizationService _authorizationService;
-        private readonly SignOptions _signOptions;
+        private readonly ISigningServiceAccountTokenProvider _signingTokenProvider;
+        private readonly SignatureProviderOptions _signOptions;
         private readonly IWebHookRepository _webHookRepository;
         private readonly SemaphoreSlim _semaphore = new(1, 1);
 
         public ZapSignWebHookManagementService(
             HttpClient httpClient,
             ILogger<ZapSignWebHookManagementService> logger,
-            IAuthorizationService authorizationService,
-            SignOptions signOptions,
+            ISigningServiceAccountTokenProvider signingTokenProvider,
+            SignatureProviderOptions signOptions,
             IWebHookRepository webHookRepository)
         {
             _httpClient = httpClient;
             _logger = logger;
-            _authorizationService = authorizationService;
+            _signingTokenProvider = signingTokenProvider;
             _signOptions = signOptions;
             _webHookRepository = webHookRepository;
         }
@@ -38,7 +38,7 @@ namespace PeopleManagement.Infra.Services
         {
             try
             {
-                var authorizationToken = await _authorizationService.GetAuthorizationToken();
+                var authorizationToken = await _signingTokenProvider.GetAuthorizationToken();
 
                 var body = new JsonObject
                 {

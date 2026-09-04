@@ -1,25 +1,33 @@
-namespace PeopleManagement.API.Authorization
+﻿namespace PeopleManagement.API.Authorization
 {
-    /// <summary>
-    /// Outcome of a UMA permission check against the authorization server.
-    /// </summary>
+    /// <summary>Desfecho de uma checagem de permissao UMA contra o servidor de autorizacao.</summary>
     public enum ResourceAccessResult
     {
-        /// <summary>The token is valid and grants the requested resource/scopes.</summary>
+        /// <summary>O token vale e concede o recurso/escopos pedidos.</summary>
         Granted,
 
-        /// <summary>The token is valid but does not grant the requested resource/scopes.</summary>
+        /// <summary>O token vale, mas nao concede o recurso/escopos pedidos.</summary>
         Denied,
 
-        /// <summary>The authorization server rejected the access token itself (expired, revoked, not-before).</summary>
+        /// <summary>O servidor de autorizacao recusou o proprio token (expirado, revogado, not-before).</summary>
         InvalidToken,
 
-        /// <summary>The authorization server could not be reached or answered with a server error.</summary>
+        /// <summary>O servidor de autorizacao nao foi alcancado ou respondeu com erro de servidor.</summary>
         ServerUnavailable,
     }
 
     public interface IAuthorizationServerClient
     {
-        Task<ResourceAccessResult> VerifyAccessToResouce(string permission, CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Busca o retrato com TODAS as permissoes que o token concede — uma pergunta por token,
+        /// nao por endpoint.
+        /// </summary>
+        /// <remarks>
+        /// E a chamada que sustenta o <see cref="IRptCache"/>. Vai ao endpoint de token com
+        /// <c>response_mode=permissions</c> e <strong>sem</strong> o parametro <c>permission</c>:
+        /// sem ele o Keycloak avalia tudo que a pessoa alcanca naquele resource server e devolve a
+        /// lista.
+        /// </remarks>
+        Task<RptFetchResult> FetchAllPermissionsAsync(CancellationToken cancellationToken = default);
     }
 }

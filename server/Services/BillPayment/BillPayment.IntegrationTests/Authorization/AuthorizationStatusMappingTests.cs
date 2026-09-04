@@ -1,4 +1,4 @@
-namespace BillPayment.IntegrationTests.Authorization;
+﻿namespace BillPayment.IntegrationTests.Authorization;
 
 using System.Security.Claims;
 using BillPayment.API.Authorization;
@@ -27,14 +27,13 @@ using Microsoft.Extensions.DependencyInjection;
 /// </remarks>
 public sealed class AuthorizationStatusMappingTests
 {
-    private sealed class StubAuthorizationServerClient(ResourceAccessResult result) : IAuthorizationServerClient
+    /// <summary>
+    /// Dublê do cache de retrato: entrega o desfecho pedido sem tocar em rede nem em cache real.
+    /// </summary>
+    private sealed class StubRptCache(RptFetchResult result) : IRptCache
     {
-        public Task<ResourceAccessResult> VerifyAccessToResouce(string permission, CancellationToken cancellationToken = default)
+        public Task<RptFetchResult> GetAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(result);
-
-        public Task<IReadOnlyCollection<string>> GetGrantedScopesAsync(
-            string resource, IReadOnlyCollection<string> scopes, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyCollection<string>>([]);
     }
 
     /// <summary>Registra qual verbo de autenticação o tradutor chamou, sem precisar do pipeline.</summary>
@@ -68,17 +67,24 @@ public sealed class AuthorizationStatusMappingTests
             => Task.CompletedTask;
     }
 
-    private static async Task<AuthorizationHandlerContext> RunRequirementHandlerAsync(ResourceAccessResult clientResult)
+    private static async Task<AuthorizationHandlerContext> RunRequirementHandlerAsync(RptFetchResult rptResult)
     {
         var requirement = new ProtectedResourceRequirement("bill#approve");
         var handler = new ProtectedResourceRequirementHandler(
             new HttpContextAccessor(),
-            new StubAuthorizationServerClient(clientResult));
+            new StubRptCache(rptResult),
+            new API.Authorization.AuthorizationOptions());
 
         var context = new AuthorizationHandlerContext([requirement], new ClaimsPrincipal(), resource: null);
         await handler.HandleAsync(context);
         return context;
     }
+
+    private static readonly string[] GrantedScopeSet = ["approve"];
+
+    /// <summary>Retrato que concede exatamente a permissão que os testes deste arquivo pedem.</summary>
+    private static RptFetchResult GrantingBillApprove()
+        => RptFetchResult.Resolved(RptSnapshot.From([("bill", GrantedScopeSet)]));
 
     private static (DefaultHttpContext HttpContext, RecordingAuthenticationService AuthService) CreateHttpContext()
     {
@@ -103,7 +109,7 @@ public sealed class AuthorizationStatusMappingTests
     [Fact]
     public async Task RequirementHandler_WhenAccessIsGranted_ShouldSucceed()
     {
-        var context = await RunRequirementHandlerAsync(ResourceAccessResult.Granted);
+        var context = await RunRequirementHandlerAsync(GrantingBillApprove());
 
         Assert.True(context.HasSucceeded);
     }
@@ -112,7 +118,7 @@ public sealed class AuthorizationStatusMappingTests
     [Fact]
     public async Task RequirementHandler_WhenTheTokenIsRejected_ShouldFailWithInvalidTokenReason()
     {
-        var context = await RunRequirementHandlerAsync(ResourceAccessResult.InvalidToken);
+        var context = await RunRequirementHandlerAsync(RptFetchResult.InvalidToken());
 
         Assert.True(context.HasFailed);
         Assert.Contains(context.FailureReasons, r => r is InvalidTokenFailureReason);
@@ -122,7 +128,7 @@ public sealed class AuthorizationStatusMappingTests
     [Fact]
     public async Task RequirementHandler_WhenTheServerIsUnreachable_ShouldFailWithUnavailableReason()
     {
-        var context = await RunRequirementHandlerAsync(ResourceAccessResult.ServerUnavailable);
+        var context = await RunRequirementHandlerAsync(RptFetchResult.Unavailable());
 
         Assert.True(context.HasFailed);
         Assert.Contains(context.FailureReasons, r => r is AuthorizationServerUnavailableFailureReason);
@@ -132,7 +138,7 @@ public sealed class AuthorizationStatusMappingTests
     [Fact]
     public async Task RequirementHandler_OnPlainDenial_ShouldFailWithoutSpecialReason()
     {
-        var context = await RunRequirementHandlerAsync(ResourceAccessResult.Denied);
+        var context = await RunRequirementHandlerAsync(RptFetchResult.Resolved(RptSnapshot.Empty));
 
         Assert.True(context.HasFailed);
         Assert.DoesNotContain(context.FailureReasons, r => r is InvalidTokenFailureReason);

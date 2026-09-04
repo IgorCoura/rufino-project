@@ -1,4 +1,4 @@
-using Amazon;
+﻿using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
 using Testcontainers.LocalStack;
@@ -67,6 +67,24 @@ namespace PeopleManagement.IntegrationTests.Configs
             // Ambiente dedicado de teste: desliga os workers do Hangfire (gate no Program.cs) e o seed do PopulateDb.
             builder.UseEnvironment("IntegrationTest");
 
+            // O limitador de taxa fica DESLIGADO na suíte: os testes batem no mesmo usuário centenas
+            // de vezes por minuto e estourariam o teto global, produzindo 429 em teste que nada tem a
+            // ver com limite. A prova de que o limitador funciona vive em RateLimitingTests, num host
+            // próprio com teto de 2.
+            builder.ConfigureAppConfiguration((_, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["RateLimiting:Enabled"] = "false",
+
+                    // O cache do retrato de permissoes fica DESLIGADO na suite: os testes
+                    // batem no mesmo host trocando o cenario de permissao, e o cache — que e
+                    // chaveado pelo token, como tem que ser — devolveria o retrato anterior.
+                    // Quem prova que ele funciona e RptCacheTests, que troca o token de proposito.
+                    ["Keycloak:RptCacheEnabled"] = "false",
+                });
+            });
+
             builder.ConfigureTestServices(services =>
             {
                 //Config DataBase
@@ -129,14 +147,24 @@ namespace PeopleManagement.IntegrationTests.Configs
 
                 services.AddSingleton<IAuthorizationHandler, MockAccessRequirementHandler>();
 
-                services.AddSingleton<IAuthorizationPolicyProvider>(x => new ProtectedResourcePolicyProvider(
-                param =>
+                // O que a suíte substitui é a ida ao Keycloak (o ProtectedResourceRequirement), NUNCA
+                // o nome do parâmetro de rota nem o do claim: os dois vêm do mesmo AuthorizationOptions
+                // que a produção monta. Escritos à mão aqui, trocar o claim no appsettings deixava a
+                // suíte verde exercitando um guard que o deploy não produz — foi o que aconteceu quando
+                // "companies" virou "pm_tenants" e nada quebrou.
+                services.AddSingleton<IAuthorizationPolicyProvider>(x =>
                 {
-                    var policy = new AuthorizationPolicyBuilder(MockAuthenticationHandler.AuthScheme);
-                    policy.AddRequirements(new MockAccessRequirement("company", "companies"));
-                    return policy;
-                })
-            );
+                    var authorizationOptions = x.GetRequiredService<API.Authorization.AuthorizationOptions>();
+
+                    return new ProtectedResourcePolicyProvider(param =>
+                    {
+                        var policy = new AuthorizationPolicyBuilder(MockAuthenticationHandler.AuthScheme);
+                        policy.AddRequirements(new MockAccessRequirement(
+                            authorizationOptions.RouteNameRequirement,
+                            authorizationOptions.RouteClaimTypeRequirement));
+                        return policy;
+                    });
+                });
             });
         }
 

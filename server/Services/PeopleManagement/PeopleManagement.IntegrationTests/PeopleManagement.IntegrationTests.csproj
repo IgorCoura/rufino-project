@@ -53,6 +53,16 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
   </ItemGroup>
+  <!-- O arquivo de authz do realm entra no output para o teste de erosao poder conferir
+       que todo [ProtectedResource] do codigo existe no Keycloak. Sem isso o teste teria
+       de caminhar pela arvore de diretorios ate achar o repositorio. -->
+  <ItemGroup>
+    <Content Include="..\..\..\..\utils\KeyCloakConfig\people-management-authz-config.json" Link="KeycloakConfig\people-management-authz-config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
   <ItemGroup>
     <Content Include="DataForTests\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
