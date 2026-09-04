@@ -14,6 +14,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
   EmployeeProfile? _employeeProfile;
   bool _shouldFail = false;
   Object? _editIdCardError;
+  Object? _createDocumentUnitError;
   String _createdId = 'new-employee-id';
   Uint8List? _imageBytes;
 
@@ -136,6 +137,11 @@ class FakeEmployeeRepository implements EmployeeRepository {
   /// other method (loads included) working normally.
   void setEditIdCardError(Object? error) => _editIdCardError = error;
 
+  /// A specific error returned only by [createDocumentUnit], keeping the
+  /// document reload that follows it working normally.
+  void setCreateDocumentUnitError(Object? error) =>
+      _createDocumentUnitError = error;
+
   /// The id returned by [createEmployee].
   void setCreatedId(String id) => _createdId = id;
 
@@ -256,6 +262,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
   String? lastSavedMedicalExamDate;
   String? lastSavedMedicalExamValidity;
   String? lastSavedRoleId;
+  String? lastCreatedDocumentUnitDate;
   EmployeeDependent? lastCreatedDependent;
   EmployeeDependent? lastEditedDependent;
   String? lastRemovedDependentName;
@@ -786,9 +793,57 @@ class FakeEmployeeRepository implements EmployeeRepository {
     String companyId,
     String employeeId,
     String documentId,
+    String date,
   ) async {
+    lastCreatedDocumentUnitDate = date;
+    if (_createDocumentUnitError != null) {
+      return Result.error(_createDocumentUnitError!);
+    }
     if (_shouldFail) {
       return Result.error(Exception('createDocumentUnit failed'));
+    }
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<void>> deprecateDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('deprecateDocumentUnit failed'));
+    }
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<void>> renewDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('renewDocumentUnit failed'));
+    }
+    renewedDocumentUnitIds.add(documentUnitId);
+    return const Result<void>.success(null);
+  }
+
+  /// Ids of the units renewed through this fake, in call order.
+  final List<String> renewedDocumentUnitIds = [];
+
+  @override
+  Future<Result<void>> invalidateDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('invalidateDocumentUnit failed'));
     }
     return const Result<void>.success(null);
   }
@@ -845,6 +900,44 @@ class FakeEmployeeRepository implements EmployeeRepository {
     if (_shouldFail) {
       return Result.error(Exception('generateAndSendToSign failed'));
     }
+    return const Result<void>.success(null);
+  }
+
+  /// The arguments of the last [scheduleSendToSign] call, or null when it was
+  /// never called.
+  ({String sendOn, String dateLimitToSign})? lastScheduledSend;
+
+  /// Whether [cancelScheduledSendToSign] was called.
+  bool cancelScheduledSendCalled = false;
+
+  @override
+  Future<Result<void>> scheduleSendToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    String sendOn,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('scheduleSendToSign failed'));
+    }
+    lastScheduledSend = (sendOn: sendOn, dateLimitToSign: dateLimitToSign);
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<void>> cancelScheduledSendToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('cancelScheduledSendToSign failed'));
+    }
+    cancelScheduledSendCalled = true;
     return const Result<void>.success(null);
   }
 

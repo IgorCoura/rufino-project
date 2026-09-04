@@ -200,6 +200,11 @@ namespace PeopleManagement.Infra.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int>("RenewalCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<Guid>("RequiredDocumentId")
                         .HasColumnType("uuid");
 
@@ -250,6 +255,9 @@ namespace PeopleManagement.Infra.Migrations
                     b.Property<string>("Name")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("ReplacesDocumentUnitId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime?>("SentToSignatureAt")
                         .HasColumnType("timestamp with time zone");
@@ -842,9 +850,33 @@ namespace PeopleManagement.Infra.Migrations
                                 .HasForeignKey("DocumentUnitId");
                         });
 
+                    b.OwnsOne("PeopleManagement.Domain.AggregatesModel.DocumentAggregate.ScheduledSignature", "ScheduledSignature", b1 =>
+                        {
+                            b1.Property<Guid>("DocumentUnitId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<DateOnly>("DateLimitToSign")
+                                .HasColumnType("date");
+
+                            b1.Property<int>("ReminderEveryNDays")
+                                .HasColumnType("integer");
+
+                            b1.Property<DateOnly>("SendOn")
+                                .HasColumnType("date");
+
+                            b1.HasKey("DocumentUnitId");
+
+                            b1.ToTable("DocumentsUnits", "people_management");
+
+                            b1.WithOwner()
+                                .HasForeignKey("DocumentUnitId");
+                        });
+
                     b.Navigation("Document");
 
                     b.Navigation("Period");
+
+                    b.Navigation("ScheduledSignature");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.DocumentGroupAggregate.DocumentGroup", b =>

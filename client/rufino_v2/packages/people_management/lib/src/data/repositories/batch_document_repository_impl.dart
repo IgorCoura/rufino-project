@@ -23,8 +23,10 @@ class BatchDocumentRepositoryImpl implements BatchDocumentRepository {
 
   @override
   Future<Result<BatchDocumentUnitsPage>> getPendingDocumentUnits(
-    String companyId,
-    String documentTemplateId, {
+    String companyId, {
+    String? documentGroupId,
+    String? documentTemplateId,
+    String? employeeId,
     int? employeeStatusId,
     String? employeeName,
     int? periodTypeId,
@@ -38,7 +40,9 @@ class BatchDocumentRepositoryImpl implements BatchDocumentRepository {
     try {
       final response = await apiService.getPendingDocumentUnits(
         companyId,
-        documentTemplateId,
+        documentGroupId: documentGroupId,
+        documentTemplateId: documentTemplateId,
+        employeeId: employeeId,
         employeeStatusId: employeeStatusId,
         employeeName: employeeName,
         periodTypeId: periodTypeId,
@@ -62,15 +66,19 @@ class BatchDocumentRepositoryImpl implements BatchDocumentRepository {
 
   @override
   Future<Result<List<EmployeeMissingDocument>>> getMissingEmployees(
-    String companyId,
-    String documentTemplateId, {
+    String companyId, {
+    String? documentGroupId,
+    String? documentTemplateId,
+    String? employeeId,
     int? employeeStatusId,
     String? employeeName,
   }) async {
     try {
       final models = await apiService.getMissingEmployees(
         companyId,
-        documentTemplateId,
+        documentGroupId: documentGroupId,
+        documentTemplateId: documentTemplateId,
+        employeeId: employeeId,
         employeeStatusId: employeeStatusId,
         employeeName: employeeName,
       );

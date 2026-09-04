@@ -17,7 +17,7 @@ void main() {
   const pendingUnit1 = BatchDocumentUnitItem(
     documentUnitId: 'u1',
     documentId: 'd1',
-    employeeId: 'e1',
+    documentTemplateId: 't1',    documentTemplateName: 'T1',    documentGroupName: 'Grupo',    employeeId: 'e1',
     employeeName: 'João Silva Santos',
     employeeStatusId: '2',
     employeeStatusName: 'Ativo',
@@ -31,7 +31,7 @@ void main() {
   const pendingUnit2 = BatchDocumentUnitItem(
     documentUnitId: 'u2',
     documentId: 'd2',
-    employeeId: 'e2',
+    documentTemplateId: 't1',    documentTemplateName: 'T1',    documentGroupName: 'Grupo',    employeeId: 'e2',
     employeeName: 'Maria Aparecida de Souza',
     employeeStatusId: '2',
     employeeStatusName: 'Ativo',
@@ -45,7 +45,7 @@ void main() {
   const pendingUnit3 = BatchDocumentUnitItem(
     documentUnitId: 'u3',
     documentId: 'd3',
-    employeeId: 'e3',
+    documentTemplateId: 't1',    documentTemplateName: 'T1',    documentGroupName: 'Grupo',    employeeId: 'e3',
     employeeName: 'Carlos Eduardo Ferreira',
     employeeStatusId: '2',
     employeeStatusName: 'Ativo',
@@ -107,8 +107,7 @@ void main() {
             ]));
     when(() => mockBatchRepo.getPendingDocumentUnits(
           'company-1',
-          't1',
-          pageSize: any(named: 'pageSize'),
+          documentGroupId: any(named: 'documentGroupId'),          documentTemplateId: any(named: 'documentTemplateId'),          employeeId: any(named: 'employeeId'),                    pageSize: any(named: 'pageSize'),
           pageNumber: any(named: 'pageNumber'),
           employeeStatusId: any(named: 'employeeStatusId'),
           employeeName: any(named: 'employeeName'),
@@ -122,7 +121,7 @@ void main() {
         ));
 
     await viewModel.loadGroupsAndTemplates();
-    viewModel.selectGroup('g1');
+    await viewModel.selectGroup('g1');
     await viewModel.selectTemplate('t1');
   }
 
@@ -494,7 +493,7 @@ void main() {
       const partialNameUnit = BatchDocumentUnitItem(
         documentUnitId: 'u9',
         documentId: 'd9',
-        employeeId: 'e9',
+        documentTemplateId: 't1',        documentTemplateName: 'T1',        documentGroupName: 'Grupo',        employeeId: 'e9',
         employeeName: 'Maria Eduarda Pereira',
         employeeStatusId: '2',
         employeeStatusName: 'Ativo',

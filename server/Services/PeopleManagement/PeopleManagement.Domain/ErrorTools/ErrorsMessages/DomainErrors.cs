@@ -96,6 +96,37 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
                 $"A unidade de documento {docUnitId} não pode ser enviada para assinatura antes da sua data oficial {Date:dd/MM/yyyy}.",
                 new { docUnitId, Date });
 
+            public static Error ScheduleSendDateInPast(DateOnly SendOn, DateOnly Today) => new("PMD.DOC21",
+                $"O envio para assinatura não pode ser agendado para {SendOn:dd/MM/yyyy}, que já passou. Escolha uma data a partir de {Today:dd/MM/yyyy}.",
+                new { SendOn, Today });
+
+            public static Error ScheduleDateLimitBeforeSendDate(DateOnly DateLimitToSign, DateOnly SendOn) => new("PMD.DOC22",
+                $"O prazo de assinatura {DateLimitToSign:dd/MM/yyyy} precisa ser posterior à data do envio {SendOn:dd/MM/yyyy}.",
+                new { DateLimitToSign, SendOn });
+
+            public static Error CannotDeprecateDocumentUnit(Guid docUnitId, string currentStatus) => new("PMD.DOC23",
+                $"A unidade de documento {docUnitId} não pode ser depreciada com o status '{currentStatus}'. Só um documento em vigência pode virar histórico.",
+                new { docUnitId, currentStatus });
+
+            public static Error CannotInvalidateDocumentUnit(Guid docUnitId, string currentStatus) => new("PMD.DOC24",
+                $"A unidade de documento {docUnitId} não pode ser invalidada com o status '{currentStatus}'. Documentos já depreciados ou vencidos são a prova de um período e não podem ser apagados.",
+                new { docUnitId, currentStatus });
+
+            public static Error CannotRenewDocumentUnit(Guid docUnitId, string currentStatus) => new("PMD.DOC25",
+                $"A unidade de documento {docUnitId} não pode ser renovada com o status '{currentStatus}'. Só um documento que está ou esteve em vigência tem o que renovar.",
+                new { docUnitId, currentStatus });
+
+            public static Error PeriodAlreadyHasDocumentUnit(string period, string currentStatus) => new("PMD.DOC27",
+                $"Já existe um documento na competência {period} com o status '{currentStatus}'. Deprecie ou invalide o documento existente antes de criar outro.",
+                new { period, currentStatus });
+
+            public static Error DocumentIsNotPeriodic(Guid docId) => new("PMD.DOC28",
+                $"O documento {docId} não é por competência, então não aceita a criação de uma unidade para uma data específica. Para gerar a próxima, deprecie ou invalide a unidade vigente.",
+                new { docId });
+
+            // PMD.DOC26 (RenewalLimitReached) foi aposentado: o teto de renovações do template parou de recusar a
+            // renovação e passou a significar só quantos ciclos de validade o documento tem. Esgotados, o RH
+            // continua renovando — as unidades novas é que nascem sem validade. O código não deve ser reutilizado.
         }
 
         public static class DocumentTemplate

@@ -11,11 +11,15 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Poli
     {
     }
 
-    // Vencimento: por quanto tempo a unidade é válida e se pode renovar após vencer.
+    // Vencimento: por quanto tempo a unidade é válida e se o documento ainda tem ciclo de validade a gastar.
+    //
+    // O teto NÃO é permissão para renovar — renovar, substituir, depreciar e invalidar continuam sempre
+    // disponíveis ao RH. Esgotados os ciclos, as unidades novas simplesmente nascem SEM validade, como num
+    // template sem regra de vencimento, e o documento nunca mais vence.
     public interface IExpirationPolicy : IDocumentPolicy
     {
         TimeSpan Duration { get; }
-        bool CanRenew(int renewalCount);
+        bool HasValidityCycleLeft(int renewalCount);
     }
 
     // Competência: o documento é por período; qual a granularidade e se usa a competência anterior.
@@ -36,5 +40,11 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Poli
     public interface ISignaturePolicy : IDocumentPolicy
     {
         IReadOnlyList<PlaceSignature> PlaceSignatures { get; }
+    }
+
+    // Depreciação em novo contrato: quando um novo contrato de trabalho começa, os documentos entregues
+    // (unidades OK) do contrato anterior deixam de valer. Regra sem parâmetro — só presença/ausência.
+    public interface INewContractDeprecationPolicy : IDocumentPolicy
+    {
     }
 }

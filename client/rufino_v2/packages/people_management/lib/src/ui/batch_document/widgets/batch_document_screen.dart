@@ -17,9 +17,13 @@ import '../../../domain/errors/document_scanner_exception.dart';
 import '../../../domain/ports/document_date_extractor.dart';
 import '../../../domain/ports/file_picker_service.dart';
 import '../../shared/scanner_error_handler.dart';
+import '../../shared/outdated_content_dialog.dart';
+import 'split_scan_dialog.dart';
+import '../../../domain/entities/employee.dart';
+import '../../../utils/page_splitter.dart';
 
 /// Possible actions during a multi-document scanning session.
-enum _ScanSessionAction { scanMore, process, discard }
+enum _ScanSessionAction { scanMore, split, process, discard }
 
 /// Main screen for batch document management.
 ///
@@ -41,7 +45,17 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
   void initState() {
     super.initState();
     widget.viewModel.addListener(_onViewModelChanged);
-    widget.viewModel.loadGroupsAndTemplates();
+    _loadInitial();
+  }
+
+  /// Loads the scope dropdowns and the unscoped list.
+  ///
+  /// Nothing selected is a valid scope — it lists every pending document of
+  /// the company — so the list loads without waiting for a choice.
+  Future<void> _loadInitial() async {
+    await widget.viewModel.loadGroupsAndTemplates();
+    if (!mounted) return;
+    await widget.viewModel.loadPendingUnits();
   }
 
   @override
@@ -218,7 +232,7 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
       if (pages == null || pages.isEmpty) {
         if (scannedDocuments.isEmpty) return;
         // If documents were already scanned, ask what to do.
-        final action = await _showScanSessionDialog(scannedDocuments.length);
+        final action = await _resolveScanSession(scannedDocuments);
         if (!mounted) return;
         if (action == _ScanSessionAction.process) break;
         if (action == _ScanSessionAction.discard) return;
@@ -229,7 +243,7 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
       scannedDocuments.add(pages);
 
       // Ask the user if they want to scan another or process all.
-      final action = await _showScanSessionDialog(scannedDocuments.length);
+      final action = await _resolveScanSession(scannedDocuments);
       if (!mounted) return;
       if (action == _ScanSessionAction.process) break;
       if (action == _ScanSessionAction.discard) return;
@@ -260,9 +274,58 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
     }
   }
 
+  /// Asks what to do next with [scannedDocuments], looping while the user
+  /// experiments with a split.
+  ///
+  /// Splitting is resolved here rather than by the caller because cancelling
+  /// it must return to this question, while the caller's loop would reopen
+  /// the scanner. On a confirmed split, replaces the contents of
+  /// [scannedDocuments] with the resulting documents and returns
+  /// [_ScanSessionAction.process].
+  Future<_ScanSessionAction> _resolveScanSession(
+    List<List<Uint8List>> scannedDocuments,
+  ) async {
+    while (true) {
+      final action = await _showScanSessionDialog(scannedDocuments);
+      if (!mounted) return _ScanSessionAction.discard;
+      if (action != _ScanSessionAction.split) return action;
+
+      final pages = scannedDocuments.single;
+      final pagesPerDocument = await showSplitScanDialog(
+        context,
+        totalPages: pages.length,
+      );
+      if (!mounted) return _ScanSessionAction.discard;
+      // Cancelled the split — ask again, session untouched.
+      if (pagesPerDocument == null) continue;
+
+      final parts = splitIntoEqualParts(pages, pagesPerDocument);
+      final process = await showSplitResultDialog(
+        context,
+        documentCount: parts.length,
+        pagesPerDocument: pagesPerDocument,
+      );
+      if (!mounted) return _ScanSessionAction.discard;
+      if (!process) return _ScanSessionAction.discard;
+
+      scannedDocuments
+        ..clear()
+        ..addAll(parts);
+      return _ScanSessionAction.process;
+    }
+  }
+
   /// Shows a dialog for the user to choose the next action during a
   /// scanning session. Displays the current count of scanned documents.
-  Future<_ScanSessionAction> _showScanSessionDialog(int scannedCount) async {
+  ///
+  /// "Dividir" is offered only for a lone scan of two or more pages: with
+  /// several documents the user already drew the boundaries by hand, and a
+  /// single page has nothing to cut.
+  Future<_ScanSessionAction> _showScanSessionDialog(
+    List<List<Uint8List>> scannedDocuments,
+  ) async {
+    final scannedCount = scannedDocuments.length;
+    final canSplit = scannedCount == 1 && scannedDocuments.single.length > 1;
     final result = await showDialog<_ScanSessionAction>(
       context: context,
       barrierDismissible: false,
@@ -282,8 +345,10 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
             'Deseja digitalizar mais documentos ou processar os já capturados?',
             style: textTheme.bodyMedium,
           ),
+          actionsOverflowButtonSpacing: AppSpacing.xs,
           actions: [
             TextButton(
+              key: const Key('scan-session-discard'),
               onPressed: () =>
                   Navigator.of(ctx).pop(_ScanSessionAction.discard),
               child: Text(
@@ -291,13 +356,23 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
                 style: TextStyle(color: colorScheme.error),
               ),
             ),
+            if (canSplit)
+              OutlinedButton.icon(
+                key: const Key('scan-session-split'),
+                onPressed: () =>
+                    Navigator.of(ctx).pop(_ScanSessionAction.split),
+                icon: const Icon(Icons.content_cut, size: 18),
+                label: const Text('Dividir'),
+              ),
             OutlinedButton.icon(
+              key: const Key('scan-session-scan-more'),
               onPressed: () =>
                   Navigator.of(ctx).pop(_ScanSessionAction.scanMore),
               icon: const Icon(Icons.document_scanner_outlined, size: 18),
               label: const Text('Digitalizar Mais'),
             ),
             FilledButton.icon(
+              key: const Key('scan-session-process'),
               onPressed: () =>
                   Navigator.of(ctx).pop(_ScanSessionAction.process),
               icon: const Icon(Icons.check, size: 18),
@@ -309,6 +384,13 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
     );
     return result ?? _ScanSessionAction.discard;
   }
+
+  /// Identifies a missing pending: the employee paired with the template.
+  ///
+  /// A group-wide scope lists the same employee once per missing document, so
+  /// the employee id alone would select rows the user did not check.
+  static String _missingKey(EmployeeMissingDocument item) =>
+      '${item.employeeId}::${item.documentTemplateId}';
 
   Future<void> _showCreateMissingDialog() async {
     await widget.viewModel.loadMissingEmployees();
@@ -411,8 +493,8 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
                                   const SizedBox(height: 2),
                               itemBuilder: (ctx, i) {
                                 final emp = filtered[i];
-                                final isChecked =
-                                    selected.contains(emp.employeeId);
+                                final key = _missingKey(emp);
+                                final isChecked = selected.contains(key);
                                 return Card.outlined(
                                   color: isChecked
                                       ? colorScheme.primaryContainer
@@ -420,7 +502,11 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
                                       : null,
                                   child: CheckboxListTile(
                                     title: Text(emp.employeeName),
-                                    subtitle: Text(emp.employeeStatusName),
+                                    subtitle: Text(
+                                      '${emp.documentTemplateName} · '
+                                      '${emp.employeeStatusLabel}',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                     secondary: CircleAvatar(
                                       backgroundColor:
                                           colorScheme.primaryContainer,
@@ -437,9 +523,9 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
                                     onChanged: (v) {
                                       setDialogState(() {
                                         if (v == true) {
-                                          selected.add(emp.employeeId);
+                                          selected.add(key);
                                         } else {
-                                          selected.remove(emp.employeeId);
+                                          selected.remove(key);
                                         }
                                       });
                                     },
@@ -461,8 +547,11 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
                       ? null
                       : () {
                           Navigator.pop(ctx);
-                          widget.viewModel
-                              .batchCreateDocumentUnits(selected.toList());
+                          widget.viewModel.batchCreateDocumentUnits(
+                            allEmployees
+                                .where((e) => selected.contains(_missingKey(e)))
+                                .toList(),
+                          );
                         },
                   icon: const Icon(Icons.add, size: 18),
                   label: Text('Criar (${selected.length})'),
@@ -531,7 +620,38 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
     await widget.viewModel.batchUpdateDate(apiDate);
   }
 
+  /// Checks the snapshot of the current selection and, when any document is
+  /// outdated, shows which ones before letting the generation go on.
+  ///
+  /// The batch dialog has no refresh action on purpose: updating is done per
+  /// document, by editing it. Here the user only sees the warning.
+  Future<bool> _confirmSnapshotFreshness() async {
+    final vm = widget.viewModel;
+    final outdated = await vm.checkOutdatedContent();
+    if (outdated.isEmpty) return true;
+    if (!mounted) return false;
+
+    final selected = vm.pendingUnits
+        .where((u) => vm.selectedUnitIds.contains(u.documentUnitId))
+        .toList();
+
+    final action = await showOutdatedContentDialog(
+      context,
+      allowRefresh: false,
+      rows: selected
+          .map((u) => OutdatedDocumentRow(
+                title: u.employeeName,
+                subtitle: u.date.isEmpty ? '—' : u.date,
+                isOutdated: outdated.contains(u.documentUnitId),
+              ))
+          .toList(),
+    );
+    return action == OutdatedContentAction.continueAnyway;
+  }
+
   Future<void> _generatePdf() async {
+    if (!await _confirmSnapshotFreshness()) return;
+    if (!mounted) return;
     final bytes = await widget.viewModel.generatePdfRange();
     if (bytes == null || !mounted) return;
     final picker = context.read<FilePickerService>();
@@ -589,6 +709,9 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
       items: items,
     );
     if (!confirmed || !mounted) return;
+
+    if (!await _confirmSnapshotFreshness()) return;
+    if (!mounted) return;
 
     await widget.viewModel.generateAndSignRange();
   }
@@ -777,8 +900,13 @@ class _ResultSummaryChip extends StatelessWidget {
 ///
 /// Displays the two dropdowns side-by-side on wider screens and stacked
 /// vertically on narrow screens.
-class _GroupAndTemplateSection extends StatelessWidget {
-  const _GroupAndTemplateSection({required this.vm});
+/// Scope of the list: employee, group and template.
+///
+/// The three are independent and none is required — only employee lists
+/// everything that employee owes across groups, only group covers every
+/// template in it, and nothing at all lists the whole company.
+class _ScopeSection extends StatelessWidget {
+  const _ScopeSection({required this.vm});
 
   final BatchDocumentViewModel vm;
 
@@ -792,14 +920,38 @@ class _GroupAndTemplateSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text('Escopo', style: textTheme.titleSmall),
+            const SizedBox(height: AppSpacing.xs),
             Text(
-              'Selecione o Documento',
-              style: textTheme.titleSmall,
+              'Filtre por funcionário, por grupo ou por documento — nenhum é obrigatório.',
+              style: textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            _buildGroupDropdown(),
             const SizedBox(height: AppSpacing.md),
-            _buildTemplateDropdown(),
+            _EmployeeScopeField(vm: vm),
+            const SizedBox(height: AppSpacing.md),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= AppBreakpoints.mobile;
+                if (!isWide) {
+                  return Column(
+                    children: [
+                      _buildGroupDropdown(),
+                      const SizedBox(height: AppSpacing.md),
+                      _buildTemplateDropdown(),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: _buildGroupDropdown()),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(child: _buildTemplateDropdown()),
+                  ],
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -807,45 +959,241 @@ class _GroupAndTemplateSection extends StatelessWidget {
   }
 
   Widget _buildGroupDropdown() {
-    return DropdownButtonFormField<String>(
+    return DropdownButtonFormField<String?>(
       isExpanded: true,
+      key: const ValueKey('group-scope'),
       decoration: const InputDecoration(
         labelText: 'Grupo de Documentos',
         border: OutlineInputBorder(),
       ),
       initialValue: vm.selectedGroupId,
-      items: vm.groups
-          .map((g) => DropdownMenuItem(
-                value: g.id,
-                child: Text(g.name, overflow: TextOverflow.ellipsis),
-              ))
-          .toList(),
-      onChanged: (id) {
-        if (id != null) vm.selectGroup(id);
-      },
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('Todos os grupos'),
+        ),
+        ...vm.groups.map((g) => DropdownMenuItem<String?>(
+              value: g.id,
+              child: Text(g.name, overflow: TextOverflow.ellipsis),
+            )),
+      ],
+      onChanged: vm.selectGroup,
     );
   }
 
   Widget _buildTemplateDropdown() {
-    return DropdownButtonFormField<String>(
+    // A template only exists inside a group; without one there is nothing to
+    // list, and the group switch already resets the choice.
+    return DropdownButtonFormField<String?>(
       isExpanded: true,
-      key: ValueKey(vm.selectedGroupId),
+      key: ValueKey('template-scope-${vm.selectedGroupId ?? 'all'}'),
       decoration: const InputDecoration(
         labelText: 'Documento',
         border: OutlineInputBorder(),
       ),
       initialValue: vm.selectedTemplateId,
-      items: vm.templates
-          .map((t) => DropdownMenuItem(
-                value: t.id,
-                child: Text(t.name, overflow: TextOverflow.ellipsis),
-              ))
-          .toList(),
-      onChanged: vm.selectedGroupId == null
-          ? null
-          : (id) {
-              if (id != null) vm.selectTemplate(id);
-            },
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('Todos os documentos'),
+        ),
+        ...vm.templates.map((t) => DropdownMenuItem<String?>(
+              value: t.id,
+              child: Text(t.name, overflow: TextOverflow.ellipsis),
+            )),
+      ],
+      onChanged: vm.selectedGroupId == null ? null : vm.selectTemplate,
+    );
+  }
+}
+
+/// Employee scope picker — opens a search dialog and resolves one employee.
+///
+/// Deliberately NOT a [Autocomplete]: its `optionsBuilder` accepts a Future,
+/// but when the search resolves after the options overlay was already hidden
+/// the framework asserts (`_zOrderIndex != null` in `OverlayPortal.hide`).
+/// A dialog owns its own lifecycle and cannot land in that state.
+class _EmployeeScopeField extends StatelessWidget {
+  const _EmployeeScopeField({required this.vm});
+
+  final BatchDocumentViewModel vm;
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedName = vm.selectedEmployeeName;
+
+    return InputDecorator(
+      decoration: const InputDecoration(
+        labelText: 'Funcionário',
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.person_search_outlined),
+        isDense: true,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              key: const ValueKey('employee-scope-field'),
+              onTap: () => _openPicker(context),
+              child: Text(
+                selectedName ?? 'Todos os funcionários',
+                overflow: TextOverflow.ellipsis,
+                style: selectedName == null
+                    ? TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      )
+                    : null,
+              ),
+            ),
+          ),
+          if (selectedName != null)
+            IconButton(
+              key: const ValueKey('employee-scope-clear'),
+              icon: const Icon(Icons.clear, size: 18),
+              tooltip: 'Todos os funcionários',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => vm.selectEmployee(null, null),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openPicker(BuildContext context) async {
+    final employee = await showDialog<Employee>(
+      context: context,
+      builder: (_) => _EmployeePickerDialog(vm: vm),
+    );
+    if (employee != null) {
+      await vm.selectEmployee(employee.id, employee.name);
+    }
+  }
+}
+
+/// Search dialog that resolves a single employee for the scope filter.
+class _EmployeePickerDialog extends StatefulWidget {
+  const _EmployeePickerDialog({required this.vm});
+
+  final BatchDocumentViewModel vm;
+
+  @override
+  State<_EmployeePickerDialog> createState() => _EmployeePickerDialogState();
+}
+
+class _EmployeePickerDialogState extends State<_EmployeePickerDialog> {
+  final _searchController = TextEditingController();
+  List<Employee> _results = const [];
+  bool _isSearching = false;
+  bool _hasSearched = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// Searches on submit rather than per keystroke — one request per intent.
+  Future<void> _search() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+    setState(() => _isSearching = true);
+    final employees = await widget.vm.searchEmployees(query);
+    if (!mounted) return;
+    setState(() {
+      _results = employees;
+      _isSearching = false;
+      _hasSearched = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return AlertDialog(
+      icon: Icon(Icons.person_search_outlined, color: colorScheme.primary),
+      title: const Text('Buscar Funcionário'),
+      content: SizedBox(
+        width: 420,
+        height: 420,
+        child: Column(
+          children: [
+            TextField(
+              key: const ValueKey('employee-picker-search'),
+              controller: _searchController,
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _search(),
+              decoration: InputDecoration(
+                labelText: 'Nome do funcionário',
+                border: const OutlineInputBorder(),
+                isDense: true,
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.arrow_forward),
+                  tooltip: 'Buscar',
+                  onPressed: _search,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Expanded(
+              child: _isSearching
+                  ? const Center(child: CircularProgressIndicator())
+                  : _results.isEmpty
+                      ? Center(
+                          child: Text(
+                            _hasSearched
+                                ? 'Nenhum funcionário encontrado.'
+                                : 'Digite um nome e busque.',
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: _results.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 2),
+                          itemBuilder: (context, i) {
+                            final employee = _results[i];
+                            return Card.outlined(
+                              child: ListTile(
+                                key: ValueKey('employee-option-${employee.id}'),
+                                leading: CircleAvatar(
+                                  backgroundColor: colorScheme.primaryContainer,
+                                  child: Text(
+                                    employee.name.isNotEmpty
+                                        ? employee.name[0].toUpperCase()
+                                        : '?',
+                                    style: TextStyle(
+                                      color: colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                ),
+                                title: Text(employee.name,
+                                    overflow: TextOverflow.ellipsis),
+                                subtitle: Text(
+                                  '${employee.roleName} · '
+                                  '${employee.status.label}',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                onTap: () => Navigator.pop(context, employee),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+      ],
     );
   }
 }
@@ -1254,10 +1602,15 @@ class _ActionBar extends StatelessWidget {
         PermissionGuard(
           resource: PeopleManagementResources.document,
           scope: PeopleManagementScopes.create,
-          child: OutlinedButton.icon(
-            onPressed: onCreateMissing,
-            icon: const Icon(Icons.person_add_outlined, size: 18),
-            label: const Text('Criar Docs Faltantes'),
+          child: Tooltip(
+            message: vm.canCreateMissing
+                ? 'Cria as pendências que faltam no escopo selecionado'
+                : 'Escolha um grupo ou documento: a pendência nasce sempre de um documento',
+            child: OutlinedButton.icon(
+              onPressed: vm.canCreateMissing ? onCreateMissing : null,
+              icon: const Icon(Icons.person_add_outlined, size: 18),
+              label: const Text('Criar Docs Faltantes'),
+            ),
           ),
         ),
         PermissionGuard(
@@ -1313,9 +1666,10 @@ class _ActionBar extends StatelessWidget {
             resource: PeopleManagementResources.document,
             scope: PeopleManagementScopes.sendToSign,
             child: FilledButton.tonalIcon(
-              onPressed: vm.stagedFileCount == 0 || isLoading || !vm.isSignable
-                  ? null
-                  : onSendToSign,
+              onPressed:
+                  vm.stagedFileCount == 0 || isLoading || !vm.canSignStaged
+                      ? null
+                      : onSendToSign,
               icon: const Icon(Icons.draw_outlined, size: 18),
               label: const Text('Enviar para Assinar'),
             ),
@@ -1326,9 +1680,7 @@ class _ActionBar extends StatelessWidget {
           resource: PeopleManagementResources.document,
           scope: PeopleManagementScopes.generate,
           child: OutlinedButton.icon(
-            onPressed: vm.selectedUnitIds.isEmpty ||
-                    isLoading ||
-                    !vm.canGenerateDocument
+            onPressed: isLoading || !vm.canGenerateSelected
                 ? null
                 : onGeneratePdf,
             icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
@@ -1342,12 +1694,10 @@ class _ActionBar extends StatelessWidget {
             resource: PeopleManagementResources.document,
             scope: PeopleManagementScopes.sendToSign,
             child: FilledButton.tonalIcon(
-              onPressed: vm.selectedUnitIds.isEmpty ||
-                      isLoading ||
-                      !vm.canGenerateDocument ||
-                      !vm.isSignable
-                  ? null
-                  : onGenerateAndSign,
+              onPressed:
+                  isLoading || !vm.canGenerateSelected || !vm.canSignSelected
+                      ? null
+                      : onGenerateAndSign,
               icon: const Icon(Icons.history_edu_outlined, size: 18),
               label: const Text('Gerar e Assinar'),
             ),
@@ -1396,36 +1746,34 @@ class _DocumentContent extends StatelessWidget {
           child: SizedBox(height: AppSpacing.md),
         ),
         SliverToBoxAdapter(
-          child: _GroupAndTemplateSection(vm: vm),
+          child: _ScopeSection(vm: vm),
         ),
-        if (vm.selectedTemplateId != null) ...[
-          const SliverToBoxAdapter(
-            child: SizedBox(height: AppSpacing.md),
+        const SliverToBoxAdapter(
+          child: SizedBox(height: AppSpacing.md),
+        ),
+        SliverToBoxAdapter(
+          child: _FilterSection(vm: vm),
+        ),
+        const SliverToBoxAdapter(
+          child: SizedBox(height: AppSpacing.md),
+        ),
+        SliverToBoxAdapter(
+          child: _ActionBar(
+            vm: vm,
+            onBulkUpload: onBulkUpload,
+            onScanDocument: onScanDocument,
+            onCreateMissing: onCreateMissing,
+            onBatchUpdateDate: onBatchUpdateDate,
+            onUploadStaged: onUploadStaged,
+            onSendToSign: onSendToSign,
+            onGeneratePdf: onGeneratePdf,
+            onGenerateAndSign: onGenerateAndSign,
           ),
-          SliverToBoxAdapter(
-            child: _FilterSection(vm: vm),
-          ),
-          const SliverToBoxAdapter(
-            child: SizedBox(height: AppSpacing.md),
-          ),
-          SliverToBoxAdapter(
-            child: _ActionBar(
-              vm: vm,
-              onBulkUpload: onBulkUpload,
-              onScanDocument: onScanDocument,
-              onCreateMissing: onCreateMissing,
-              onBatchUpdateDate: onBatchUpdateDate,
-              onUploadStaged: onUploadStaged,
-              onSendToSign: onSendToSign,
-              onGeneratePdf: onGeneratePdf,
-              onGenerateAndSign: onGenerateAndSign,
-            ),
-          ),
-          const SliverToBoxAdapter(
-            child: SizedBox(height: AppSpacing.md),
-          ),
-          ..._buildListSlivers(context),
-        ],
+        ),
+        const SliverToBoxAdapter(
+          child: SizedBox(height: AppSpacing.md),
+        ),
+        ..._buildListSlivers(context),
         const SliverToBoxAdapter(
           child: SizedBox(height: AppSpacing.md),
         ),
@@ -1447,12 +1795,13 @@ class _DocumentContent extends StatelessWidget {
 
     if (vm.pendingUnits.isEmpty) {
       return [
-        const SliverToBoxAdapter(
+        SliverToBoxAdapter(
           child: _EmptyStateCard(
             icon: Icons.inbox_outlined,
             title: 'Nenhum documento pendente encontrado.',
-            message:
-                'Todos os documentos para este template estão em dia, ou os filtros aplicados não retornaram resultados.',
+            message: vm.hasAnyScope
+                ? 'Nada pendente neste escopo, ou os filtros aplicados não retornaram resultados.'
+                : 'Nenhum documento pendente na empresa.',
           ),
         ),
       ];
@@ -1629,6 +1978,16 @@ class _DocumentListItem extends StatelessWidget {
                           unit.employeeName,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        // Sem template fixo a lista mistura documentos — só o
+                        // nome do funcionário não diz o que está pendente.
+                        Text(
+                          '${unit.documentGroupName} · '
+                          '${unit.documentTemplateName}',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         const SizedBox(height: 2),
                         _EmployeeStatusBadge(
                           statusId: unit.employeeStatusId,
@@ -1728,6 +2087,13 @@ class _DocumentListItem extends StatelessWidget {
                     unit.employeeName,
                     style: textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '${unit.documentGroupName} · ${unit.documentTemplateName}',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),

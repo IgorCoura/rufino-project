@@ -12,12 +12,12 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
     public class DocumentPolicyTests
     {
         [Fact]
-        public void ExpirationPolicy_CanRenew_IsAlwaysTrue()
+        public void ExpirationPolicy_HasValidityCycleLeft_IsAlwaysTrue()
         {
             var policy = new ExpirationPolicy(TimeSpan.FromDays(365));
 
-            Assert.True(policy.CanRenew(0));
-            Assert.True(policy.CanRenew(100));
+            Assert.True(policy.HasValidityCycleLeft(0));
+            Assert.True(policy.HasValidityCycleLeft(100));
         }
 
         [Fact]
@@ -37,16 +37,18 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
             Assert.Equal(TimeSpan.FromDays(365), restored.Duration);
         }
 
+        // O teto governa VALIDADE, não permissão: acima dele a policy só para de conceder ciclo — quem renova
+        // continua renovando, e a unidade nova é que nasce sem validade.
         [Theory]
         [InlineData(0, true)]
         [InlineData(1, true)]
         [InlineData(2, false)]
         [InlineData(3, false)]
-        public void ExpirationLimitedPolicy_CanRenew_WhileBelowMax(int renewalCount, bool expected)
+        public void ExpirationLimitedPolicy_HasValidityCycleLeft_WhileBelowMax(int renewalCount, bool expected)
         {
             var policy = new ExpirationLimitedPolicy(TimeSpan.FromDays(365), maxRenewals: 2);
 
-            Assert.Equal(expected, policy.CanRenew(renewalCount));
+            Assert.Equal(expected, policy.HasValidityCycleLeft(renewalCount));
         }
 
         // A armadilha da factory: casar por interface engoliria a limitada e perderia o MaxRenewals. O tipo
@@ -140,6 +142,24 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
             var record = DocumentPolicyFactory.ToPersistence(new SignaturePolicy());
 
             Assert.Equal(PolicyType.Signature, record.Type);
+        }
+
+        // Regra sem parâmetro: o que precisa sobreviver ao round-trip é o discriminador — a presença da linha é
+        // a regra inteira, e o jsonb vazio não é lido de volta.
+        [Fact]
+        public void ToPersistence_NewContractDeprecationPolicy_UsesItsOwnDiscriminator()
+        {
+            var record = DocumentPolicyFactory.ToPersistence(new NewContractDeprecationPolicy());
+
+            Assert.Equal(PolicyType.NewContractDeprecation, record.Type);
+        }
+
+        [Fact]
+        public void RoundTrip_NewContractDeprecationPolicy_StaysPresent()
+        {
+            var record = DocumentPolicyFactory.ToPersistence(new NewContractDeprecationPolicy());
+
+            Assert.IsType<NewContractDeprecationPolicy>(DocumentPolicyFactory.ToPolicy(record));
         }
 
         // Não há teste do fallback de ToPolicy: depois que Generation saiu, todo PolicyType tem suporte na

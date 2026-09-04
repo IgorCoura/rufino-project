@@ -44,6 +44,9 @@ import 'domain/repositories/require_document_repository.dart';
 import 'domain/repositories/workplace_repository.dart';
 import 'people_management_permissions.dart';
 import 'ui/people_management_routes.dart';
+import 'data/services/document_content_api_service.dart';
+import 'domain/repositories/document_content_repository.dart';
+import 'data/repositories/document_content_repository_impl.dart';
 
 /// O produto de gestão de pessoas plugado na casca.
 ///
@@ -172,6 +175,14 @@ class PeopleManagementModule extends AppModule {
       apiService: _service(DocumentDashboardApiService.new),
       reporter: errorReporter,
     );
+    // Retrato do conteúdo do documento: diz se o PDF gerado ainda casa com o
+    // cadastro do funcionário. Veio da main junto com o aviso de conteúdo
+    // desatualizado, e é do produto — por isso vive aqui, e não na casca.
+    final documentContentRepository = DocumentContentRepositoryImpl(
+      apiService: _service(DocumentContentApiService.new),
+      reporter: errorReporter,
+    );
+
     // O ViaCEP é público: sem base url e sem cabeçalho.
     final cepRepository = CepRepositoryImpl(
       apiService: CepApiService(client: client),
@@ -195,6 +206,8 @@ class PeopleManagementModule extends AppModule {
       Provider<DocumentDashboardRepository>.value(
         value: documentDashboardRepository,
       ),
+      Provider<DocumentContentRepository>.value(
+          value: documentContentRepository),
       Provider<CepRepository>.value(value: cepRepository),
       Provider<FilePickerService>.value(value: filePicker),
       Provider<FileSaveService>.value(value: fileSaver),

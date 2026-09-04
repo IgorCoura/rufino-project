@@ -1,3 +1,4 @@
+import 'document_status_labels.dart';
 import 'employee_document.dart';
 
 /// A document group with its associated employee documents.
@@ -24,7 +25,11 @@ class DocumentGroupWithDocuments {
   /// Detailed description of the group purpose.
   final String description;
 
-  /// The aggregate status id of all documents in this group.
+  /// The aggregate compliance status id of all documents in this group.
+  ///
+  /// Same three-valued scale the employee list uses (0=Okay, 1=A Vencer,
+  /// 2=Requer Atenção) — the server derives both from one rule, so a group can
+  /// never disagree with the employee it belongs to.
   final String statusId;
 
   /// The aggregate status display name.
@@ -34,12 +39,8 @@ class DocumentGroupWithDocuments {
   final List<EmployeeDocument> documents;
 
   /// Display label for the group status.
-  String get groupStatusLabel => switch (statusId) {
-        '1' => 'OK',
-        '2' => 'Pendente',
-        '3' => 'Inválido',
-        _ => statusName.isNotEmpty ? statusName : statusId,
-      };
+  String get groupStatusLabel =>
+      documentComplianceStatusLabel(statusId, statusName);
 
   /// Returns a copy with [documents] replaced.
   DocumentGroupWithDocuments copyWithDocuments(

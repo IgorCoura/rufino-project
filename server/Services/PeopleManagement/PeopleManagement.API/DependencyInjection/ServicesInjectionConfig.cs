@@ -32,6 +32,7 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IArchiveService, ArchiveService>();
 #pragma warning restore CS0618
             service.AddScoped<ICompleteAdmissionService, CompleteAdmissionService>();
+            service.AddScoped<IDocumentContentBuilder, DocumentContentBuilder>();
             service.AddScoped<IDocumentService, DocumentService>();
 #pragma warning disable CS0618 // Archive: feature descontinuada, mantida so para o dado ja gravado nao ficar orfao. Ver o [Obsolete] nos tipos.
             service.AddScoped<IArchiveCategoryService, ArchiveCategoryService>();
@@ -42,6 +43,8 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IWhatsAppQueueService, WhatsAppQueueService>();
             service.AddScoped<HangfireJobRegister>();
             service.AddScoped<IRecurringDocumentService, RecurringDocumentService>();
+
+            service.AddScoped<IEmployeeDocumentStatusRefresher, EmployeeDocumentStatusRefresher>();
 
             // Domain Services
             service.AddScoped<IEmployeeDocumentStatusService, EmployeeDocumentStatusService>();

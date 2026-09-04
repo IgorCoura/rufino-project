@@ -33,6 +33,8 @@ import '../../../domain/repositories/document_scanner_repository.dart';
 import '../../../domain/repositories/employee_repository.dart';
 import '../../../domain/repositories/workplace_repository.dart';
 import '../../../utils/error_messages.dart';
+import '../../../domain/repositories/document_content_repository.dart';
+import '../../../data/models/document_content_status_api_model.dart';
 
 /// Tracks a selected document unit for batch operations.
 class SelectedDocumentUnit {
@@ -91,13 +93,15 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     required DocumentGroupRepository documentGroupRepository,
     required CepRepository cepRepository,
     DocumentScannerRepository? scannerRepository,
+    DocumentContentRepository? documentContentRepository,
   })  : _companyRepository = companyRepository,
         _employeeRepository = employeeRepository,
         _departmentRepository = departmentRepository,
         _workplaceRepository = workplaceRepository,
         _documentGroupRepository = documentGroupRepository,
         _cepRepository = cepRepository,
-        _scannerRepository = scannerRepository;
+        _scannerRepository = scannerRepository,
+        _documentContentRepository = documentContentRepository;
 
   final CompanyRepository _companyRepository;
   final EmployeeRepository _employeeRepository;
@@ -106,6 +110,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   final DocumentGroupRepository _documentGroupRepository;
   final CepRepository _cepRepository;
   final DocumentScannerRepository? _scannerRepository;
+  final DocumentContentRepository? _documentContentRepository;
 
   EmployeeProfileStatus _status = EmployeeProfileStatus.idle;
 
@@ -1820,8 +1825,13 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     return bytes;
   }
 
-  /// Creates a new document unit and refreshes the document.
-  Future<void> createDocumentUnit(String documentId) async {
+  /// Creates a document unit for the competência of [date] (`dd/MM/yyyy`) and
+  /// refreshes the document.
+  ///
+  /// The rule that decides whether the competência is free lives on the server —
+  /// it sees every unit of the document, while this page holds one page of them.
+  /// So its message is what reaches the user when the creation is refused.
+  Future<void> createDocumentUnit(String documentId, String date) async {
     final companyId = _companyId;
     final currentProfile = _profile;
     if (companyId == null || currentProfile == null) return;
@@ -1830,11 +1840,106 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       companyId,
       currentProfile.id,
       documentId,
+      date,
     );
 
     result.fold(
       onSuccess: (_) => _snackMessage = 'Documento criado com sucesso.',
-      onError: (_, __) => _snackMessage = 'Erro ao criar documento.',
+      onError: (error, __) => _snackMessage =
+          extractServerMessages(error).firstOrNull ??
+              'Erro ao criar documento.',
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+  }
+
+  /// Deprecates a document unit and refreshes the document.
+  ///
+  /// The API leaves a replacement pending unit in its place, so the reload
+  /// shows both the deprecated document and the new pending one.
+  Future<void> deprecateDocumentUnit(
+    String documentId,
+    String documentUnitId,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.deprecateDocumentUnit(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+    );
+
+    result.fold(
+      onSuccess: (_) => _snackMessage = 'Documento depreciado com sucesso.',
+      onError: (error, __) => _snackMessage =
+          extractServerMessages(error).firstOrNull ??
+              'Erro ao depreciar documento.',
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+  }
+
+  /// Renews a document unit and refreshes the document.
+  ///
+  /// The renewed unit stays in force — it is the delivery of the replacement
+  /// that turns it into history — so the reload shows the current document and
+  /// the new pending one side by side.
+  Future<void> renewDocumentUnit(
+    String documentId,
+    String documentUnitId,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.renewDocumentUnit(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+    );
+
+    result.fold(
+      onSuccess: (_) => _snackMessage =
+          'Renovação criada. Preencha o novo documento.',
+      // A mensagem do servidor explica o motivo da recusa (cota de renovações
+      // esgotada, status que não permite renovar) — descartá-la deixaria o
+      // usuário sem saber o que fazer.
+      onError: (error, __) => _snackMessage =
+          extractServerMessages(error).firstOrNull ??
+              'Erro ao renovar documento.',
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+  }
+
+  /// Invalidates a document unit and refreshes the document.
+  Future<void> invalidateDocumentUnit(
+    String documentId,
+    String documentUnitId,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.invalidateDocumentUnit(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+    );
+
+    result.fold(
+      onSuccess: (_) => _snackMessage = 'Documento invalidado com sucesso.',
+      onError: (error, __) => _snackMessage =
+          extractServerMessages(error).firstOrNull ??
+              'Erro ao invalidar documento.',
     );
 
     notifyListeners();
@@ -1895,6 +2000,82 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     await loadDocumentUnits(documentId);
   }
 
+  /// Returns the ids of the units in [units] whose stored snapshot no longer
+  /// matches the employee's current data.
+  ///
+  /// Returns an empty set when the check cannot run (no repository injected)
+  /// or fails — a warning that cannot be trusted must never block generation.
+  Future<Set<String>> checkOutdatedDocumentContent(
+    List<SelectedDocumentUnit> units,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    final repository = _documentContentRepository;
+    if (companyId == null || currentProfile == null || repository == null) {
+      return const {};
+    }
+    if (units.isEmpty) return const {};
+
+    final result = await repository.checkOutdated(
+      companyId,
+      units
+          .map((u) => DocumentUnitRefApiModel(
+                documentUnitId: u.documentUnitId,
+                documentId: u.documentId,
+                employeeId: currentProfile.id,
+              ))
+          .toList(),
+    );
+
+    final outdated = <String>{};
+    result.fold(
+      onSuccess: (statuses) {
+        for (final status in statuses) {
+          if (status.needsWarning) outdated.add(status.documentUnitId);
+        }
+      },
+      onError: (_, __) {},
+    );
+    return outdated;
+  }
+
+  /// Rewrites the snapshot of [units] with the employee's current data.
+  ///
+  /// Returns whether the refresh succeeded. The document dates are untouched.
+  Future<bool> refreshDocumentContent(List<SelectedDocumentUnit> units) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    final repository = _documentContentRepository;
+    if (companyId == null || currentProfile == null || repository == null) {
+      return false;
+    }
+    if (units.isEmpty) return false;
+
+    final result = await repository.refresh(
+      companyId,
+      units
+          .map((u) => DocumentUnitRefApiModel(
+                documentUnitId: u.documentUnitId,
+                documentId: u.documentId,
+                employeeId: currentProfile.id,
+              ))
+          .toList(),
+    );
+
+    var refreshed = false;
+    result.fold(
+      onSuccess: (_) {
+        refreshed = true;
+        _snackMessage = 'Informações do documento atualizadas.';
+      },
+      onError: (e, __) => _snackMessage = extractServerMessages(e).firstOrNull
+          ?? 'Erro ao atualizar as informações do documento.',
+    );
+
+    notifyListeners();
+    return refreshed;
+  }
+
   /// Generates a PDF for a document unit and returns the raw bytes.
   ///
   /// Returns null if the operation fails. Shows a snack message on error.
@@ -1952,6 +2133,73 @@ class EmployeeProfileViewModel extends ChangeNotifier {
           _snackMessage = 'Documento gerado e enviado para assinatura.',
       onError: (_, __) =>
           _snackMessage = 'Erro ao gerar e enviar para assinatura.',
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+  }
+
+  /// Schedules a document to be generated and sent for signature on [sendOn].
+  Future<void> scheduleSendToSign(
+    String documentId,
+    String documentUnitId,
+    String sendOn,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.scheduleSendToSign(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+      sendOn,
+      dateLimitToSign,
+      reminderEveryNDays,
+    );
+
+    result.fold(
+      onSuccess: (_) =>
+          _snackMessage = 'Envio para assinatura agendado para $sendOn.',
+      onError: (error, __) {
+        final messages = extractServerMessages(error);
+        _snackMessage = messages.isNotEmpty
+            ? messages.join('\n')
+            : 'Erro ao agendar o envio para assinatura.';
+      },
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+  }
+
+  /// Cancels the scheduled signature send of a document unit.
+  Future<void> cancelScheduledSendToSign(
+    String documentId,
+    String documentUnitId,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.cancelScheduledSendToSign(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+    );
+
+    result.fold(
+      onSuccess: (_) => _snackMessage = 'Agendamento cancelado.',
+      onError: (error, __) {
+        final messages = extractServerMessages(error);
+        _snackMessage = messages.isNotEmpty
+            ? messages.join('\n')
+            : 'Erro ao cancelar o agendamento.';
+      },
     );
 
     notifyListeners();

@@ -12,10 +12,12 @@ import 'package:people_management/src/ui/batch_document/widgets/batch_document_s
 
 import '../../fakes/fake_permission_repository.dart';
 import '../../fakes/mocks.dart';
+import '../../fakes/fake_employee_repository.dart';
 
 void main() {
   late MockBatchDocumentRepository mockBatchRepo;
   late MockDocumentGroupRepository mockGroupRepo;
+  late FakeEmployeeRepository fakeEmployeeRepo;
   late BatchDocumentViewModel viewModel;
   late PermissionNotifier permissionNotifier;
 
@@ -35,7 +37,7 @@ void main() {
     BatchDocumentUnitItem(
       documentUnitId: 'du1',
       documentId: 'd1',
-      employeeId: 'e1',
+      documentTemplateId: 't1',      documentTemplateName: 'T1',      documentGroupName: 'Grupo',      employeeId: 'e1',
       employeeName: 'João Silva',
       employeeStatusId: '2',
       employeeStatusName: 'Ativo',
@@ -48,7 +50,7 @@ void main() {
     BatchDocumentUnitItem(
       documentUnitId: 'du2',
       documentId: 'd2',
-      employeeId: 'e2',
+      documentTemplateId: 't1',      documentTemplateName: 'T1',      documentGroupName: 'Grupo',      employeeId: 'e2',
       employeeName: 'Maria Santos',
       employeeStatusId: '2',
       employeeStatusName: 'Ativo',
@@ -68,9 +70,7 @@ void main() {
         .thenAnswer((_) async => const Result.success(groups));
 
     when(() => mockBatchRepo.getPendingDocumentUnits(
-          any(),
-          any(),
-          employeeStatusId: any(named: 'employeeStatusId'),
+          any(),          documentGroupId: any(named: 'documentGroupId'),          documentTemplateId: any(named: 'documentTemplateId'),          employeeId: any(named: 'employeeId'),                    employeeStatusId: any(named: 'employeeStatusId'),
           employeeName: any(named: 'employeeName'),
           periodTypeId: any(named: 'periodTypeId'),
           periodYear: any(named: 'periodYear'),
@@ -83,9 +83,22 @@ void main() {
           BatchDocumentUnitsPage(items: pendingUnits, totalCount: 2),
         ));
 
+    fakeEmployeeRepo = FakeEmployeeRepository()
+      ..setEmployees(const [
+        Employee(
+          id: 'e1',
+          name: 'João Silva',
+          registration: '001',
+          status: EmployeeStatus.active,
+          roleName: 'Pedreiro',
+          documentStatus: DocumentStatus.ok,
+        ),
+      ]);
+
     viewModel = BatchDocumentViewModel(
       batchDocumentRepository: mockBatchRepo,
       documentGroupRepository: mockGroupRepo,
+      employeeRepository: fakeEmployeeRepo,
       companyId: 'company-1',
     );
 
@@ -143,31 +156,22 @@ void main() {
       expect(find.text('Documentos em Lote'), findsOneWidget);
     });
 
-    testWidgets('renders the document selection section with dropdowns',
-        (tester) async {
+    testWidgets('renders the three scope fields', (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      expect(find.text('Selecione o Documento'), findsOneWidget);
+      expect(find.text('Escopo'), findsOneWidget);
+      expect(find.byKey(const ValueKey('employee-scope-field')),
+          findsOneWidget);
       expect(find.text('Grupo de Documentos'), findsOneWidget);
       expect(find.text('Documento'), findsOneWidget);
     });
 
-    testWidgets('shows filter and action sections after selecting a template',
+    testWidgets('shows filters, actions and list without choosing a scope',
         (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
-
-      // Select the group.
-      await tester.tap(find.text('Grupo de Documentos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Admissão').last);
-      await tester.pumpAndSettle();
-
-      // Select the template.
-      await tester.tap(find.text('Documento'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
       await tester.pumpAndSettle();
 
       expect(find.text('Busca e filtros'), findsOneWidget);
@@ -175,20 +179,115 @@ void main() {
       expect(find.text('Criar Docs Faltantes'), findsOneWidget);
     });
 
-    testWidgets('shows employee names in the document list after loading',
+    testWidgets('disables creating pendings until a document scope is chosen',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+
+      final button = tester.widget<OutlinedButton>(
+        find.ancestor(
+          of: find.text('Criar Docs Faltantes'),
+          matching: find.byType(OutlinedButton),
+        ),
+      );
+      expect(button.onPressed, isNull);
+    });
+
+    testWidgets('scopes the query to the employee picked in the dialog',
         (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      // Select group and template.
-      await tester.tap(find.text('Grupo de Documentos'));
+      await tester.tap(find.byKey(const ValueKey('employee-scope-field')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Buscar Funcionário'), findsOneWidget);
+
+      await tester.enterText(
+          find.byKey(const ValueKey('employee-picker-search')), 'João');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('employee-option-e1')));
+      await tester.pumpAndSettle();
+
+      expect(viewModel.selectedEmployeeId, 'e1');
+      expect(fakeEmployeeRepo.lastNameFilter, 'João');
+      verify(() => mockBatchRepo.getPendingDocumentUnits(
+            any(),
+            documentGroupId: any(named: 'documentGroupId'),
+            documentTemplateId: any(named: 'documentTemplateId'),
+            employeeId: 'e1',
+            employeeStatusId: any(named: 'employeeStatusId'),
+            employeeName: any(named: 'employeeName'),
+            periodTypeId: any(named: 'periodTypeId'),
+            periodYear: any(named: 'periodYear'),
+            periodMonth: any(named: 'periodMonth'),
+            periodDay: any(named: 'periodDay'),
+            periodWeek: any(named: 'periodWeek'),
+            pageSize: any(named: 'pageSize'),
+            pageNumber: any(named: 'pageNumber'),
+          )).called(1);
+    });
+
+    testWidgets('clears the employee scope back to all employees',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+      await viewModel.selectEmployee('e1', 'João Silva');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('employee-scope-clear')));
+      await tester.pumpAndSettle();
+
+      expect(viewModel.selectedEmployeeId, isNull);
+      expect(find.text('Todos os funcionários'), findsOneWidget);
+    });
+
+    testWidgets('scopes the query to the chosen group', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('group-scope')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Admissão').last);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Documento'));
+      verify(() => mockBatchRepo.getPendingDocumentUnits(
+            any(),
+            documentGroupId: 'g1',
+            documentTemplateId: null,
+            employeeId: any(named: 'employeeId'),
+            employeeStatusId: any(named: 'employeeStatusId'),
+            employeeName: any(named: 'employeeName'),
+            periodTypeId: any(named: 'periodTypeId'),
+            periodYear: any(named: 'periodYear'),
+            periodMonth: any(named: 'periodMonth'),
+            periodDay: any(named: 'periodDay'),
+            periodWeek: any(named: 'periodWeek'),
+            pageSize: any(named: 'pageSize'),
+            pageNumber: any(named: 'pageNumber'),
+          )).called(1);
+    });
+
+    testWidgets('shows the group and template of each row', (tester) async {
+      await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
+
+      await tester.drag(
+        find.byType(CustomScrollView),
+        const Offset(0, -400),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Grupo · T1'), findsAtLeastNWidgets(1));
+    });
+
+    testWidgets('shows employee names in the document list after loading',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
       // Scroll down to reveal list items below the filter section.
@@ -205,9 +304,7 @@ void main() {
     testWidgets('shows empty state when no pending units exist',
         (tester) async {
       when(() => mockBatchRepo.getPendingDocumentUnits(
-            any(),
-            any(),
-            employeeStatusId: any(named: 'employeeStatusId'),
+            any(),            documentGroupId: any(named: 'documentGroupId'),            documentTemplateId: any(named: 'documentTemplateId'),            employeeId: any(named: 'employeeId'),                        employeeStatusId: any(named: 'employeeStatusId'),
             employeeName: any(named: 'employeeName'),
             periodTypeId: any(named: 'periodTypeId'),
             periodYear: any(named: 'periodYear'),
@@ -223,16 +320,6 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Grupo de Documentos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Admissão').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Documento'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
-      await tester.pumpAndSettle();
-
       // Scroll down to reveal empty state below the filter section.
       await tester.drag(
         find.byType(CustomScrollView),
@@ -246,15 +333,7 @@ void main() {
     testWidgets('shows Selecionar Todos filter chip', (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Grupo de Documentos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Admissão').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Documento'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
       await tester.pumpAndSettle();
 
       expect(find.byType(FilterChip), findsOneWidget);
@@ -264,15 +343,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Grupo de Documentos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Admissão').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Documento'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
       await tester.pumpAndSettle();
 
       expect(find.text('Enviar (0)'), findsOneWidget);
@@ -281,16 +352,6 @@ void main() {
     testWidgets('shows status badges for employees and documents',
         (tester) async {
       await tester.pumpWidget(buildSubject());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Grupo de Documentos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Admissão').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Documento'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
       await tester.pumpAndSettle();
 
       // Scroll down to reveal list items.
@@ -321,16 +382,6 @@ void main() {
   group('keyboard dismissal in competência filter', () {
     Future<void> openFilterAndPickMensal(WidgetTester tester) async {
       await tester.pumpWidget(buildSubject());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Grupo de Documentos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Admissão').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Documento'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Competência').first);
@@ -388,16 +439,6 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Grupo de Documentos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Admissão').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Documento'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
-      await tester.pumpAndSettle();
-
       // Focus the name field.
       await tester
           .tap(find.widgetWithText(TextField, 'Nome do Funcionário'));
@@ -434,12 +475,13 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Grupo de Documentos'));
+      await tester.tap(find.byKey(const ValueKey('group-scope')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Admissão').last);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Documento'));
+      await tester.tap(find.byKey(
+          const ValueKey('template-scope-g1')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Contrato').last);
       await tester.pumpAndSettle();
@@ -465,6 +507,9 @@ void main() {
 
       // The action bar may render below the viewport; ensure it's
       // scrolled into view before tapping.
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+
       await tester.ensureVisible(find.text('Enviar (1)'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Enviar (1)'));
@@ -498,6 +543,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+
       await tester.ensureVisible(find.text('Enviar (1)'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Enviar (1)'));
@@ -518,9 +566,7 @@ void main() {
       // The pendingUnits fixture has canGenerateDocument=false; override
       // the response so the button enables.
       when(() => mockBatchRepo.getPendingDocumentUnits(
-            any(),
-            any(),
-            employeeStatusId: any(named: 'employeeStatusId'),
+            any(),            documentGroupId: any(named: 'documentGroupId'),            documentTemplateId: any(named: 'documentTemplateId'),            employeeId: any(named: 'employeeId'),                        employeeStatusId: any(named: 'employeeStatusId'),
             employeeName: any(named: 'employeeName'),
             periodTypeId: any(named: 'periodTypeId'),
             periodYear: any(named: 'periodYear'),
@@ -535,7 +581,7 @@ void main() {
                 BatchDocumentUnitItem(
                   documentUnitId: 'du1',
                   documentId: 'd1',
-                  employeeId: 'e1',
+                  documentTemplateId: 't1',                  documentTemplateName: 'T1',                  documentGroupName: 'Grupo',                  employeeId: 'e1',
                   employeeName: 'João Silva',
                   employeeStatusId: '2',
                   employeeStatusName: 'Ativo',
@@ -552,6 +598,9 @@ void main() {
 
       await selectGroupAndTemplate(tester);
       viewModel.toggleSelection('du1');
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
       await tester.pumpAndSettle();
 
       await tester.ensureVisible(find.text('Gerar e Assinar'));
@@ -579,6 +628,139 @@ void main() {
             any(),
             any(),
           )).called(1);
+    });
+  });
+
+  group('BatchDocumentScreen scanning session', () {
+    late MockDocumentScannerRepository mockScanner;
+
+    /// Rotation stub that never rotates, so the real image decoder and the
+    /// compute isolate stay out of the widget test.
+    Future<RotationCandidate?> noRotation({
+      required Uint8List originalBytes,
+      required String originalText,
+      required Future<String> Function(Uint8List) recognizeText,
+    }) async =>
+        null;
+
+    List<Uint8List> pages(int count) => [
+          for (var i = 0; i < count; i++) Uint8List.fromList([0xFF, 0xD8, i]),
+        ];
+
+    setUp(() {
+      registerFallbackValue(Uint8List(0));
+      registerFallbackValue(<Uint8List>[]);
+
+      mockScanner = MockDocumentScannerRepository();
+      when(() => mockScanner.isPlatformSupported).thenReturn(true);
+      when(() => mockScanner.recognizeText(any())).thenAnswer((_) async => '');
+      when(() => mockScanner.imagesToPdf(any()))
+          .thenAnswer((_) async => Uint8List.fromList([0x25, 0x50, 0x44]));
+
+      viewModel.dispose();
+      viewModel = BatchDocumentViewModel(
+        batchDocumentRepository: mockBatchRepo,
+        documentGroupRepository: mockGroupRepo,
+        employeeRepository: fakeEmployeeRepo,
+        companyId: 'company-1',
+        scannerRepository: mockScanner,
+        pageRotationFinder: noRotation,
+        textExtractor: (_) async => '',
+      );
+    });
+
+    /// Opens the screen, scans one stack of [pageCount] pages and stops at
+    /// the session dialog.
+    Future<void> scanOnce(WidgetTester tester, int pageCount) async {
+      when(() => mockScanner.scanPages())
+          .thenAnswer((_) async => Result.success(pages(pageCount)));
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Digitalizar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Digitalizar'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('offers splitting a lone scan of several pages',
+        (tester) async {
+      await scanOnce(tester, 4);
+
+      expect(find.text('1 documento digitalizado'), findsOneWidget);
+      expect(find.byKey(const Key('scan-session-split')), findsOneWidget);
+    });
+
+    testWidgets('does not offer splitting a single page', (tester) async {
+      await scanOnce(tester, 1);
+
+      expect(find.byKey(const Key('scan-session-split')), findsNothing);
+      expect(find.byKey(const Key('scan-session-scan-more')), findsOneWidget);
+    });
+
+    testWidgets('does not offer splitting once a second document is scanned',
+        (tester) async {
+      await scanOnce(tester, 4);
+
+      await tester.tap(find.byKey(const Key('scan-session-scan-more')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 documentos digitalizados'), findsOneWidget);
+      expect(find.byKey(const Key('scan-session-split')), findsNothing);
+    });
+
+    testWidgets('processes one document per part after a split',
+        (tester) async {
+      await scanOnce(tester, 4);
+
+      await tester.tap(find.byKey(const Key('scan-session-split')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('4 páginas capturadas.'), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('split-pages-field')), '2');
+      await tester.tap(find.byKey(const Key('split-scan-confirm')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 documentos'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('split-result-process')));
+      await tester.pumpAndSettle();
+
+      // One PDF per part: the four scanned pages became two documents.
+      verify(() => mockScanner.imagesToPdf(any())).called(2);
+    });
+
+    testWidgets('returns to the session dialog when the split is cancelled',
+        (tester) async {
+      await scanOnce(tester, 4);
+
+      await tester.tap(find.byKey(const Key('scan-session-split')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('split-scan-cancel')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 documento digitalizado'), findsOneWidget);
+      expect(find.byKey(const Key('scan-session-split')), findsOneWidget);
+      verifyNever(() => mockScanner.imagesToPdf(any()));
+    });
+
+    testWidgets('processes nothing when the split result is discarded',
+        (tester) async {
+      await scanOnce(tester, 4);
+
+      await tester.tap(find.byKey(const Key('scan-session-split')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('split-pages-field')), '2');
+      await tester.tap(find.byKey(const Key('split-scan-confirm')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('split-result-discard')));
+      await tester.pumpAndSettle();
+
+      verifyNever(() => mockScanner.imagesToPdf(any()));
+      expect(find.text('2 documentos'), findsNothing);
     });
   });
 }

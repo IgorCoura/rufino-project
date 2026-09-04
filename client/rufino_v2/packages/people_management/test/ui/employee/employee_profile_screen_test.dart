@@ -115,8 +115,8 @@ void main() {
           id: 'grp-1',
           name: 'Grupo Contratual',
           description: 'Documentos contratuais',
-          statusId: '1',
-          statusName: 'OK',
+          statusId: '0',
+          statusName: 'Okay',
           documents: [
             EmployeeDocument(
               id: 'doc-1',
@@ -155,7 +155,16 @@ void main() {
     final fakePermRepo = FakePermissionRepository()
       ..setPermissions(const [
         Permission(resource: 'employee', scopes: ['create', 'view', 'edit', 'upload', 'download']),
-        Permission(resource: 'document', scopes: ['create', 'view', 'edit', 'upload', 'download']),
+        Permission(resource: 'document', scopes: [
+          'create',
+          'view',
+          'edit',
+          'upload',
+          'download',
+          'deprecate',
+          'reject',
+          'mark-not-applicable',
+        ]),
       ]);
     permissionNotifier = PermissionNotifier(permissionRepository: fakePermRepo);
     await permissionNotifier.loadPermissions();
@@ -1892,6 +1901,330 @@ void main() {
       // Shows item count but no "Página X de Y" text.
       expect(find.text('1 item'), findsOneWidget);
       expect(find.textContaining('Página'), findsNothing);
+    });
+
+    // A unidade do fixture está OK, então depreciar e invalidar aparecem e "não aplicável" não.
+    // O documento do fixture não é por competência, então criar unidade à mão também não aparece:
+    // ali duas unidades não podem cobrir ao mesmo tempo.
+    testWidgets(
+        'offers deprecate and invalidate on a delivered unit, and no add button',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Grupo Contratual'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Grupo Contratual'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Contrato de Trabalho'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Contrato de Trabalho'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('unit-deprecate')), findsOneWidget);
+      expect(find.byKey(const ValueKey('unit-invalidate')), findsOneWidget);
+      expect(find.byKey(const ValueKey('unit-renew')), findsOneWidget);
+      expect(find.byKey(const ValueKey('unit-not-applicable')), findsNothing);
+      expect(find.byKey(const ValueKey('document-add-unit')), findsNothing);
+    });
+
+    // Renovar é a saída de uma unidade vencida: sem ela o documento fica sem
+    // nenhuma ação possível, já que vencida não é depreciável nem invalidável e
+    // o vencimento não cria mais a substituta sozinho.
+    testWidgets('offers renew on an expired unit and marks the replacement',
+        (tester) async {
+      const expiredDocument = EmployeeDocument(
+        id: 'doc-1',
+        name: 'Contrato de Trabalho',
+        description: 'Contrato CLT',
+        statusId: '7',
+        statusName: 'Expired',
+        isSignable: false,
+        canGenerateDocument: true,
+        usePreviousPeriod: false,
+        totalUnitsCount: 2,
+        units: [
+          DocumentUnit(
+            id: 'unit-1',
+            statusId: '9',
+            statusName: 'Expired',
+            date: '01/01/2026',
+            validity: '01/02/2026',
+            createdAt: '01/01/2026',
+            hasFile: true,
+            name: 'contrato.pdf',
+          ),
+          DocumentUnit(
+            id: 'unit-2',
+            statusId: '1',
+            statusName: 'Pending',
+            date: '',
+            validity: '',
+            createdAt: '01/02/2026',
+            hasFile: false,
+            name: '',
+            replacesDocumentUnitId: 'unit-1',
+          ),
+        ],
+      );
+
+      employeeRepository.setDocumentsList(const [expiredDocument]);
+      documentGroupRepository.setGroupsWithDocuments(const [
+        DocumentGroupWithDocuments(
+          id: 'grp-1',
+          name: 'Grupo Contratual',
+          description: 'Documentos contratuais',
+          statusId: '2',
+          statusName: 'RequiresAttention',
+          documents: [expiredDocument],
+        ),
+      ]);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Grupo Contratual'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Grupo Contratual'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Contrato de Trabalho'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Contrato de Trabalho'));
+      await tester.pumpAndSettle();
+
+      // Renovar é a única ação da vencida; depreciar não aparece em nenhuma das
+      // duas linhas. O invalidar que sobra é o da pendente substituta, não o da
+      // vencida — vencida é a prova do período coberto e a API recusa.
+      expect(find.byKey(const ValueKey('unit-renew')), findsOneWidget);
+      expect(find.byKey(const ValueKey('unit-deprecate')), findsNothing);
+      expect(find.byKey(const ValueKey('unit-invalidate')), findsOneWidget);
+
+      // A substituta se identifica na lista — sem isso ela é indistinguível de
+      // uma pendência qualquer.
+      expect(find.byKey(const ValueKey('unit-renewal-badge')), findsOneWidget);
+
+      await tester.ensureVisible(find.byKey(const ValueKey('unit-renew')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('unit-renew')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Renovar documento'), findsOneWidget);
+      expect(find.byKey(const ValueKey('unit-renew-confirm')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('unit-renew-confirm')));
+      await tester.pumpAndSettle();
+
+      expect(employeeRepository.renewedDocumentUnitIds, ['unit-1']);
+    });
+
+    // O servidor manda o nome do smart enum em inglês; a tela precisa rotular
+    // pelo id. Fixture com o nome cru para que traduzir de volta a statusName
+    // volte a quebrar o teste.
+    testWidgets(
+        'labels a not applicable unit in Portuguese and offers to require it '
+        'again', (tester) async {
+      const notApplicableDocument = EmployeeDocument(
+        id: 'doc-1',
+        name: 'Contrato de Trabalho',
+        description: 'Contrato CLT',
+        statusId: '3',
+        statusName: 'OK',
+        isSignable: false,
+        canGenerateDocument: true,
+        usePreviousPeriod: false,
+        totalUnitsCount: 1,
+        units: [
+          DocumentUnit(
+            id: 'unit-1',
+            statusId: '6',
+            statusName: 'NotApplicable',
+            date: '01/01/2026',
+            validity: '',
+            createdAt: '01/01/2026',
+            hasFile: false,
+            name: '',
+          ),
+        ],
+      );
+
+      // A lista de unidades vem do employeeRepository (expandir o documento
+      // recarrega a página); o grupo só desenha o tile.
+      employeeRepository.setDocumentsList(const [notApplicableDocument]);
+      documentGroupRepository.setGroupsWithDocuments(const [
+        DocumentGroupWithDocuments(
+          id: 'grp-1',
+          name: 'Grupo Contratual',
+          description: 'Documentos contratuais',
+          statusId: '0',
+          statusName: 'Okay',
+          documents: [notApplicableDocument],
+        ),
+      ]);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Grupo Contratual'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Grupo Contratual'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Contrato de Trabalho'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Contrato de Trabalho'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Não Aplicável'), findsOneWidget);
+      expect(find.text('NotApplicable'), findsNothing);
+
+      // Invalidar é a única saída dessa unidade — sem ela o documento fica sem
+      // nenhuma ação possível na tela.
+      expect(find.byKey(const ValueKey('unit-invalidate')), findsOneWidget);
+      expect(find.byKey(const ValueKey('unit-deprecate')), findsNothing);
+      expect(find.byKey(const ValueKey('unit-not-applicable')), findsNothing);
+
+      await tester.ensureVisible(find.byKey(const ValueKey('unit-invalidate')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('unit-invalidate')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Voltar a exigir documento'), findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('unit-invalidate-confirm')), findsOneWidget);
+    });
+
+    // Blindagem contra a origem do inglês na tela: quando o id não bate (status
+    // novo no servidor, id vazio, formato inesperado), o rótulo cai no nome do
+    // smart enum. Traduzir também pelo nome mantém a tela em português.
+    testWidgets(
+        'labels document and unit in Portuguese when only the English enum '
+        'name matches', (tester) async {
+      const unmatchedIdDocument = EmployeeDocument(
+        id: 'doc-1',
+        name: 'Contrato de Trabalho',
+        description: 'Contrato CLT',
+        statusId: '',
+        statusName: 'AwaitingSignature',
+        isSignable: false,
+        canGenerateDocument: true,
+        usePreviousPeriod: false,
+        totalUnitsCount: 1,
+        units: [
+          DocumentUnit(
+            id: 'unit-1',
+            statusId: '',
+            statusName: 'Pending',
+            date: '01/01/2026',
+            validity: '',
+            createdAt: '01/01/2026',
+            hasFile: false,
+            name: '',
+          ),
+        ],
+      );
+
+      employeeRepository.setDocumentsList(const [unmatchedIdDocument]);
+      documentGroupRepository.setGroupsWithDocuments(const [
+        DocumentGroupWithDocuments(
+          id: 'grp-1',
+          name: 'Grupo Contratual',
+          description: 'Documentos contratuais',
+          statusId: '',
+          statusName: 'Okay',
+          documents: [unmatchedIdDocument],
+        ),
+      ]);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Grupo Contratual'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Grupo Contratual'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Contrato de Trabalho'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Contrato de Trabalho'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Aguardando Assinatura'), findsOneWidget);
+      expect(find.text('Pendente'), findsWidgets);
+      expect(find.text('AwaitingSignature'), findsNothing);
+      expect(find.text('Pending'), findsNothing);
+      expect(find.text('Okay'), findsNothing);
+    });
+
+    testWidgets('asks for confirmation before deprecating a unit',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Grupo Contratual'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Grupo Contratual'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Contrato de Trabalho'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Contrato de Trabalho'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const ValueKey('unit-deprecate')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('unit-deprecate')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Depreciar documento'), findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('unit-deprecate-confirm')), findsOneWidget);
     });
 
     testWidgets(

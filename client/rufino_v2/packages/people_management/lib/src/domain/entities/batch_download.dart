@@ -1,3 +1,4 @@
+import 'document_status_labels.dart';
 import 'period.dart';
 export 'period.dart';
 
@@ -37,7 +38,7 @@ class BatchDownloadEmployee {
   String get statusLabel => switch (statusId) {
         1 => 'Pendente',
         2 => 'Ativo',
-        3 => 'Ferias',
+        3 => 'Férias',
         4 => 'Afastado',
         5 => 'Inativo',
         _ => statusName,
@@ -84,7 +85,7 @@ class BatchDownloadUnit {
   /// The document unit date in `dd/MM/yyyy` display format.
   final String date;
 
-  /// The document unit status identifier (1-8).
+  /// The document unit status identifier (1-9).
   final int statusId;
 
   /// The document unit status display name.
@@ -97,17 +98,8 @@ class BatchDownloadUnit {
   final bool hasFile;
 
   /// Human-readable status label in Portuguese.
-  String get statusLabel => switch (statusId) {
-        1 => 'Pendente',
-        2 => 'OK',
-        3 => 'Obsoleto',
-        4 => 'Invalido',
-        5 => 'Requer Validacao',
-        6 => 'Nao Aplicavel',
-        7 => 'Aguardando Assinatura',
-        8 => 'Alerta',
-        _ => statusName.isNotEmpty ? statusName : statusId.toString(),
-      };
+  String get statusLabel =>
+      documentUnitStatusLabel(statusId.toString(), statusName);
 
   /// Composite key for selection tracking.
   String get selectionKey => '$documentId:$documentUnitId';

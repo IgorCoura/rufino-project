@@ -1,3 +1,4 @@
+import 'document_status_labels.dart';
 import 'period.dart';
 
 /// Operational bucket of the company-wide document dashboard.
@@ -101,7 +102,7 @@ class DashboardUnitItem {
   /// has no expiration.
   final String validity;
 
-  /// The unit status id (1=Pendente … 8=A Vencer).
+  /// The unit status id (1=Pendente … 8=A Vencer, 9=Vencido).
   final String statusId;
 
   /// The unit status display name.
@@ -117,17 +118,7 @@ class DashboardUnitItem {
   bool get hasValidity => validity.isNotEmpty;
 
   /// Display label for the unit status.
-  String get statusLabel => switch (statusId) {
-        '1' => 'Pendente',
-        '2' => 'OK',
-        '3' => 'Obsoleto',
-        '4' => 'Inválido',
-        '5' => 'Requer Validação',
-        '6' => 'Não Aplicável',
-        '7' => 'Aguardando Assinatura',
-        '8' => 'A Vencer',
-        _ => statusName.isNotEmpty ? statusName : statusId,
-      };
+  String get statusLabel => documentUnitStatusLabel(statusId, statusName);
 
   /// Human-readable employee status label in Portuguese.
   String get employeeStatusLabel => switch (employeeStatusId) {

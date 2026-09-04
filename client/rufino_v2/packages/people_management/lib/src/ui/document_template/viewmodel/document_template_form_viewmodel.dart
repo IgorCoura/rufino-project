@@ -97,6 +97,7 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
   bool _expirationLimited = false;
   bool _workloadEnabled = false;
   bool _periodEnabled = false;
+  bool _newContractDeprecationEnabled = false;
   PeriodGranularity? _selectedGranularity;
   bool _usePreviousPeriod = false;
   bool _acceptsSignature = false;
@@ -142,6 +143,9 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
   /// Whether the competência rule is active for this template.
   bool get periodEnabled => _periodEnabled;
 
+  /// Whether the new-contract deprecation rule is active for this template.
+  bool get newContractDeprecationEnabled => _newContractDeprecationEnabled;
+
   /// The competência granularity chosen in the form, or null when none.
   PeriodGranularity? get selectedGranularity => _selectedGranularity;
 
@@ -173,6 +177,10 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
           ? PeriodRule(
               granularity: _selectedGranularity!,
               usePreviousPeriod: _usePreviousPeriod)
+          : null,
+      // Regra sem entrada: o switch é a regra inteira, não há valor a validar.
+      newContractDeprecation: _newContractDeprecationEnabled
+          ? const NewContractDeprecationRule()
           : null,
     );
   }
@@ -268,6 +276,14 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
       _selectedGranularity = null;
       _usePreviousPeriod = false;
     }
+    notifyListeners();
+  }
+
+  /// Turns the new-contract deprecation rule on or off and notifies listeners.
+  ///
+  /// There is nothing to clear when turning it off — the rule carries no input.
+  void setNewContractDeprecationEnabled(bool value) {
+    _newContractDeprecationEnabled = value;
     notifyListeners();
   }
 
@@ -527,6 +543,8 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
           _periodEnabled = period != null;
           _selectedGranularity = period?.granularity;
           _usePreviousPeriod = period?.usePreviousPeriod ?? false;
+          _newContractDeprecationEnabled =
+              template.policies.newContractDeprecation != null;
           _acceptsSignature = template.acceptsSignature;
           bodyFileNameController.text = template.bodyFileName;
           headerFileNameController.text = template.headerFileName;

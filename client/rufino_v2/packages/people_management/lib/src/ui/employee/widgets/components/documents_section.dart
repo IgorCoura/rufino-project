@@ -19,6 +19,8 @@ import '../../../../domain/ports/file_save_service.dart';
 import '../../../shared/scanner_error_handler.dart';
 import '../../../../utils/image_to_pdf_converter.dart';
 import '../../../../utils/pdf_merger.dart';
+import '../../../shared/outdated_content_dialog.dart';
+import '../../../../domain/entities/period.dart';
 
 /// Expandable card that displays the employee's required documents grouped
 /// by document group, with nested expansion for document units, status
@@ -60,6 +62,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     (id: 6, label: 'Não Aplicável'),
     (id: 7, label: 'Aguardando Assinatura'),
     (id: 8, label: 'A Vencer'),
+    (id: 9, label: 'Vencido'),
   ];
 
   /// Available page size options.
@@ -68,16 +71,19 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   // ─── Status color helpers (visual concern — stays in UI) ────────────────
 
   /// Returns a color for a document-group-level status.
+  ///
+  /// Three-valued compliance scale, same ids as the employee list
+  /// (0=Okay, 1=A Vencer, 2=Requer Atenção).
   Color _groupStatusColor(String statusId) {
     return switch (statusId) {
-      '1' => Colors.green,
-      '2' => Colors.orange,
-      '3' => Colors.red,
+      '0' => Colors.green,
+      '1' => Colors.orange,
+      '2' => Colors.red,
       _ => Colors.grey,
     };
   }
 
-  /// Returns a color for a document-level status.
+  /// Returns a color for a document-level status (1–7).
   Color _documentStatusColor(String statusId) {
     return switch (statusId) {
       '1' => Colors.orange,
@@ -85,6 +91,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       '3' => Colors.green,
       '4' => Colors.grey,
       '5' => Colors.blue,
+      '6' => Colors.deepOrange,
+      '7' => Colors.redAccent,
       _ => Colors.grey,
     };
   }
@@ -100,6 +108,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       '6' => Colors.blueGrey,
       '7' => Colors.blue,
       '8' => Colors.deepOrange,
+      // Vencido é o único que representa falta de cobertura AGORA — cor mais forte que a de "a vencer".
+      '9' => Colors.redAccent,
       _ => Colors.grey,
     };
   }
@@ -139,6 +149,27 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   }
 
   // ─── Dialogs ───────────────────────────────────────────────────────────────
+
+  /// Shows a dialog asking for the date of the document unit to be created.
+  ///
+  /// The date is what places the unit in a competência — the client does not
+  /// resolve which one. Week-of-year and the retroactive shift are the server's
+  /// arithmetic, and recomputing them here would be a second implementation of
+  /// the same rule, free to disagree. The created row shows the competência the
+  /// server decided on.
+  Future<void> _showAddUnitDialog(EmployeeDocument doc) async {
+    final date = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _AddUnitDialog(
+        granularity: doc.periodGranularity,
+        validateDate: widget.viewModel.validateDocumentUnitDate,
+      ),
+    );
+
+    if (date != null && mounted) {
+      await widget.viewModel.createDocumentUnit(doc.id, date);
+    }
+  }
 
   /// Shows a dialog to edit the date of a document unit.
   Future<void> _showEditDateDialog(
@@ -210,35 +241,128 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     dateCtrl.dispose();
   }
 
-  /// Shows a confirmation dialog before marking a unit as not applicable.
-  Future<void> _showNotApplicableDialog(
-    EmployeeDocument doc,
-    DocumentUnit unit,
-  ) async {
+  /// Asks the user to confirm a destructive status change on a unit.
+  ///
+  /// Returns whether the user confirmed. All three status actions go through
+  /// here — they change what the document proves, so none of them is a
+  /// single-tap operation.
+  Future<bool> _confirmUnitStatusChange({
+    required String title,
+    required String message,
+    required String confirmLabel,
+    required Key confirmKey,
+  }) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Text('Confirmar'),
-          content: const Text(
-            'Deseja marcar este documento como não aplicável?',
-          ),
+          title: Text(title),
+          content: Text(message),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
               child: const Text('Cancelar'),
             ),
             FilledButton(
+              key: confirmKey,
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Confirmar'),
+              child: Text(confirmLabel),
             ),
           ],
         );
       },
     );
 
-    if (confirmed == true && mounted) {
+    return confirmed == true && mounted;
+  }
+
+  /// Shows a confirmation dialog before marking a unit as not applicable.
+  Future<void> _showNotApplicableDialog(
+    EmployeeDocument doc,
+    DocumentUnit unit,
+  ) async {
+    final confirmed = await _confirmUnitStatusChange(
+      title: 'Marcar como não aplicável',
+      message: 'Este documento deixa de ser exigido deste funcionário. '
+          'Deseja continuar?',
+      confirmLabel: 'Marcar',
+      confirmKey: const ValueKey('unit-not-applicable-confirm'),
+    );
+
+    if (confirmed) {
       await widget.viewModel.setDocumentUnitNotApplicable(doc.id, unit.id);
+    }
+  }
+
+  /// Shows a confirmation dialog before deprecating a unit.
+  Future<void> _showDeprecateDialog(
+    EmployeeDocument doc,
+    DocumentUnit unit,
+  ) async {
+    final confirmed = await _confirmUnitStatusChange(
+      title: 'Depreciar documento',
+      message: 'O documento sai de vigência mas continua guardado como '
+          'comprovação do período que cobriu. Uma nova pendência será criada '
+          'no lugar. Deseja continuar?',
+      confirmLabel: 'Depreciar',
+      confirmKey: const ValueKey('unit-deprecate-confirm'),
+    );
+
+    if (confirmed) {
+      await widget.viewModel.deprecateDocumentUnit(doc.id, unit.id);
+    }
+  }
+
+  /// Shows a confirmation dialog before renewing a unit.
+  ///
+  /// The wording separates renewing from deprecating: here the current document
+  /// keeps covering until the replacement is delivered.
+  Future<void> _showRenewDialog(
+    EmployeeDocument doc,
+    DocumentUnit unit,
+  ) async {
+    final confirmed = await _confirmUnitStatusChange(
+      title: 'Renovar documento',
+      message: unit.isExpired
+          ? 'Uma nova pendência será criada para substituir o documento '
+              'vencido. Deseja continuar?'
+          : 'Uma nova pendência será criada para substituir este documento. '
+              'O documento atual continua valendo até o novo ser entregue. '
+              'Deseja continuar?',
+      confirmLabel: 'Renovar',
+      confirmKey: const ValueKey('unit-renew-confirm'),
+    );
+
+    if (confirmed) {
+      await widget.viewModel.renewDocumentUnit(doc.id, unit.id);
+    }
+  }
+
+  /// Shows a confirmation dialog before invalidating a unit.
+  ///
+  /// A unit marked as not applicable gets its own wording: there is no error to
+  /// undo, the document simply became required again.
+  Future<void> _showInvalidateDialog(
+    EmployeeDocument doc,
+    DocumentUnit unit,
+  ) async {
+    final confirmed = await _confirmUnitStatusChange(
+      title: unit.isNotApplicable
+          ? 'Voltar a exigir documento'
+          : 'Invalidar documento',
+      message: unit.isNotApplicable
+          ? 'Este documento voltou a ser exigido deste funcionário. A marcação '
+              'de "não aplicável" deixa de valer e uma nova pendência será '
+              'criada no lugar. Deseja continuar?'
+          : 'Use quando o documento tem erro ou foi enviado por engano — '
+              'ele deixa de ter qualquer valor legal. Uma nova pendência será '
+              'criada no lugar. Deseja continuar?',
+      confirmLabel: unit.isNotApplicable ? 'Voltar a exigir' : 'Invalidar',
+      confirmKey: const ValueKey('unit-invalidate-confirm'),
+    );
+
+    if (confirmed) {
+      await widget.viewModel.invalidateDocumentUnit(doc.id, unit.id);
     }
   }
 
@@ -274,6 +398,16 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               PermissionGuard(
                 resource: PeopleManagementResources.document,
                 scope: PeopleManagementScopes.sendToSign,
+                child: OutlinedButton(
+                  key: const ValueKey('generate-dialog-schedule-sign'),
+                  onPressed: () => Navigator.of(ctx).pop('schedule_sign'),
+                  child: const Text('Agendar envio'),
+                ),
+              ),
+            if (doc.isSignable && _canSendToSign)
+              PermissionGuard(
+                resource: PeopleManagementResources.document,
+                scope: PeopleManagementScopes.sendToSign,
                 child: FilledButton(
                   onPressed: () => Navigator.of(ctx).pop('generate_sign'),
                   child: const Text('Gerar e enviar para assinatura'),
@@ -285,6 +419,28 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     );
 
     if (!mounted || action == null) return;
+
+    // Agendar não passa pelo aviso de snapshot: o PDF só é montado na data do
+    // disparo, então quem vale é o cadastro daquele momento — avisar agora
+    // sobre um dado que ainda vai mudar seria informação errada.
+    if (action == 'schedule_sign') {
+      await _showScheduleSignDialog(doc, unit);
+      return;
+    }
+
+    // O PDF é montado a partir do snapshot gravado na unidade, então os dois
+    // caminhos (gerar e gerar+assinar) passam pelo mesmo aviso.
+    final proceed = await _confirmSnapshotFreshness([
+      SelectedDocumentUnit(
+        documentId: doc.id,
+        documentUnitId: unit.id,
+        documentName: doc.name,
+        documentUnitDate: unit.date,
+        canGenerate: true,
+        hasFile: unit.hasFile,
+      ),
+    ]);
+    if (!proceed || !mounted) return;
 
     if (action == 'generate') {
       setState(() => _isBusy = true);
@@ -310,6 +466,44 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       setState(() => _isBusy = false);
     } else if (action == 'generate_sign') {
       await _showSignDateDialog(doc, unit, isUpload: false);
+    }
+  }
+
+  /// Checks whether the snapshot of [units] is still current and, when it is
+  /// not, asks the user how to proceed.
+  ///
+  /// Returns whether the caller should carry on with the generation. Every
+  /// unit is listed so the user can see which ones are affected; only the
+  /// outdated ones are refreshed when the user asks for it.
+  Future<bool> _confirmSnapshotFreshness(
+    List<SelectedDocumentUnit> units,
+  ) async {
+    final outdated =
+        await widget.viewModel.checkOutdatedDocumentContent(units);
+    if (outdated.isEmpty) return true;
+    if (!mounted) return false;
+
+    final action = await showOutdatedContentDialog(
+      context,
+      rows: units
+          .map((u) => OutdatedDocumentRow(
+                title: u.documentName,
+                subtitle: u.documentUnitDate,
+                isOutdated: outdated.contains(u.documentUnitId),
+              ))
+          .toList(),
+    );
+    if (!mounted) return false;
+
+    switch (action) {
+      case OutdatedContentAction.cancel:
+        return false;
+      case OutdatedContentAction.continueAnyway:
+        return true;
+      case OutdatedContentAction.refreshAndContinue:
+        return widget.viewModel.refreshDocumentContent(
+          units.where((u) => outdated.contains(u.documentUnitId)).toList(),
+        );
     }
   }
 
@@ -763,6 +957,74 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     await Future<void>.delayed(const Duration(milliseconds: 50));
   }
 
+  /// Shows a dialog to schedule the signature send for a future date.
+  ///
+  /// The send date is prefilled with [EmployeeDocument.suggestedSignatureScheduleDate]
+  /// — when the current coverage expires — so the common case (renew exactly on
+  /// the expiry day) is one confirmation away.
+  Future<void> _showScheduleSignDialog(
+    EmployeeDocument doc,
+    DocumentUnit unit,
+  ) async {
+    final schedule = await showDialog<_ScheduleSignResult>(
+      context: context,
+      builder: (_) => _ScheduleSignDialog(
+        suggestedSendOn: doc.suggestedSignatureScheduleDate,
+      ),
+    );
+
+    if (schedule == null || !mounted) return;
+
+    setState(() => _isBusy = true);
+    try {
+      await widget.viewModel.scheduleSendToSign(
+        doc.id,
+        unit.id,
+        schedule.sendOn,
+        schedule.dateLimitToSign,
+        0,
+      );
+    } finally {
+      if (mounted) setState(() => _isBusy = false);
+    }
+  }
+
+  /// Asks the user to confirm cancelling a scheduled signature send.
+  Future<void> _confirmCancelScheduledSend(
+    EmployeeDocument doc,
+    DocumentUnit unit,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar Agendamento'),
+        content: Text(
+          'O envio agendado para ${unit.scheduledSignatureSendOn} não será '
+          'realizado. O documento continua pendente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Cancelar agendamento'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isBusy = true);
+    try {
+      await widget.viewModel.cancelScheduledSendToSign(doc.id, unit.id);
+    } finally {
+      if (mounted) setState(() => _isBusy = false);
+    }
+  }
+
   /// Shows a dialog to configure the sign date limit and reminder interval.
   Future<void> _showSignDateDialog(
     EmployeeDocument doc,
@@ -1035,6 +1297,12 @@ class _DocumentsSectionState extends State<DocumentsSection> {
 
     if (confirmed != true || !mounted) return;
 
+    // Só a geração lê o snapshot; o download entrega o arquivo já existente.
+    if (isGenerate) {
+      final proceed = await _confirmSnapshotFreshness(canExecute);
+      if (!proceed || !mounted) return;
+    }
+
     setState(() => _isBusy = true);
     final bytes = isGenerate
         ? await widget.viewModel.generateDocumentRange()
@@ -1198,8 +1466,10 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   // ─── Document level ───────────────────────────────────────────────────────
 
   Widget _buildDocumentTile(BuildContext context, EmployeeDocument doc) {
-    final docStatusLabel =
-        doc.statusName.isNotEmpty ? doc.statusName : doc.statusId;
+    // statusLabel, nunca statusName: o servidor manda o nome do smart enum em
+    // inglês ("RequiresDocument"), e o statusName só serve de fallback dentro
+    // do próprio statusLabel.
+    final docStatusLabel = doc.statusLabel;
     final docStatusColor = _documentStatusColor(doc.statusId);
     final isExpanded = _expandedDocIds.contains(doc.id);
     final titleStyle = Theme.of(context).textTheme.titleSmall;
@@ -1323,10 +1593,39 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   Widget _buildUnitsList(BuildContext context, EmployeeDocument doc) {
     final units = doc.units;
 
+    // Criar à mão só existe no documento por competência, que é o único capaz de ter mais de uma unidade
+    // cobrindo ao mesmo tempo — uma por período — e onde pode faltar a de um período específico. Nos demais a
+    // próxima unidade nasce de renovar ou de depreciar/invalidar a vigente, que já deixam a substituta no lugar.
+    //
+    // Aparece também com a lista vazia: um filtro sem resultado não é motivo para esconder a criação, e é
+    // justamente quando falta unidade que ela é procurada.
+    final addButton = doc.isByCompetency
+        ? PermissionGuard(
+            resource: 'document',
+            scope: 'create',
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                key: const ValueKey('document-add-unit'),
+                icon: const Icon(Icons.add, size: 20),
+                label: const Text('Adicionar'),
+                onPressed: _isBusy ? null : () => _showAddUnitDialog(doc),
+              ),
+            ),
+          )
+        : const SizedBox.shrink();
+
     if (units.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
-        child: Center(child: Text('Nenhuma unidade encontrada para o filtro.')),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child:
+                Center(child: Text('Nenhuma unidade encontrada para o filtro.')),
+          ),
+          addButton,
+        ],
       );
     }
 
@@ -1340,20 +1639,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       children: [
         ...units.map((unit) => _buildUnitRow(context, doc, unit)),
         const SizedBox(height: AppSpacing.sm),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: PermissionGuard(
-            resource: PeopleManagementResources.document,
-            scope: PeopleManagementScopes.create,
-            child: TextButton.icon(
-              onPressed: _isBusy
-                  ? null
-                  : () => widget.viewModel.createDocumentUnit(doc.id),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Adicionar'),
-            ),
-          ),
-        ),
+        addButton,
         const SizedBox(height: AppSpacing.sm),
         _buildPaginationBar(context, doc, currentPage, totalPages, pageSize),
       ],
@@ -1568,16 +1854,18 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             onPressed: _isBusy ? null : () => _showEditDateDialog(doc, unit),
           ),
         ),
-        PermissionGuard(
-          resource: PeopleManagementResources.document,
-          scope: 'mark-not-applicable',
-          child: IconButton(
-            icon: const Icon(Icons.block, size: 20),
-            tooltip: 'Não aplicável',
-            onPressed:
-                _isBusy ? null : () => _showNotApplicableDialog(doc, unit),
+        if (unit.canBeMarkedNotApplicable)
+          PermissionGuard(
+            resource: PeopleManagementResources.document,
+            scope: 'mark-not-applicable',
+            child: IconButton(
+              key: const ValueKey('unit-not-applicable'),
+              icon: const Icon(Icons.block, size: 20),
+              tooltip: 'Não aplicável',
+              onPressed:
+                  _isBusy ? null : () => _showNotApplicableDialog(doc, unit),
+            ),
           ),
-        ),
         if (canGenerate)
           PermissionGuard(
             resource: PeopleManagementResources.document,
@@ -1598,6 +1886,18 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               onPressed: _isBusy ? null : () => _showSendDialog(doc, unit),
             ),
           ),
+        if (unit.isSignatureScheduled)
+          PermissionGuard(
+            resource: 'document',
+            scope: 'send2sign',
+            child: IconButton(
+              key: const ValueKey('unit-cancel-scheduled-send'),
+              icon: const Icon(Icons.event_busy_outlined, size: 20),
+              tooltip: 'Cancelar agendamento',
+              onPressed:
+                  _isBusy ? null : () => _confirmCancelScheduledSend(doc, unit),
+            ),
+          ),
       ] else if (unit.hasFile)
         PermissionGuard(
           resource: PeopleManagementResources.document,
@@ -1608,6 +1908,41 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             onPressed: _isBusy ? null : () => _viewUnit(doc, unit),
           ),
         ),
+      // Renovar, depreciar e invalidar valem para a unidade em vigência, então ficam fora do bloco de pendente.
+      // Renovar usa o escopo 'create' porque é criar a próxima unidade do documento.
+      if (unit.canBeRenewed)
+        PermissionGuard(
+          resource: 'document',
+          scope: 'create',
+          child: IconButton(
+            key: const ValueKey('unit-renew'),
+            icon: const Icon(Icons.autorenew, size: 20),
+            tooltip: 'Renovar',
+            onPressed: _isBusy ? null : () => _showRenewDialog(doc, unit),
+          ),
+        ),
+      if (unit.canBeDeprecated)
+        PermissionGuard(
+          resource: 'document',
+          scope: 'deprecate',
+          child: IconButton(
+            key: const ValueKey('unit-deprecate'),
+            icon: const Icon(Icons.history_toggle_off, size: 20),
+            tooltip: 'Depreciar',
+            onPressed: _isBusy ? null : () => _showDeprecateDialog(doc, unit),
+          ),
+        ),
+      if (unit.canBeInvalidated)
+        PermissionGuard(
+          resource: 'document',
+          scope: 'reject',
+          child: IconButton(
+            key: const ValueKey('unit-invalidate'),
+            icon: const Icon(Icons.report_gmailerrorred_outlined, size: 20),
+            tooltip: unit.isNotApplicable ? 'Voltar a exigir' : 'Invalidar',
+            onPressed: _isBusy ? null : () => _showInvalidateDialog(doc, unit),
+          ),
+        ),
     ];
 
     final infoColumn = Column(
@@ -1615,7 +1950,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          unit.statusName,
+          unit.statusLabel,
           style: Theme.of(context)
               .textTheme
               .bodyMedium
@@ -1645,6 +1980,25 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                 .bodySmall
                 ?.copyWith(color: cs.onSurfaceVariant),
           ),
+        // Sem isso a substituta é indistinguível de uma pendência qualquer, e a
+        // linha não explica por que ela apareceu ao lado de um documento que
+        // ainda vale.
+        if (unit.isRenewal) ...[
+          const SizedBox(height: AppSpacing.xs),
+          _StatusBadge(
+            key: const ValueKey('unit-renewal-badge'),
+            label: 'Renovação',
+            color: cs.secondary,
+          ),
+        ],
+        if (unit.isSignatureScheduled) ...[
+          const SizedBox(height: AppSpacing.xs),
+          _StatusBadge(
+            key: const ValueKey('unit-scheduled-send-badge'),
+            label: 'Envio agendado: ${unit.scheduledSignatureSendOn}',
+            color: cs.tertiary,
+          ),
+        ],
       ],
     );
 
@@ -1807,9 +2161,249 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   }
 }
 
+/// Asks for the date of the document unit to be created, and returns it as
+/// `dd/MM/yyyy` — or null when the user backs out.
+///
+/// A StatefulWidget for the same reason as [_ScheduleSignDialog]: the field
+/// lives and dies with the dialog route. Disposing the controller in the caller
+/// kills it mid exit-animation, and the reload that follows the creation
+/// rebuilds the tree while the route is still tearing down.
+class _AddUnitDialog extends StatefulWidget {
+  const _AddUnitDialog({required this.granularity, required this.validateDate});
+
+  /// The competência granularity of the document, when it is known.
+  final PeriodGranularity? granularity;
+
+  final String? Function(String?) validateDate;
+
+  @override
+  State<_AddUnitDialog> createState() => _AddUnitDialogState();
+}
+
+class _AddUnitDialogState extends State<_AddUnitDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _dateCtrl = TextEditingController();
+  final _dateMask = MaskTextInputFormatter(
+    mask: '##/##/####',
+    filter: {'#': RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
+
+  @override
+  void dispose() {
+    _dateCtrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_formKey.currentState?.validate() != true) return;
+    Navigator.of(context).pop(_dateCtrl.text.trim());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final granularity = widget.granularity;
+
+    return AlertDialog(
+      title: const Text('Adicionar documento'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              granularity == null
+                  ? 'A data informada define a competência do documento.'
+                  : 'Documento de competência '
+                      '${granularity.label.toLowerCase()}. A data informada '
+                      'define em qual competência ele entra.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              key: const ValueKey('add-unit-date-field'),
+              controller: _dateCtrl,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Data do documento',
+                prefixIcon: Icon(Icons.event_outlined),
+                border: OutlineInputBorder(),
+                helperText: 'Ex: 15/03/2026',
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [_dateMask],
+              validator: widget.validateDate,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          key: const ValueKey('add-unit-confirm'),
+          onPressed: _submit,
+          child: const Text('Criar'),
+        ),
+      ],
+    );
+  }
+}
+
 /// Small coloured badge used to display a document or unit status.
+/// The dates chosen in [_ScheduleSignDialog].
+typedef _ScheduleSignResult = ({String sendOn, String dateLimitToSign});
+
+/// Asks for the date the document should be sent for signature and the deadline
+/// the employee has to sign it.
+///
+/// A StatefulWidget, and not controllers built inside the caller, so the fields
+/// live and die with the dialog route — disposing them from the caller kills
+/// them mid exit-animation, and the deadline validator reads the send-date
+/// controller while the route is still tearing down.
+class _ScheduleSignDialog extends StatefulWidget {
+  const _ScheduleSignDialog({required this.suggestedSendOn});
+
+  /// Date to prefill the send field with, or empty when there is no suggestion.
+  final String suggestedSendOn;
+
+  @override
+  State<_ScheduleSignDialog> createState() => _ScheduleSignDialogState();
+}
+
+class _ScheduleSignDialogState extends State<_ScheduleSignDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _sendOnCtrl;
+  final _deadlineCtrl = TextEditingController();
+  final _sendOnMask = _dateMask();
+  final _deadlineMask = _dateMask();
+
+  static MaskTextInputFormatter _dateMask() => MaskTextInputFormatter(
+        mask: '##/##/####',
+        filter: {'#': RegExp(r'[0-9]')},
+        type: MaskAutoCompletionType.lazy,
+      );
+
+  @override
+  void initState() {
+    super.initState();
+    _sendOnCtrl = TextEditingController(text: widget.suggestedSendOn);
+  }
+
+  @override
+  void dispose() {
+    _sendOnCtrl.dispose();
+    _deadlineCtrl.dispose();
+    super.dispose();
+  }
+
+  /// Writes the send date + [days] into the deadline field.
+  ///
+  /// Counted from the send date, not from today, because that is how the
+  /// deadline itself is counted.
+  void _setDeadlineFromSendDate(int days) {
+    final base = DocumentUnit.parseDate(_sendOnCtrl.text) ?? DateTime.now();
+    final target = base.add(Duration(days: days));
+    final d = target.day.toString().padLeft(2, '0');
+    final m = target.month.toString().padLeft(2, '0');
+    _deadlineMask.formatEditUpdate(
+      TextEditingValue.empty,
+      TextEditingValue(text: '$d$m${target.year}'),
+    );
+    _deadlineCtrl.text = _deadlineMask.getMaskedText();
+  }
+
+  void _submit() {
+    if (_formKey.currentState?.validate() != true) return;
+    Navigator.of(context).pop((
+      sendOn: _sendOnCtrl.text.trim(),
+      dateLimitToSign: _deadlineCtrl.text.trim(),
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Agendar Envio para Assinatura'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'O documento será gerado e enviado ao funcionário somente na '
+              'data escolhida.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              key: const ValueKey('schedule-send-on-field'),
+              controller: _sendOnCtrl,
+              decoration: InputDecoration(
+                labelText: 'Data do envio',
+                prefixIcon: const Icon(Icons.schedule_send_outlined),
+                border: const OutlineInputBorder(),
+                helperText: widget.suggestedSendOn.isNotEmpty
+                    ? 'Sugestão: vencimento do documento atual'
+                    : 'Ex: 15/03/2026',
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [_sendOnMask],
+              validator: DocumentUnit.validateScheduleSendDate,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              key: const ValueKey('schedule-deadline-field'),
+              controller: _deadlineCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Data limite para assinatura',
+                prefixIcon: Icon(Icons.event_outlined),
+                border: OutlineInputBorder(),
+                helperText: 'Contada a partir da data do envio',
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [_deadlineMask],
+              validator: (value) =>
+                  DocumentUnit.validateSignDeadline(value, _sendOnCtrl.text),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [3, 5, 10].map((days) {
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: days == 10 ? 0 : AppSpacing.sm,
+                    ),
+                    child: OutlinedButton(
+                      onPressed: () => _setDeadlineFromSendDate(days),
+                      child: Text('+$days dias'),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text('Agendar'),
+        ),
+      ],
+    );
+  }
+}
+
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.label, required this.color});
+  const _StatusBadge({required this.label, required this.color, super.key});
 
   final String label;
   final Color color;

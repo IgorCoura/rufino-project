@@ -17,7 +17,7 @@ BatchDocumentUnitItem _unit({
   return BatchDocumentUnitItem(
     documentUnitId: id,
     documentId: 'd-$id',
-    employeeId: 'e-$id',
+    documentTemplateId: 't1',    documentTemplateName: 'T1',    documentGroupName: 'Grupo',    employeeId: 'e-$id',
     employeeName: name,
     employeeStatusId: '2',
     employeeStatusName: 'Ativo',

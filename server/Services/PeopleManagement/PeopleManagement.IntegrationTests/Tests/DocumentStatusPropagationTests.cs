@@ -72,10 +72,11 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(EmployeeDocumentStatus.Okay, await GetEmployeeStatusAsync(scenario.EmployeeId, ct));
         }
 
-        // PUT /document/DocumentUnit/invalid: unit Pending -> Invalid; o Document permanece RequiresDocument
-        // (Invalid não é tratado no GetStatusFromGroup) e o Employee segue RequiresAttention.
+        // PUT /document/DocumentUnit/invalid: unit Pending -> Invalid, E uma pendente substituta é criada no
+        // lugar — invalidar não faz a exigência sumir, e desde que o botão de criar unidade avulsa saiu da tela
+        // esta é a única forma de o RH voltar a ter o que preencher. Employee segue RequiresAttention.
         [Fact]
-        public async Task PutInvalid_WhenUnitIsPending_ShouldMakeUnitInvalidAndKeepEmployeeRequiresAttention()
+        public async Task PutInvalid_WhenUnitIsPending_ShouldInvalidateItAndLeaveAReplacementPending()
         {
             var ct = CancellationToken.None;
             var context = GetContext();
@@ -94,7 +95,41 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
             var document = await GetDocumentAsync(scenario.DocumentId, ct);
-            Assert.Equal(DocumentUnitStatus.Invalid, Assert.Single(document.DocumentsUnits).Status);
+            Assert.Equal(2, document.DocumentsUnits.Count);
+            Assert.Equal(DocumentUnitStatus.Invalid, document.DocumentsUnits.First(u => u.Id == unitId).Status);
+            Assert.Single(document.DocumentsUnits.Where(u => u.Status == DocumentUnitStatus.Pending));
+            Assert.Equal(DocumentStatus.RequiresDocument, document.Status);
+            Assert.Equal(EmployeeDocumentStatus.RequiresAttention, await GetEmployeeStatusAsync(scenario.EmployeeId, ct));
+        }
+
+        // O documento voltou a ser exigido: invalidar a unidade NotApplicable desfaz a dispensa, e a pendente
+        // substituta é o que devolve ao RH algo para preencher. É a única saída dessa unidade — a tela não tem
+        // mais botão de criar unidade avulsa, então sem isto o documento ficava sem nenhuma ação possível.
+        [Fact]
+        public async Task PutInvalid_WhenUnitIsNotApplicable_ShouldInvalidateItAndLeaveAReplacementPending()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+
+            var scenario = await SeedScenarioAsync(context, associationIds: null, configureUnits: AddPendingUnit, ct);
+            var unitId = scenario.Document.DocumentsUnits.First().Id;
+
+            var notApplicableResponse = await _factory.CreateClient().InputHeaders([scenario.CompanyId]).PutAsJsonAsync(
+                $"/api/v1/{scenario.CompanyId}/document/DocumentUnit/not-applicable",
+                new { DocumentUnitId = unitId, DocumentId = scenario.DocumentId, EmployeeId = scenario.EmployeeId });
+            Assert.Equal(HttpStatusCode.OK, notApplicableResponse.StatusCode);
+            Assert.Equal(EmployeeDocumentStatus.Okay, await GetEmployeeStatusAsync(scenario.EmployeeId, ct));
+
+            var response = await _factory.CreateClient().InputHeaders([scenario.CompanyId]).PutAsJsonAsync(
+                $"/api/v1/{scenario.CompanyId}/document/DocumentUnit/invalid",
+                new { DocumentUnitId = unitId, DocumentId = scenario.DocumentId, EmployeeId = scenario.EmployeeId });
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var document = await GetDocumentAsync(scenario.DocumentId, ct);
+            Assert.Equal(2, document.DocumentsUnits.Count);
+            Assert.Equal(DocumentUnitStatus.Invalid, document.DocumentsUnits.First(u => u.Id == unitId).Status);
+            Assert.Single(document.DocumentsUnits.Where(u => u.Status == DocumentUnitStatus.Pending));
             Assert.Equal(DocumentStatus.RequiresDocument, document.Status);
             Assert.Equal(EmployeeDocumentStatus.RequiresAttention, await GetEmployeeStatusAsync(scenario.EmployeeId, ct));
         }

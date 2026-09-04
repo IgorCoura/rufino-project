@@ -1,29 +1,25 @@
-using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Application.Commands.Identified;
-using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
-using PeopleManagement.Domain.ErrorTools;
-using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.DocumentCommands.MarkAsInvalidDocumentUnit
 {
-    public class MarkAsInvalidDocumentUnitCommandHandler(IDocumentRepository documentRepository)
+    public class MarkAsInvalidDocumentUnitCommandHandler(IDocumentService documentService, IDocumentRepository documentRepository)
         : IRequestHandler<MarkAsInvalidDocumentUnitCommand, MarkAsInvalidDocumentUnitResponse>
     {
+        private readonly IDocumentService _documentService = documentService;
         private readonly IDocumentRepository _documentRepository = documentRepository;
 
         public async Task<MarkAsInvalidDocumentUnitResponse> Handle(MarkAsInvalidDocumentUnitCommand request, CancellationToken cancellationToken)
         {
-            var document = await _documentRepository.FirstOrDefaultAsync(
-                x => x.Id == request.DocumentId && x.EmployeeId == request.EmployeeId && x.CompanyId == request.CompanyId,
-                include: i => i.Include(x => x.DocumentsUnits),
-                cancellation: cancellationToken)
-                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), request.DocumentId.ToString()));
+            // Invalidar deixa a exigência descoberta, então o serviço já devolve a pendente substituta — vale
+            // tanto para a recusa de validação quanto para a invalidação direta pelo RH.
+            var replacement = await _documentService.InvalidateDocumentUnit(request.DocumentUnitId, request.DocumentId,
+                request.EmployeeId, request.CompanyId, cancellationToken);
 
-            document.MarkAsInvalidDocumentUnit(request.DocumentUnitId);
             await _documentRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
-            return request.DocumentUnitId;
+
+            return replacement.Id;
         }
     }
 

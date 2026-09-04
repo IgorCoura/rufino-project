@@ -109,6 +109,10 @@ namespace PeopleManagement.Application.Queries.DocumentDashboard
 
         private IQueryable<DashboardRow> BuildRows(Guid companyId, DashboardFilterParams filters)
         {
+            // LEFT JOIN da unidade que esta substitui (quando é uma renovação), para o bucket Pendentes saber se
+            // a cobertura anterior ainda vale. Feito por JOIN, e não por subconsulta correlacionada em
+            // DocumentsUnits: subconsulta comparando o smart enum de status não traduz no EF — é a mesma
+            // armadilha que já custou erro em runtime na BatchDocumentQueries.
             var query = from doc in _context.Documents.AsNoTracking()
                         join unit in _context.DocumentsUnits.AsNoTracking()
                             on doc.Id equals unit.DocumentId
@@ -118,8 +122,11 @@ namespace PeopleManagement.Application.Queries.DocumentDashboard
                             on doc.DocumentTemplateId equals template.Id
                         join docGroup in _context.DocumentGroups.AsNoTracking()
                             on template.DocumentGroupId equals docGroup.Id
+                        join replacedUnit in _context.DocumentsUnits.AsNoTracking()
+                            on unit.ReplacesDocumentUnitId equals replacedUnit.Id into replacedUnits
+                        from replaced in replacedUnits.DefaultIfEmpty()
                         where doc.CompanyId == companyId
-                        select new DashboardRow { Doc = doc, Unit = unit, Emp = emp, Template = template, Group = docGroup };
+                        select new DashboardRow { Doc = doc, Unit = unit, Emp = emp, Template = template, Group = docGroup, Replaced = replaced };
 
             if (filters.EmployeeStatusId.HasValue)
                 query = query.Where(r => r.Emp.Status == (Status)filters.EmployeeStatusId);
@@ -142,29 +149,15 @@ namespace PeopleManagement.Application.Queries.DocumentDashboard
 
             return bucket switch
             {
-                // Deprecated/Invalid também surgem por substituição (reenvio validado deprecia a
-                // unidade antiga) — só é "vencido" a unidade mais recente do seu grupo de competência
-                // que não tenha sido resolvida por outra unidade válida. OK/Warning com validade no
-                // passado cobrem o intervalo entre a data de vencimento e a execução do job.
+                // "Vencido" agora é um status persistido: a unidade que caducou fica Expired e só vira
+                // Deprecated quando um substituto chega. Antes disso este bucket reconstruía a mesma
+                // pergunta em SQL — "Deprecated/Invalid sem substituto resolvido na competência" — e
+                // podia discordar do status do documento e do funcionário.
+                //
+                // A segunda cláusula continua necessária: cobre a janela entre a data de vencimento e a
+                // execução do job de depreciação, quando a unidade ainda está OK/Warning no banco.
                 DashboardBucket.Expired => rows.Where(r =>
-                    ((r.Unit.Status == DocumentUnitStatus.Deprecated || r.Unit.Status == DocumentUnitStatus.Invalid)
-                        && !_context.DocumentsUnits.Any(o => o.DocumentId == r.Unit.DocumentId
-                            && o.Id != r.Unit.Id
-                            && (o.Status == DocumentUnitStatus.OK
-                                || o.Status == DocumentUnitStatus.RequiresValidation
-                                || o.Status == DocumentUnitStatus.AwaitingSignature
-                                || o.Status == DocumentUnitStatus.Warning
-                                || o.Status == DocumentUnitStatus.NotApplicable
-                                || ((o.Status == DocumentUnitStatus.Deprecated || o.Status == DocumentUnitStatus.Invalid)
-                                    && o.Date > r.Unit.Date))
-                            && (r.Unit.Period == null
-                                ? o.Period == null
-                                : o.Period != null
-                                    && o.Period.Type == r.Unit.Period.Type
-                                    && o.Period.Year == r.Unit.Period.Year
-                                    && o.Period.Month == r.Unit.Period.Month
-                                    && o.Period.Day == r.Unit.Period.Day
-                                    && o.Period.Week == r.Unit.Period.Week)))
+                    r.Unit.Status == DocumentUnitStatus.Expired
                     || ((r.Unit.Status == DocumentUnitStatus.OK || r.Unit.Status == DocumentUnitStatus.Warning)
                         && r.Unit.Validity != null && r.Unit.Validity < today)),
 
@@ -172,7 +165,16 @@ namespace PeopleManagement.Application.Queries.DocumentDashboard
                     (r.Unit.Status == DocumentUnitStatus.OK || r.Unit.Status == DocumentUnitStatus.Warning)
                     && r.Unit.Validity != null && r.Unit.Validity >= today && r.Unit.Validity <= horizon),
 
-                DashboardBucket.Pending => rows.Where(r => r.Unit.Status == DocumentUnitStatus.Pending),
+                // Pendente de verdade, e não a renovação em voo de uma cobertura que ainda vale: essa unidade
+                // não é uma falta — o documento que ela renova está OK, A Vencer ou Não Aplicável AGORA, e já
+                // aparece na triagem pelo card "A Vencer". Contá-la aqui cobraria duas vezes a mesma coisa e
+                // faria o número de Pendentes subir a cada renovação pedida no prazo, punindo quem age cedo.
+                // Quando a substituída vence, ela deixa de cobrir e a renovação passa a contar normalmente.
+                DashboardBucket.Pending => rows.Where(r => r.Unit.Status == DocumentUnitStatus.Pending
+                    && (r.Replaced == null
+                        || !(r.Replaced.Status == DocumentUnitStatus.OK
+                            || r.Replaced.Status == DocumentUnitStatus.Warning
+                            || r.Replaced.Status == DocumentUnitStatus.NotApplicable))),
 
                 DashboardBucket.AwaitingSignature => rows.Where(r => r.Unit.Status == DocumentUnitStatus.AwaitingSignature),
 
@@ -189,6 +191,9 @@ namespace PeopleManagement.Application.Queries.DocumentDashboard
             public Domain.AggregatesModel.EmployeeAggregate.Employee Emp { get; init; } = null!;
             public Domain.AggregatesModel.DocumentTemplateAggregate.DocumentTemplate Template { get; init; } = null!;
             public Domain.AggregatesModel.DocumentGroupAggregate.DocumentGroup Group { get; init; } = null!;
+
+            /// <summary>A unidade que <see cref="Unit"/> substitui. Null quando não é uma renovação.</summary>
+            public DocumentUnit? Replaced { get; init; }
         }
     }
 }

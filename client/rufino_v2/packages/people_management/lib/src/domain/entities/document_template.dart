@@ -1,3 +1,9 @@
+import 'period.dart';
+
+// PeriodGranularity mora em period.dart — é a granularidade da competência, não uma regra do template. O
+// re-export mantém quem importa este arquivo enxergando o enum, que é onde ele sempre foi usado.
+export 'period.dart' show PeriodGranularity;
+
 /// A document template belonging to a company.
 ///
 /// Templates define the structure and metadata for documents that can be
@@ -90,6 +96,10 @@ class DocumentTemplate {
   /// Whether this template is organized by competência.
   bool get hasPeriod => policies.period != null;
 
+  /// Whether documents from this template are deprecated when the employee
+  /// starts a new employment contract.
+  bool get hasNewContractDeprecation => policies.newContractDeprecation != null;
+
   /// Whether this template has any file name configured (body/header/footer).
   bool get hasFileConfiguration =>
       bodyFileName.isNotEmpty ||
@@ -152,7 +162,12 @@ class DocumentTemplate {
 /// carrying a zeroed value, so there is no such thing as an expiration of zero
 /// days: that is simply no expiration.
 class TemplatePolicies {
-  const TemplatePolicies({this.expiration, this.workload, this.period});
+  const TemplatePolicies({
+    this.expiration,
+    this.workload,
+    this.period,
+    this.newContractDeprecation,
+  });
 
   /// The expiration rule, or null when documents from this template never
   /// expire.
@@ -164,52 +179,52 @@ class TemplatePolicies {
   /// The competência rule, or null when this template is not by competência.
   final PeriodRule? period;
 
+  /// The new-contract deprecation rule, or null when documents from this
+  /// template survive a new employment contract.
+  final NewContractDeprecationRule? newContractDeprecation;
+
   /// Whether no rule at all is active.
-  bool get isEmpty => expiration == null && workload == null && period == null;
+  bool get isEmpty =>
+      expiration == null &&
+      workload == null &&
+      period == null &&
+      newContractDeprecation == null;
 
   /// Returns a copy with the given rules replaced.
   ///
-  /// Passing `clearExpiration`, `clearWorkload` or `clearPeriod` removes the
-  /// rule, which a null override cannot express.
+  /// Passing `clearExpiration`, `clearWorkload`, `clearPeriod` or
+  /// `clearNewContractDeprecation` removes the rule, which a null override
+  /// cannot express.
   TemplatePolicies copyWith({
     ExpirationRule? expiration,
     WorkloadRule? workload,
     PeriodRule? period,
+    NewContractDeprecationRule? newContractDeprecation,
     bool clearExpiration = false,
     bool clearWorkload = false,
     bool clearPeriod = false,
+    bool clearNewContractDeprecation = false,
   }) {
     return TemplatePolicies(
       expiration: clearExpiration ? null : (expiration ?? this.expiration),
       workload: clearWorkload ? null : (workload ?? this.workload),
       period: clearPeriod ? null : (period ?? this.period),
+      newContractDeprecation: clearNewContractDeprecation
+          ? null
+          : (newContractDeprecation ?? this.newContractDeprecation),
     );
   }
 }
 
-/// The granularity of a template's competência.
+/// The rule that deprecates delivered documents when the employee starts a new
+/// employment contract.
 ///
-/// Ids match the backend's PeriodType smart enum (Daily=1 … Yearly=4) — they are
-/// the contract; the labels are Portuguese presentation, kept here so the UI
-/// does not depend on a network round-trip for four stable values.
-enum PeriodGranularity {
-  daily(1, 'Diário'),
-  weekly(2, 'Semanal'),
-  monthly(3, 'Mensal'),
-  yearly(4, 'Anual');
-
-  const PeriodGranularity(this.id, this.label);
-
-  final int id;
-  final String label;
-
-  /// Returns the granularity with the given [id], or null when unknown.
-  static PeriodGranularity? fromId(int id) {
-    for (final value in values) {
-      if (value.id == id) return value;
-    }
-    return null;
-  }
+/// Carries no data: the rule is presence-only, matching the API's
+/// `newContractDeprecation` block, which is sent and returned empty. It exists
+/// as a class rather than a `bool` so the rule set stays uniform — every rule is
+/// active when present — and so a future parameter has a place to land.
+class NewContractDeprecationRule {
+  const NewContractDeprecationRule();
 }
 
 /// The rule that organizes a template's documents by competência.
@@ -238,11 +253,15 @@ class ExpirationRule {
   /// How many days a generated document stays valid. Always positive.
   final int durationInDays;
 
-  /// How many times a document renews before it stops, or null when it renews
-  /// indefinitely. When set, always positive.
+  /// How many times a document expires before it stops expiring, or null when
+  /// it expires indefinitely. When set, always positive.
+  ///
+  /// The limit caps expiries, not actions: past it the HR keeps renewing,
+  /// replacing and deprecating, and the units issued from then on carry no
+  /// validity date.
   final int? maxRenewals;
 
-  /// Whether the document renews a limited number of times.
+  /// Whether the document expires a limited number of times.
   bool get isLimited => maxRenewals != null;
 
   /// Returns a copy with the given fields replaced.

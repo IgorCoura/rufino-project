@@ -221,6 +221,54 @@ void main() {
 
       expect(policies.isEmpty, isFalse);
     });
+
+    test('isEmpty is false when only the new-contract deprecation rule is active',
+        () {
+      const policies = TemplatePolicies(
+        newContractDeprecation: NewContractDeprecationRule(),
+      );
+
+      expect(policies.isEmpty, isFalse);
+    });
+
+    test('copyWith removes the new-contract deprecation rule when cleared', () {
+      const policies = TemplatePolicies(
+        workload: WorkloadRule(hours: 8),
+        newContractDeprecation: NewContractDeprecationRule(),
+      );
+
+      final updated = policies.copyWith(clearNewContractDeprecation: true);
+
+      expect(updated.newContractDeprecation, isNull);
+      expect(updated.workload!.hours, 8);
+    });
+  });
+
+  group('DocumentTemplate new-contract deprecation', () {
+    test('hasNewContractDeprecation is true when the rule is present', () {
+      const template = DocumentTemplate(
+        id: '1',
+        name: 'Contrato',
+        description: '',
+        acceptsSignature: false,
+        policies: TemplatePolicies(
+          newContractDeprecation: NewContractDeprecationRule(),
+        ),
+      );
+
+      expect(template.hasNewContractDeprecation, isTrue);
+    });
+
+    test('hasNewContractDeprecation is false when the rule is absent', () {
+      const template = DocumentTemplate(
+        id: '1',
+        name: 'Contrato',
+        description: '',
+        acceptsSignature: false,
+      );
+
+      expect(template.hasNewContractDeprecation, isFalse);
+    });
   });
 
   group('DocumentTemplate competência', () {

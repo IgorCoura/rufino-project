@@ -3,7 +3,7 @@ import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
 class EmployeeDocumentStatus extends Enumeration {
   static const Map<String, String> conversionMapIntToString = {
     "0": "OK",
-    "1": "Há Vencer",
+    "1": "A Vencer",
     "2": "Requer Atenção",
   };
 

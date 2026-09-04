@@ -1,10 +1,13 @@
 import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
 
 class DocumentGroupStatus extends Enumeration {
+  // Ids do EmployeeDocumentStatus (0=Okay, 1=Warning, 2=RequiresAttention): o
+  // servidor devolve o mesmo rollup de conformidade do funcionário em
+  // `documentsStatus`, não uma escala própria do grupo.
   static const Map<String, String> conversionMapIntToString = {
-    "1": "OK",
-    "2": "Há Vencer",
-    "3": "Requer Atenção",
+    "0": "OK",
+    "1": "A Vencer",
+    "2": "Requer Atenção",
   };
 
   DocumentGroupStatus(String id, String name)

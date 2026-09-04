@@ -8,25 +8,19 @@ import 'package:people_management/src/ui/batch_document/viewmodel/batch_document
 
 import '../../fakes/mocks.dart';
 
-/// Characterization tests for the batch document operations that were
-/// previously uncovered: the "Todos" multi-template fan-out
-/// ([loadPendingUnits], [loadMissingEmployees], [batchCreateDocumentUnits]),
-/// the generate/sign flows, the date-validation guards, and the
-/// filter/pagination surface.
-///
-/// These lock in the CURRENT (serial) behavior so the upcoming parallelism
-/// refactor can be verified against a known-good baseline.
+/// Covers the batch document operations around the three independent scope
+/// axes (employee, group, template), the generate/sign flows, the
+/// date-validation guards and the filter/pagination surface.
 void main() {
   late MockBatchDocumentRepository mockBatchRepo;
   late MockDocumentGroupRepository mockGroupRepo;
   late BatchDocumentViewModel viewModel;
 
-  const allId = BatchDocumentViewModel.allTemplatesId;
-
   BatchDocumentUnitItem unit({
     required String id,
     required String employeeId,
     required String name,
+    String templateId = 't1',
     String date = '15/03/2026',
     bool signable = true,
     bool canGenerate = true,
@@ -34,6 +28,9 @@ void main() {
       BatchDocumentUnitItem(
         documentUnitId: id,
         documentId: 'd-$id',
+        documentTemplateId: templateId,
+        documentTemplateName: templateId.toUpperCase(),
+        documentGroupName: 'Grupo',
         employeeId: employeeId,
         employeeName: name,
         employeeStatusId: '2',
@@ -43,6 +40,20 @@ void main() {
         statusName: 'Pendente',
         isSignable: signable,
         canGenerateDocument: canGenerate,
+      );
+
+  EmployeeMissingDocument missing(
+    String employeeId,
+    String name, {
+    String templateId = 't1',
+  }) =>
+      EmployeeMissingDocument(
+        employeeId: employeeId,
+        employeeName: name,
+        employeeStatusId: '2',
+        employeeStatusName: 'Ativo',
+        documentTemplateId: templateId,
+        documentTemplateName: templateId.toUpperCase(),
       );
 
   setUpAll(() {
@@ -63,8 +74,38 @@ void main() {
 
   tearDown(() => viewModel.dispose());
 
+  /// Stubs the pending-units call for ANY scope with [result].
+  void stubPending(Result<BatchDocumentUnitsPage> result) {
+    when(() => mockBatchRepo.getPendingDocumentUnits(
+          'company-1',
+          documentGroupId: any(named: 'documentGroupId'),
+          documentTemplateId: any(named: 'documentTemplateId'),
+          employeeId: any(named: 'employeeId'),
+          employeeStatusId: any(named: 'employeeStatusId'),
+          employeeName: any(named: 'employeeName'),
+          periodTypeId: any(named: 'periodTypeId'),
+          periodYear: any(named: 'periodYear'),
+          periodMonth: any(named: 'periodMonth'),
+          periodDay: any(named: 'periodDay'),
+          periodWeek: any(named: 'periodWeek'),
+          pageSize: any(named: 'pageSize'),
+          pageNumber: any(named: 'pageNumber'),
+        )).thenAnswer((_) async => result);
+  }
+
+  void stubMissing(Result<List<EmployeeMissingDocument>> result) {
+    when(() => mockBatchRepo.getMissingEmployees(
+          'company-1',
+          documentGroupId: any(named: 'documentGroupId'),
+          documentTemplateId: any(named: 'documentTemplateId'),
+          employeeId: any(named: 'employeeId'),
+          employeeStatusId: any(named: 'employeeStatusId'),
+          employeeName: any(named: 'employeeName'),
+        )).thenAnswer((_) async => result);
+  }
+
   /// Stubs a group `g1` containing templates [templateIds] and loads it.
-  Future<void> loadGroup(List<String> templateIds) async {
+  Future<void> loadGroups(List<String> templateIds) async {
     when(() => mockGroupRepo.getDocumentGroupsWithTemplates('company-1'))
         .thenAnswer((_) async => Result.success([
               DocumentGroupWithTemplates(
@@ -79,82 +120,38 @@ void main() {
               ),
             ]));
     await viewModel.loadGroupsAndTemplates();
-    viewModel.selectGroup('g1');
   }
 
-  /// Convenience matcher for the fully-named getPendingDocumentUnits stub.
-  void stubPending(String templateId, Result<BatchDocumentUnitsPage> result) {
-    when(() => mockBatchRepo.getPendingDocumentUnits(
-          'company-1',
-          templateId,
-          employeeStatusId: any(named: 'employeeStatusId'),
-          employeeName: any(named: 'employeeName'),
-          periodTypeId: any(named: 'periodTypeId'),
-          periodYear: any(named: 'periodYear'),
-          periodMonth: any(named: 'periodMonth'),
-          periodDay: any(named: 'periodDay'),
-          periodWeek: any(named: 'periodWeek'),
-          pageSize: any(named: 'pageSize'),
-          pageNumber: any(named: 'pageNumber'),
-        )).thenAnswer((_) async => result);
+  /// Loads the list already scoped to group `g1` and template `t1`.
+  Future<void> setupLoaded({List<BatchDocumentUnitItem> items = const []}) async {
+    await loadGroups(['t1', 't2']);
+    stubPending(Result.success(
+        BatchDocumentUnitsPage(items: items, totalCount: items.length)));
+    await viewModel.selectGroup('g1');
+    await viewModel.selectTemplate('t1');
   }
 
-  // ───────────────────────── loadPendingUnits "Todos" ─────────────────────
+  // ───────────────────────────── scope axes ───────────────────────────────
 
-  group('loadPendingUnits with "Todos" (multi-template)', () {
-    test('queries every template in the group and merges the results',
+  group('scope axes', () {
+    test('loads every pending unit of the company when no scope is set',
         () async {
-      await loadGroup(['t1', 't2']);
-      stubPending(
-        't1',
-        Result.success(BatchDocumentUnitsPage(
-          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana')],
-          totalCount: 1,
-        )),
-      );
-      stubPending(
-        't2',
-        Result.success(BatchDocumentUnitsPage(
-          items: [unit(id: 'u2', employeeId: 'e2', name: 'Bruno')],
-          totalCount: 3,
-        )),
-      );
+      await loadGroups(['t1']);
+      stubPending(Result.success(BatchDocumentUnitsPage(
+        items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana')],
+        totalCount: 1,
+      )));
 
-      await viewModel.selectTemplate(allId);
+      await viewModel.loadPendingUnits();
 
-      expect(viewModel.selectedTemplateId, allId);
-      expect(viewModel.isAllTemplatesSelected, isTrue);
-      expect(viewModel.pendingUnits.map((u) => u.documentUnitId),
-          containsAll(['u1', 'u2']));
-      expect(viewModel.pendingUnits.length, 2);
-      // Total is the SUM of each template's page total.
-      expect(viewModel.totalCount, 4);
-      expect(viewModel.status, BatchDocumentStatus.loaded);
-    });
-
-    test('fails the whole load and discards units when any template fails',
-        () async {
-      await loadGroup(['t1', 't2']);
-      stubPending('t1', const Result.error('boom'));
-      stubPending(
-        't2',
-        Result.success(BatchDocumentUnitsPage(
-          items: [unit(id: 'u2', employeeId: 'e2', name: 'Bruno')],
-          totalCount: 1,
-        )),
-      );
-
-      await viewModel.selectTemplate(allId);
-
-      // Fail-all policy: end-state is error with NO units, even though t2
-      // succeeded. Templates are now queried concurrently (both requested).
-      expect(viewModel.status, BatchDocumentStatus.error);
-      expect(viewModel.errorMessage, isNotNull);
-      expect(viewModel.pendingUnits, isEmpty);
-      expect(viewModel.totalCount, 0);
+      expect(viewModel.hasAnyScope, isFalse);
+      expect(viewModel.pendingUnits.length, 1);
+      expect(viewModel.totalCount, 1);
       verify(() => mockBatchRepo.getPendingDocumentUnits(
             'company-1',
-            't2',
+            documentGroupId: null,
+            documentTemplateId: null,
+            employeeId: null,
             employeeStatusId: any(named: 'employeeStatusId'),
             employeeName: any(named: 'employeeName'),
             periodTypeId: any(named: 'periodTypeId'),
@@ -166,73 +163,221 @@ void main() {
             pageNumber: any(named: 'pageNumber'),
           )).called(1);
     });
+
+    test('filters by employee alone, without group or template', () async {
+      await loadGroups(['t1']);
+      stubPending(Result.success(BatchDocumentUnitsPage(
+        items: [
+          unit(id: 'u1', employeeId: 'e1', name: 'Ana', templateId: 't1'),
+          unit(id: 'u2', employeeId: 'e1', name: 'Ana', templateId: 't9'),
+        ],
+        totalCount: 2,
+      )));
+
+      await viewModel.selectEmployee('e1', 'Ana');
+
+      expect(viewModel.selectedEmployeeId, 'e1');
+      expect(viewModel.selectedEmployeeName, 'Ana');
+      expect(viewModel.selectedGroupId, isNull);
+      expect(viewModel.selectedTemplateId, isNull);
+      expect(viewModel.pendingUnits.length, 2);
+      verify(() => mockBatchRepo.getPendingDocumentUnits(
+            'company-1',
+            documentGroupId: null,
+            documentTemplateId: null,
+            employeeId: 'e1',
+            employeeStatusId: any(named: 'employeeStatusId'),
+            employeeName: any(named: 'employeeName'),
+            periodTypeId: any(named: 'periodTypeId'),
+            periodYear: any(named: 'periodYear'),
+            periodMonth: any(named: 'periodMonth'),
+            periodDay: any(named: 'periodDay'),
+            periodWeek: any(named: 'periodWeek'),
+            pageSize: any(named: 'pageSize'),
+            pageNumber: any(named: 'pageNumber'),
+          )).called(1);
+    });
+
+    test('filters by group alone, in a single request', () async {
+      await loadGroups(['t1', 't2']);
+      stubPending(const Result.success(
+          BatchDocumentUnitsPage(items: [], totalCount: 0)));
+
+      await viewModel.selectGroup('g1');
+
+      expect(viewModel.selectedGroupId, 'g1');
+      expect(viewModel.selectedTemplateId, isNull);
+      verify(() => mockBatchRepo.getPendingDocumentUnits(
+            'company-1',
+            documentGroupId: 'g1',
+            documentTemplateId: null,
+            employeeId: any(named: 'employeeId'),
+            employeeStatusId: any(named: 'employeeStatusId'),
+            employeeName: any(named: 'employeeName'),
+            periodTypeId: any(named: 'periodTypeId'),
+            periodYear: any(named: 'periodYear'),
+            periodMonth: any(named: 'periodMonth'),
+            periodDay: any(named: 'periodDay'),
+            periodWeek: any(named: 'periodWeek'),
+            pageSize: any(named: 'pageSize'),
+            pageNumber: any(named: 'pageNumber'),
+          )).called(1);
+    });
+
+    test('combines group and template', () async {
+      await setupLoaded();
+
+      expect(viewModel.selectedGroupId, 'g1');
+      expect(viewModel.selectedTemplateId, 't1');
+      verify(() => mockBatchRepo.getPendingDocumentUnits(
+            'company-1',
+            documentGroupId: 'g1',
+            documentTemplateId: 't1',
+            employeeId: any(named: 'employeeId'),
+            employeeStatusId: any(named: 'employeeStatusId'),
+            employeeName: any(named: 'employeeName'),
+            periodTypeId: any(named: 'periodTypeId'),
+            periodYear: any(named: 'periodYear'),
+            periodMonth: any(named: 'periodMonth'),
+            periodDay: any(named: 'periodDay'),
+            periodWeek: any(named: 'periodWeek'),
+            pageSize: any(named: 'pageSize'),
+            pageNumber: any(named: 'pageNumber'),
+          )).called(1);
+    });
+
+    test('clears the template when the group changes', () async {
+      await setupLoaded();
+
+      await viewModel.selectGroup(null);
+
+      expect(viewModel.selectedGroupId, isNull);
+      expect(viewModel.selectedTemplateId, isNull);
+      expect(viewModel.templates, isEmpty);
+    });
+
+    test('drops selection and staged files when the scope changes', () async {
+      await setupLoaded(
+          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana')]);
+      viewModel.toggleSelection('u1');
+      viewModel.stageFile('u1', 'd-u1', 'e1', Uint8List(3), 'a.pdf');
+
+      await viewModel.selectEmployee('e2', 'Bruno');
+
+      expect(viewModel.selectedUnitIds, isEmpty);
+      expect(viewModel.stagedFileCount, 0);
+      expect(viewModel.pageNumber, 1);
+    });
+
+    test('sets an error message when the load fails', () async {
+      await loadGroups(['t1']);
+      stubPending(const Result.error('boom'));
+
+      await viewModel.loadPendingUnits();
+
+      expect(viewModel.status, BatchDocumentStatus.error);
+      expect(viewModel.errorMessage, isNotNull);
+      expect(viewModel.pendingUnits, isEmpty);
+      expect(viewModel.totalCount, 0);
+    });
+  });
+
+  // ──────────────────────── capabilities of the selection ─────────────────
+
+  group('capabilities of the selection', () {
+    test('cannot generate when any selected unit is not generatable',
+        () async {
+      await setupLoaded(items: [
+        unit(id: 'u1', employeeId: 'e1', name: 'Ana'),
+        unit(id: 'u2', employeeId: 'e2', name: 'Bruno', canGenerate: false),
+      ]);
+
+      viewModel.toggleSelection('u1');
+      expect(viewModel.canGenerateSelected, isTrue);
+
+      viewModel.toggleSelection('u2');
+      expect(viewModel.canGenerateSelected, isFalse);
+    });
+
+    test('cannot sign when any selected unit is not signable', () async {
+      await setupLoaded(items: [
+        unit(id: 'u1', employeeId: 'e1', name: 'Ana'),
+        unit(id: 'u2', employeeId: 'e2', name: 'Bruno', signable: false),
+      ]);
+
+      viewModel.toggleSelection('u1');
+      expect(viewModel.canSignSelected, isTrue);
+
+      viewModel.toggleSelection('u2');
+      expect(viewModel.canSignSelected, isFalse);
+    });
+
+    test('neither capability holds without a selection', () async {
+      await setupLoaded(
+          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana')]);
+
+      expect(viewModel.canGenerateSelected, isFalse);
+      expect(viewModel.canSignSelected, isFalse);
+    });
+
+    test('staged signing follows the staged units, not the selection',
+        () async {
+      await setupLoaded(items: [
+        unit(id: 'u1', employeeId: 'e1', name: 'Ana'),
+        unit(id: 'u2', employeeId: 'e2', name: 'Bruno', signable: false),
+      ]);
+
+      viewModel.stageFile('u1', 'd-u1', 'e1', Uint8List(1), 'a.pdf');
+      expect(viewModel.canSignStaged, isTrue);
+
+      viewModel.stageFile('u2', 'd-u2', 'e2', Uint8List(1), 'b.pdf');
+      expect(viewModel.canSignStaged, isFalse);
+    });
   });
 
   // ─────────────────────────── loadMissingEmployees ───────────────────────
 
   group('loadMissingEmployees', () {
-    void stubMissing(
-      String templateId,
-      Result<List<EmployeeMissingDocument>> result,
-    ) {
-      when(() => mockBatchRepo.getMissingEmployees(
-            'company-1',
-            templateId,
+    test('populates one row per employee x template pair', () async {
+      await setupLoaded();
+      stubMissing(Result.success([
+        missing('e1', 'Ana', templateId: 't1'),
+        missing('e1', 'Ana', templateId: 't2'),
+        missing('e2', 'Bruno', templateId: 't1'),
+      ]));
+
+      await viewModel.loadMissingEmployees();
+
+      expect(viewModel.missingEmployees.length, 3);
+      expect(
+          viewModel.missingEmployees
+              .where((e) => e.employeeId == 'e1')
+              .map((e) => e.documentTemplateId),
+          containsAll(['t1', 't2']));
+    });
+
+    test('does not query without a group or template scope', () async {
+      await loadGroups(['t1']);
+      stubPending(const Result.success(
+          BatchDocumentUnitsPage(items: [], totalCount: 0)));
+      await viewModel.selectEmployee('e1', 'Ana');
+
+      await viewModel.loadMissingEmployees();
+
+      expect(viewModel.canCreateMissing, isFalse);
+      verifyNever(() => mockBatchRepo.getMissingEmployees(
+            any(),
+            documentGroupId: any(named: 'documentGroupId'),
+            documentTemplateId: any(named: 'documentTemplateId'),
+            employeeId: any(named: 'employeeId'),
             employeeStatusId: any(named: 'employeeStatusId'),
             employeeName: any(named: 'employeeName'),
-          )).thenAnswer((_) async => result);
-    }
-
-    EmployeeMissingDocument missing(String id, String name) =>
-        EmployeeMissingDocument(
-          employeeId: id,
-          employeeName: name,
-          employeeStatusId: '2',
-          employeeStatusName: 'Ativo',
-        );
-
-    test('populates missingEmployees for a single template', () async {
-      await loadGroup(['t1']);
-      stubPending('t1',
-          const Result.success(BatchDocumentUnitsPage(items: [], totalCount: 0)));
-      await viewModel.selectTemplate('t1');
-
-      stubMissing('t1', Result.success([missing('e1', 'Ana'), missing('e2', 'Bruno')]));
-
-      await viewModel.loadMissingEmployees();
-
-      expect(viewModel.missingEmployees.map((e) => e.employeeId),
-          containsAll(['e1', 'e2']));
-      expect(viewModel.missingEmployees.length, 2);
+          ));
     });
 
-    test('deduplicates employees across templates in "Todos" mode', () async {
-      await loadGroup(['t1', 't2']);
-      stubPending('t1',
-          const Result.success(BatchDocumentUnitsPage(items: [], totalCount: 0)));
-      stubPending('t2',
-          const Result.success(BatchDocumentUnitsPage(items: [], totalCount: 0)));
-      await viewModel.selectTemplate(allId);
-
-      // e1 appears in BOTH templates and must be counted once.
-      stubMissing('t1', Result.success([missing('e1', 'Ana'), missing('e2', 'Bruno')]));
-      stubMissing('t2', Result.success([missing('e1', 'Ana'), missing('e3', 'Célia')]));
-
-      await viewModel.loadMissingEmployees();
-
-      final ids = viewModel.missingEmployees.map((e) => e.employeeId).toList();
-      expect(ids, containsAll(['e1', 'e2', 'e3']));
-      expect(ids.where((id) => id == 'e1').length, 1);
-      expect(viewModel.missingEmployees.length, 3);
-    });
-
-    test('sets an error message when a template lookup fails', () async {
-      await loadGroup(['t1']);
-      stubPending('t1',
-          const Result.success(BatchDocumentUnitsPage(items: [], totalCount: 0)));
-      await viewModel.selectTemplate('t1');
-
-      stubMissing('t1', const Result.error('network'));
+    test('sets an error message when the lookup fails', () async {
+      await setupLoaded();
+      stubMissing(const Result.error('network'));
 
       await viewModel.loadMissingEmployees();
 
@@ -243,63 +388,44 @@ void main() {
   // ────────────────────────── batchCreateDocumentUnits ────────────────────
 
   group('batchCreateDocumentUnits', () {
-    test('creates per template then reloads pending units', () async {
-      await loadGroup(['t1', 't2']);
-      stubPending('t1',
-          const Result.success(BatchDocumentUnitsPage(items: [], totalCount: 0)));
-      stubPending('t2',
-          const Result.success(BatchDocumentUnitsPage(items: [], totalCount: 0)));
-      await viewModel.selectTemplate(allId);
-
+    test('groups the chosen pairs by template, one call each', () async {
+      await setupLoaded();
       when(() => mockBatchRepo.batchCreateDocumentUnits(
             'company-1',
             any(),
             any(),
           )).thenAnswer((_) async => const Result.success([]));
 
-      await viewModel.batchCreateDocumentUnits(['e1', 'e2']);
+      await viewModel.batchCreateDocumentUnits([
+        missing('e1', 'Ana', templateId: 't1'),
+        missing('e2', 'Bruno', templateId: 't1'),
+        missing('e1', 'Ana', templateId: 't2'),
+      ]);
 
-      verify(() => mockBatchRepo.batchCreateDocumentUnits('company-1', 't1', ['e1', 'e2']))
+      verify(() => mockBatchRepo
+              .batchCreateDocumentUnits('company-1', 't1', ['e1', 'e2']))
           .called(1);
-      verify(() => mockBatchRepo.batchCreateDocumentUnits('company-1', 't2', ['e1', 'e2']))
+      verify(() =>
+              mockBatchRepo.batchCreateDocumentUnits('company-1', 't2', ['e1']))
           .called(1);
-      // Reload happens after creation (t1 + t2 initial + t1 + t2 reload).
-      verify(() => mockBatchRepo.getPendingDocumentUnits(
-            'company-1',
-            't1',
-            employeeStatusId: any(named: 'employeeStatusId'),
-            employeeName: any(named: 'employeeName'),
-            periodTypeId: any(named: 'periodTypeId'),
-            periodYear: any(named: 'periodYear'),
-            periodMonth: any(named: 'periodMonth'),
-            periodDay: any(named: 'periodDay'),
-            periodWeek: any(named: 'periodWeek'),
-            pageSize: any(named: 'pageSize'),
-            pageNumber: any(named: 'pageNumber'),
-          )).called(2);
     });
 
-    test('does nothing when the employee list is empty', () async {
-      await loadGroup(['t1']);
-      stubPending('t1',
-          const Result.success(BatchDocumentUnitsPage(items: [], totalCount: 0)));
-      await viewModel.selectTemplate('t1');
+    test('does nothing when the list is empty', () async {
+      await setupLoaded();
 
       await viewModel.batchCreateDocumentUnits([]);
 
-      verifyNever(() => mockBatchRepo.batchCreateDocumentUnits(any(), any(), any()));
+      verifyNever(
+          () => mockBatchRepo.batchCreateDocumentUnits(any(), any(), any()));
     });
 
     test('sets an error message when creation fails', () async {
-      await loadGroup(['t1']);
-      stubPending('t1',
-          const Result.success(BatchDocumentUnitsPage(items: [], totalCount: 0)));
-      await viewModel.selectTemplate('t1');
-
-      when(() => mockBatchRepo.batchCreateDocumentUnits('company-1', 't1', any()))
+      await setupLoaded();
+      when(() => mockBatchRepo.batchCreateDocumentUnits(
+              'company-1', 't1', any()))
           .thenAnswer((_) async => const Result.error('cannot create'));
 
-      await viewModel.batchCreateDocumentUnits(['e1']);
+      await viewModel.batchCreateDocumentUnits([missing('e1', 'Ana')]);
 
       expect(viewModel.errorMessage, isNotNull);
     });
@@ -310,15 +436,9 @@ void main() {
   group('uploadAllStaged', () {
     test('blocks upload and reports invalid dates without calling the repo',
         () async {
-      await loadGroup(['t1']);
-      stubPending(
-        't1',
-        Result.success(BatchDocumentUnitsPage(
-          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana', date: '32/13/2026')],
-          totalCount: 1,
-        )),
-      );
-      await viewModel.selectTemplate('t1');
+      await setupLoaded(items: [
+        unit(id: 'u1', employeeId: 'e1', name: 'Ana', date: '32/13/2026'),
+      ]);
 
       viewModel.stageFile('u1', 'd-u1', 'e1', Uint8List(3), 'a.pdf');
 
@@ -330,15 +450,8 @@ void main() {
     });
 
     test('sets error status when the repository fails', () async {
-      await loadGroup(['t1']);
-      stubPending(
-        't1',
-        Result.success(BatchDocumentUnitsPage(
-          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana')],
-          totalCount: 1,
-        )),
-      );
-      await viewModel.selectTemplate('t1');
+      await setupLoaded(
+          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana')]);
       viewModel.stageFile('u1', 'd-u1', 'e1', Uint8List(3), 'a.pdf');
 
       when(() => mockBatchRepo.uploadDocumentRange('company-1', any()))
@@ -364,15 +477,8 @@ void main() {
 
   group('uploadAllStagedToSign', () {
     Future<void> setupWithStagedValidUnit() async {
-      await loadGroup(['t1']);
-      stubPending(
-        't1',
-        Result.success(BatchDocumentUnitsPage(
-          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana')],
-          totalCount: 1,
-        )),
-      );
-      await viewModel.selectTemplate('t1');
+      await setupLoaded(
+          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana')]);
       viewModel.stageFile('u1', 'd-u1', 'e1', Uint8List(3), 'a.pdf');
     }
 
@@ -409,15 +515,9 @@ void main() {
     });
 
     test('blocks when a staged unit has an invalid date', () async {
-      await loadGroup(['t1']);
-      stubPending(
-        't1',
-        Result.success(BatchDocumentUnitsPage(
-          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana', date: '99/99/9999')],
-          totalCount: 1,
-        )),
-      );
-      await viewModel.selectTemplate('t1');
+      await setupLoaded(items: [
+        unit(id: 'u1', employeeId: 'e1', name: 'Ana', date: '99/99/9999'),
+      ]);
       viewModel.stageFile('u1', 'd-u1', 'e1', Uint8List(3), 'a.pdf');
       viewModel.setGlobalSignDeadline('2026-04-01T00:00:00.000Z');
 
@@ -434,24 +534,14 @@ void main() {
 
   group('generatePdfRange', () {
     Future<void> setupSelected({String date = '15/03/2026'}) async {
-      await loadGroup(['t1']);
-      stubPending(
-        't1',
-        Result.success(BatchDocumentUnitsPage(
-          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana', date: date)],
-          totalCount: 1,
-        )),
-      );
-      await viewModel.selectTemplate('t1');
+      await setupLoaded(
+          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana', date: date)]);
       viewModel.toggleSelection('u1');
     }
 
     test('returns null without touching the repo when nothing is selected',
         () async {
-      await loadGroup(['t1']);
-      stubPending('t1',
-          const Result.success(BatchDocumentUnitsPage(items: [], totalCount: 0)));
-      await viewModel.selectTemplate('t1');
+      await setupLoaded();
 
       final bytes = await viewModel.generatePdfRange();
 
@@ -501,15 +591,8 @@ void main() {
 
   group('generateAndSignRange', () {
     Future<void> setupSelected({String date = '15/03/2026'}) async {
-      await loadGroup(['t1']);
-      stubPending(
-        't1',
-        Result.success(BatchDocumentUnitsPage(
-          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana', date: date)],
-          totalCount: 1,
-        )),
-      );
-      await viewModel.selectTemplate('t1');
+      await setupLoaded(
+          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana', date: date)]);
       viewModel.toggleSelection('u1');
     }
 
@@ -572,15 +655,8 @@ void main() {
 
   group('batchUpdateDate', () {
     test('sets an error message when the update fails', () async {
-      await loadGroup(['t1']);
-      stubPending(
-        't1',
-        Result.success(BatchDocumentUnitsPage(
-          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana')],
-          totalCount: 1,
-        )),
-      );
-      await viewModel.selectTemplate('t1');
+      await setupLoaded(
+          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana')]);
       viewModel.toggleSelection('u1');
 
       when(() => mockBatchRepo.batchUpdateDate('company-1', any(), '2026-04-01'))
@@ -604,18 +680,10 @@ void main() {
   group('validateStagedDates', () {
     test('returns the names of staged units with invalid dates only',
         () async {
-      await loadGroup(['t1']);
-      stubPending(
-        't1',
-        Result.success(BatchDocumentUnitsPage(
-          items: [
-            unit(id: 'u1', employeeId: 'e1', name: 'Ana', date: '15/03/2026'),
-            unit(id: 'u2', employeeId: 'e2', name: 'Bruno', date: '99/99/9999'),
-          ],
-          totalCount: 2,
-        )),
-      );
-      await viewModel.selectTemplate('t1');
+      await setupLoaded(items: [
+        unit(id: 'u1', employeeId: 'e1', name: 'Ana', date: '15/03/2026'),
+        unit(id: 'u2', employeeId: 'e2', name: 'Bruno', date: '99/99/9999'),
+      ]);
 
       viewModel.stageFile('u1', 'd-u1', 'e1', Uint8List(1), 'a.pdf');
       viewModel.stageFile('u2', 'd-u2', 'e2', Uint8List(1), 'b.pdf');
@@ -626,15 +694,8 @@ void main() {
     });
 
     test('returns an empty list when all staged dates are valid', () async {
-      await loadGroup(['t1']);
-      stubPending(
-        't1',
-        Result.success(BatchDocumentUnitsPage(
-          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana')],
-          totalCount: 1,
-        )),
-      );
-      await viewModel.selectTemplate('t1');
+      await setupLoaded(
+          items: [unit(id: 'u1', employeeId: 'e1', name: 'Ana')]);
       viewModel.stageFile('u1', 'd-u1', 'e1', Uint8List(1), 'a.pdf');
 
       expect(viewModel.validateStagedDates(), isEmpty);
@@ -644,13 +705,6 @@ void main() {
   // ─────────────────────────── filters & pagination ───────────────────────
 
   group('filters and pagination', () {
-    Future<void> setupLoaded() async {
-      await loadGroup(['t1']);
-      stubPending('t1',
-          const Result.success(BatchDocumentUnitsPage(items: [], totalCount: 0)));
-      await viewModel.selectTemplate('t1');
-    }
-
     test('applyFilters resets to page 1 and reloads', () async {
       await setupLoaded();
       await viewModel.setPage(3);
@@ -678,6 +732,15 @@ void main() {
       expect(viewModel.pageNumber, 1);
     });
 
+    test('clearFilters keeps the scope', () async {
+      await setupLoaded();
+
+      await viewModel.clearFilters();
+
+      expect(viewModel.selectedGroupId, 'g1');
+      expect(viewModel.selectedTemplateId, 't1');
+    });
+
     test('setPage updates the page number and reloads', () async {
       await setupLoaded();
 
@@ -686,7 +749,9 @@ void main() {
       expect(viewModel.pageNumber, 2);
       verify(() => mockBatchRepo.getPendingDocumentUnits(
             'company-1',
-            't1',
+            documentGroupId: any(named: 'documentGroupId'),
+            documentTemplateId: any(named: 'documentTemplateId'),
+            employeeId: any(named: 'employeeId'),
             employeeStatusId: any(named: 'employeeStatusId'),
             employeeName: any(named: 'employeeName'),
             periodTypeId: any(named: 'periodTypeId'),

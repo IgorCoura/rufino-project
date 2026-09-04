@@ -677,20 +677,71 @@ class EmployeeApiService {
     return EmployeeDocumentApiModel.fromJson(json);
   }
 
-  /// Creates a new document unit for [documentId].
+  /// Creates a document unit for the competência of the date in [body].
+  ///
+  /// The API refuses when that competência already has a unit that is neither
+  /// invalid nor obsolete, and when the document is not organized by
+  /// competência at all.
   Future<void> createDocumentUnit(
     String companyId,
-    String employeeId,
-    String documentId,
+    Map<String, dynamic> body,
   ) async {
-    final uri = Uri.https(baseUrl, '/api/v1/$companyId/document');
+    final uri = Uri.https(baseUrl, '/api/v1/$companyId/Document');
     final response = await client.post(
       uri,
       headers: await _headers(),
-      body: jsonEncode({
-        'documentId': documentId,
-        'employeeId': employeeId,
-      }),
+      body: jsonEncode(body),
+    );
+    checkHttpStatus(response);
+  }
+
+  /// Deprecates a document unit — it leaves validity but is kept as proof of
+  /// the period it covered. The API creates the replacement pending unit.
+  Future<void> deprecateDocumentUnit(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/Document/DocumentUnit/deprecate');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
+    );
+    checkHttpStatus(response);
+  }
+
+  /// Renews a document unit — the API creates the replacement pending unit
+  /// linked to it and consumes one renewal of the template's quota.
+  ///
+  /// POST, not PUT like the sibling unit actions: this one creates a unit
+  /// rather than moving the status of an existing one.
+  Future<void> renewDocumentUnit(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/Document/DocumentUnit/renew');
+    final response = await client.post(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
+    );
+    checkHttpStatus(response);
+  }
+
+  /// Invalidates a document unit — it has an error or was sent by mistake and
+  /// carries no legal value. The API creates the replacement pending unit.
+  Future<void> invalidateDocumentUnit(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/Document/DocumentUnit/invalid');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
     );
     checkHttpStatus(response);
   }
@@ -749,6 +800,40 @@ class EmployeeApiService {
     final uri = Uri.https(
       baseUrl,
       '/api/v1/$companyId/document/generate/send2sign',
+    );
+    final response = await client.post(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
+    );
+    checkHttpStatus(response);
+  }
+
+  /// Schedules a document to be generated and sent for signature on a date.
+  Future<void> scheduleSendToSign(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri = Uri.https(
+      baseUrl,
+      '/api/v1/$companyId/document/schedule/send2sign',
+    );
+    final response = await client.post(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
+    );
+    checkHttpStatus(response);
+  }
+
+  /// Cancels a scheduled signature send for a document unit.
+  Future<void> cancelScheduledSendToSign(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri = Uri.https(
+      baseUrl,
+      '/api/v1/$companyId/document/schedule/send2sign/cancel',
     );
     final response = await client.post(
       uri,

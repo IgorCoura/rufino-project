@@ -105,16 +105,18 @@
         var parts = raw.split('-');
         var initial = new Date(parts[2], parts[1] - 1, parts[0]);
 
-        // Término do 1º período = início + 45 dias
+        // Término do 1º período: o dia da admissão conta como o 1º dia, então o
+        // 45º dia é a data inicial + 44.
         var originalEnd = new Date(initial);
-        originalEnd.setDate(originalEnd.getDate() + 45);
+        originalEnd.setDate(originalEnd.getDate() + 44);
 
-        // Prorrogação: começa no dia seguinte ao término original e vai por mais 45 dias
+        // Prorrogação: começa no dia seguinte ao término original e vai por mais
+        // 45 dias, contando o próprio dia de início (total de 90 dias).
         var extStart = new Date(originalEnd);
         extStart.setDate(extStart.getDate() + 1);
 
-        var extEnd = new Date(originalEnd);
-        extEnd.setDate(extEnd.getDate() + 45);
+        var extEnd = new Date(extStart);
+        extEnd.setDate(extEnd.getDate() + 44);
 
         document.getElementById('ext-start-date').textContent = fmt(extStart);
         document.getElementById('ext-end-date').textContent = fmt(extEnd);

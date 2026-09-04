@@ -70,6 +70,7 @@ export 'src/people_management_permissions.dart';
 // UI — só as rotas e as constantes de rota. Tela e ViewModel ficam privadas.
 export 'src/ui/people_management_routes.dart';
 export 'src/ui/shared/error_dialog.dart';
+export 'src/ui/shared/outdated_content_dialog.dart';
 export 'src/ui/shared/scanner_error_handler.dart';
 
 // Portas de plataforma — a implementação vive na casca.
@@ -136,3 +137,12 @@ export 'src/utils/zip_builder.dart';
 // EmployeeRepository, que e exportado. Os demais *_api_model ficam
 // privados — quem esta fora usa entidade, nunca o shape da API.
 export 'src/data/models/document_range_item.dart';
+export 'src/domain/entities/document_content_status.dart';
+export 'src/domain/entities/document_status_labels.dart';
+export 'src/domain/errors/document_content_exception.dart';
+export 'src/domain/repositories/document_content_repository.dart';
+export 'src/data/models/document_content_status_api_model.dart';
+export 'src/data/repositories/document_content_repository_impl.dart';
+export 'src/data/services/document_content_api_service.dart';
+export 'src/utils/page_splitter.dart';
+export 'src/ui/batch_document/widgets/split_scan_dialog.dart';

@@ -1,17 +1,22 @@
 import 'dart:typed_data';
 
+import 'document_status_labels.dart';
 import 'period.dart';
 export 'period.dart';
 
 /// A pending [DocumentUnit] in the context of batch document management.
 ///
-/// Each item represents a single document unit across any employee for a
-/// given document template, enriched with the owning employee's name and
-/// status for display in the batch management screen.
+/// Each item represents a single document unit of any employee and any
+/// template, enriched with the owning employee and the document identity —
+/// group, template and template id — since the list is no longer bound to a
+/// single template.
 class BatchDocumentUnitItem {
   const BatchDocumentUnitItem({
     required this.documentUnitId,
     required this.documentId,
+    required this.documentTemplateId,
+    required this.documentTemplateName,
+    required this.documentGroupName,
     required this.employeeId,
     required this.employeeName,
     required this.employeeStatusId,
@@ -29,6 +34,15 @@ class BatchDocumentUnitItem {
 
   /// The identifier of the parent document aggregate.
   final String documentId;
+
+  /// The template this unit was generated from.
+  final String documentTemplateId;
+
+  /// The template display name — what the row is a pending of.
+  final String documentTemplateName;
+
+  /// The name of the group the template belongs to.
+  final String documentGroupName;
 
   /// The identifier of the employee who owns this document.
   final String employeeId;
@@ -89,26 +103,21 @@ class BatchDocumentUnitItem {
   }
 
   /// Human-readable status label.
-  String get statusLabel => switch (statusId) {
-        '1' => 'Pendente',
-        '2' => 'OK',
-        '3' => 'Obsoleto',
-        '4' => 'Inválido',
-        '5' => 'Requer Validação',
-        '6' => 'Não Aplicável',
-        '7' => 'Aguardando Assinatura',
-        '8' => 'A Vencer',
-        _ => statusName.isNotEmpty ? statusName : statusId,
-      };
+  String get statusLabel => documentUnitStatusLabel(statusId, statusName);
 }
 
-/// An employee who does not have a pending document unit for the selected template.
+/// A pending document that is missing: one employee paired with one template.
+///
+/// When the scope is a whole group the same employee appears once per missing
+/// template — creating the units needs to know which template each one is.
 class EmployeeMissingDocument {
   const EmployeeMissingDocument({
     required this.employeeId,
     required this.employeeName,
     required this.employeeStatusId,
     required this.employeeStatusName,
+    required this.documentTemplateId,
+    required this.documentTemplateName,
   });
 
   /// The employee identifier.
@@ -122,6 +131,22 @@ class EmployeeMissingDocument {
 
   /// The employee status display name.
   final String employeeStatusName;
+
+  /// The template whose pending unit is missing.
+  final String documentTemplateId;
+
+  /// The display name of the missing template.
+  final String documentTemplateName;
+
+  /// Human-readable employee status label in Portuguese.
+  String get employeeStatusLabel => switch (employeeStatusId) {
+        '1' => 'Pendente',
+        '2' => 'Ativo',
+        '3' => 'Férias',
+        '4' => 'Afastado',
+        '5' => 'Inativo',
+        _ => employeeStatusName,
+      };
 }
 
 /// A file staged for batch upload, associated with a specific document unit.

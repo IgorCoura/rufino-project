@@ -12,7 +12,7 @@ namespace PeopleManagement.Application.Queries.BatchDocument
     {
         private readonly PeopleManagementContext _context = context;
 
-        public async Task<BatchDocumentUnitsResult> GetPendingDocumentUnits(Guid companyId, Guid documentTemplateId, BatchDocumentUnitParams filters)
+        public async Task<BatchDocumentUnitsResult> GetPendingDocumentUnits(Guid companyId, BatchDocumentUnitParams filters)
         {
             var query = from doc in _context.Documents.AsNoTracking()
                         join unit in _context.DocumentsUnits.AsNoTracking()
@@ -21,10 +21,20 @@ namespace PeopleManagement.Application.Queries.BatchDocument
                             on doc.EmployeeId equals emp.Id
                         join template in _context.DocumentTemplates.AsNoTracking()
                             on doc.DocumentTemplateId equals template.Id
-                        where doc.DocumentTemplateId == documentTemplateId
-                           && doc.CompanyId == companyId
+                        join docGroup in _context.DocumentGroups.AsNoTracking()
+                            on template.DocumentGroupId equals docGroup.Id
+                        where doc.CompanyId == companyId
                            && unit.Status == DocumentUnitStatus.Pending
-                        select new { doc, unit, emp, template };
+                        select new { doc, unit, emp, template, docGroup };
+
+            if (filters.DocumentGroupId.HasValue)
+                query = query.Where(x => x.template.DocumentGroupId == filters.DocumentGroupId);
+
+            if (filters.DocumentTemplateId.HasValue)
+                query = query.Where(x => x.doc.DocumentTemplateId == filters.DocumentTemplateId);
+
+            if (filters.EmployeeId.HasValue)
+                query = query.Where(x => x.emp.Id == filters.EmployeeId);
 
             if (filters.EmployeeStatusId.HasValue)
                 query = query.Where(x => x.emp.Status == (Status)filters.EmployeeStatusId);
@@ -51,14 +61,23 @@ namespace PeopleManagement.Application.Queries.BatchDocument
 
             var skip = (filters.PageNumber - 1) * filters.PageSize;
 
+            // Sem template fixo a lista mistura documentos, e ordenar so por nome
+            // deixaria as unidades do mesmo funcionario em ordem arbitraria — o
+            // suficiente para uma linha aparecer em duas paginas ou em nenhuma.
             var rawItems = await query
                 .OrderBy(x => x.emp.Name)
+                .ThenBy(x => x.template.Name)
+                .ThenBy(x => x.unit.Date)
+                .ThenBy(x => x.unit.Id)
                 .Skip(skip)
                 .Take(filters.PageSize)
                 .Select(x => new
                 {
                     DocumentUnitId = x.unit.Id,
                     DocumentId = x.doc.Id,
+                    DocumentTemplateId = x.template.Id,
+                    DocumentTemplateName = x.template.Name.Value,
+                    DocumentGroupName = x.docGroup.Name.Value,
                     EmployeeId = x.emp.Id,
                     EmployeeName = x.emp.Name.Value,
                     EmployeeStatusId = x.emp.Status.Id,
@@ -81,6 +100,9 @@ namespace PeopleManagement.Application.Queries.BatchDocument
             {
                 DocumentUnitId = x.DocumentUnitId,
                 DocumentId = x.DocumentId,
+                DocumentTemplateId = x.DocumentTemplateId,
+                DocumentTemplateName = x.DocumentTemplateName,
+                DocumentGroupName = x.DocumentGroupName,
                 EmployeeId = x.EmployeeId,
                 EmployeeName = x.EmployeeName,
                 EmployeeStatus = new EnumerationDto { Id = x.EmployeeStatusId, Name = x.EmployeeStatusName },
@@ -105,52 +127,79 @@ namespace PeopleManagement.Application.Queries.BatchDocument
             };
         }
 
-        public async Task<IEnumerable<EmployeeMissingDocumentDto>> GetEmployeesWithoutPendingDocument(Guid companyId, Guid documentTemplateId, BatchDocumentUnitParams filters)
+        public async Task<IEnumerable<EmployeeMissingDocumentDto>> GetEmployeesWithoutPendingDocument(Guid companyId, BatchDocumentUnitParams filters)
         {
-            // Employees who already have a pending DocumentUnit for this template
-            var employeesWithPendingUnit = await _context.Documents
-                .AsNoTracking()
-                .Where(d => d.CompanyId == companyId && d.DocumentTemplateId == documentTemplateId)
-                .Join(_context.DocumentsUnits.AsNoTracking().Where(u => u.Status == DocumentUnitStatus.Pending),
-                    d => d.Id, u => u.DocumentId, (d, u) => d.EmployeeId)
-                .Distinct()
-                .ToListAsync();
+            // Criar pendencia exige saber para qual template criar. Sem grupo nem
+            // template o escopo seria "todos os templates da empresa", que nao e
+            // uma operacao que faca sentido — devolve vazio e a acao fica fora.
+            if (!filters.DocumentTemplateId.HasValue && !filters.DocumentGroupId.HasValue)
+                return [];
 
-            var excludeIds = employeesWithPendingUnit.ToHashSet();
+            // Os documentos que ja tem pendencia saem materializados antes: a mesma
+            // pergunta como subconsulta correlacionada (`!DocumentsUnits.Any(...)`)
+            // nao traduz para SQL com o conversor do smart enum.
+            var documentsWithPendingUnit = await (
+                from doc in _context.Documents.AsNoTracking()
+                join unit in _context.DocumentsUnits.AsNoTracking()
+                    on doc.Id equals unit.DocumentId
+                where doc.CompanyId == companyId
+                   && unit.Status == DocumentUnitStatus.Pending
+                select doc.Id).Distinct().ToListAsync();
 
-            // Employees who HAVE a Document for this template but do NOT have a pending unit
+            var excludeIds = documentsWithPendingUnit.ToHashSet();
+
+            // Documentos do escopo cuja unidade pendente nao existe: o par
+            // funcionario x template que falta gerar.
             var query = from doc in _context.Documents.AsNoTracking()
                         join emp in _context.Employees.AsNoTracking()
                             on doc.EmployeeId equals emp.Id
+                        join template in _context.DocumentTemplates.AsNoTracking()
+                            on doc.DocumentTemplateId equals template.Id
                         where doc.CompanyId == companyId
-                           && doc.DocumentTemplateId == documentTemplateId
-                           && !excludeIds.Contains(emp.Id)
-                        select emp;
+                           && !excludeIds.Contains(doc.Id)
+                        select new { doc, emp, template };
+
+            if (filters.DocumentGroupId.HasValue)
+                query = query.Where(x => x.template.DocumentGroupId == filters.DocumentGroupId);
+
+            if (filters.DocumentTemplateId.HasValue)
+                query = query.Where(x => x.doc.DocumentTemplateId == filters.DocumentTemplateId);
+
+            if (filters.EmployeeId.HasValue)
+                query = query.Where(x => x.emp.Id == filters.EmployeeId);
 
             if (filters.EmployeeStatusId.HasValue)
-                query = query.Where(e => e.Status == (Status)filters.EmployeeStatusId);
+                query = query.Where(x => x.emp.Status == (Status)filters.EmployeeStatusId);
 
             if (!string.IsNullOrWhiteSpace(filters.EmployeeName))
-                query = query.Where(e => ((string)(object)e.Name).Contains(filters.EmployeeName.ToUpper()));
+                query = query.Where(x => ((string)(object)x.emp.Name).Contains(filters.EmployeeName.ToUpper()));
 
             var rawEmployees = await query
-                .Distinct()
-                .OrderBy(e => e.Name)
-                .Select(e => new
+                .OrderBy(x => x.emp.Name)
+                .ThenBy(x => x.template.Name)
+                .Select(x => new
                 {
-                    e.Id,
-                    EmployeeName = e.Name.Value,
-                    StatusId = e.Status.Id,
-                    StatusName = e.Status.Name,
+                    x.emp.Id,
+                    EmployeeName = x.emp.Name.Value,
+                    StatusId = x.emp.Status.Id,
+                    StatusName = x.emp.Status.Name,
+                    DocumentTemplateId = x.template.Id,
+                    DocumentTemplateName = x.template.Name.Value,
                 })
                 .ToListAsync();
 
-            var employees = rawEmployees.Select(e => new EmployeeMissingDocumentDto
-            {
-                EmployeeId = e.Id,
-                EmployeeName = e.EmployeeName,
-                EmployeeStatus = new EnumerationDto { Id = e.StatusId, Name = e.StatusName },
-            }).ToList();
+            // A linha e o par funcionario x template; um segundo documento para o
+            // mesmo par nao vira uma segunda pendencia a criar.
+            var employees = rawEmployees
+                .DistinctBy(e => (e.Id, e.DocumentTemplateId))
+                .Select(e => new EmployeeMissingDocumentDto
+                {
+                    EmployeeId = e.Id,
+                    EmployeeName = e.EmployeeName,
+                    EmployeeStatus = new EnumerationDto { Id = e.StatusId, Name = e.StatusName },
+                    DocumentTemplateId = e.DocumentTemplateId,
+                    DocumentTemplateName = e.DocumentTemplateName,
+                }).ToList();
 
             return employees;
         }

@@ -4,8 +4,8 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies
 {
     /// <summary>
-    /// Vencimento com renovação indefinida — comportamento atual do template ("vence sempre").
-    /// A Fase 3 introduzirá uma variante limitada (vence N vezes) ao lado desta.
+    /// Vencimento indefinido — o documento vence sempre, ciclo após ciclo, sem teto.
+    /// Ao lado dela vive a variante limitada (<see cref="ExpirationLimitedPolicy"/>, vence N vezes).
     /// </summary>
     public sealed class ExpirationPolicy : IExpirationPolicy
     {
@@ -22,6 +22,6 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Poli
             Duration = duration;
         }
 
-        public bool CanRenew(int renewalCount) => true;
+        public bool HasValidityCycleLeft(int renewalCount) => true;
     }
 }

@@ -33,7 +33,7 @@ namespace PeopleManagement.Services.Services
         IPdfService pdfService, IBlobService blobService, IDocumentTemplateRepository documentTemplateRepository,
         DocumentTemplatesOptions documentTemplatesOptions, IRequireDocumentsRepository requireDocumentsRepository,
         IEmployeeRepository employeeRepository, IOptions<TimeZoneOptions> timeZoneOptions, ILogger<DocumentService> logger,
-        IWorkloadCalendarService workloadCalendarService) : IDocumentService
+        IWorkloadCalendarService workloadCalendarService, IDocumentContentBuilder documentContentBuilder) : IDocumentService
     {
         private readonly IDocumentRepository _documentRepository = securityDocumentRepository;
         private readonly IPdfService _pdfService = pdfService;
@@ -46,9 +46,16 @@ namespace PeopleManagement.Services.Services
         private readonly ILogger<DocumentService> _logger = logger;
         private readonly TimeZoneOptions _timeZone = timeZoneOptions.Value;
         private readonly IWorkloadCalendarService _workloadCalendarService = workloadCalendarService;
+        private readonly IDocumentContentBuilder _documentContentBuilder = documentContentBuilder;
 
+        // Criar com data é o RH preenchendo uma competência que ficou sem unidade. Só documento por competência
+        // aceita: nos demais duas unidades não podem cobrir ao mesmo tempo, e é por isso que a próxima nasce de
+        // depreciar/invalidar a vigente ou de renovar. A guarda de competência ocupada é do agregado
+        // (NewDocumentUnitForPeriod) — aqui mora só o que depende do template, que é outro aggregate.
+        //
+        // Sem data o caminho é o de antes, intacto, porque o app legado ainda cria unidade assim.
         public async Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId,
-            CancellationToken cancellationToken = default)
+            DateOnly? date = null, CancellationToken cancellationToken = default)
         {
             var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId
                 && x.CompanyId == companyId, include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken)
@@ -61,7 +68,101 @@ namespace PeopleManagement.Services.Services
             var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
             var documentUnitId = Guid.NewGuid();
 
-            return document.NewDocumentUnit(documentUnitId, periodType, usePreviousPeriod);
+            if (date is null)
+                return document.NewDocumentUnit(documentUnitId, periodType, usePreviousPeriod);
+
+            if (periodType is null)
+                throw new DomainException(this, DomainErrors.Document.DocumentIsNotPeriodic(documentId));
+
+            var documentUnit = document.NewDocumentUnitForPeriod(documentUnitId, periodType, usePreviousPeriod,
+                date.Value.ToDateTime(TimeOnly.MinValue));
+
+            // Preenche já: sem isso a unidade nasceria com a data mas sem validade nem snapshot, e o RH teria de
+            // digitar a mesma data de novo em "editar data" antes de conseguir gerar o documento.
+            return await FillUnitDetails(document, documentTemplate, documentUnit.Id, date.Value, employeeId, companyId,
+                cancellationToken);
+        }
+
+        public Task<DocumentUnit> DeprecateDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
+            CancellationToken cancellationToken = default)
+            => ReplaceDocumentUnit(documentUnitId, documentId, employeeId, companyId,
+                (document, unitId) => document.DeprecateDocumentUnit(unitId), cancellationToken);
+
+        public Task<DocumentUnit> InvalidateDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
+            CancellationToken cancellationToken = default)
+            => ReplaceDocumentUnit(documentUnitId, documentId, employeeId, companyId,
+                (document, unitId) => document.MarkAsInvalidDocumentUnit(unitId), cancellationToken);
+
+        // Tira a unidade de cena e devolve a pendente que fica no lugar. A criação da substituta precisa da
+        // configuração de competência do template — regra de outro aggregate — então mora aqui, e para o
+        // documento desce só o valor.
+        //
+        // NewDocumentUnit reaproveita uma pendente equivalente quando já existe, então chamar sempre é seguro:
+        // depreciar duas unidades da mesma competência não gera duas pendências.
+        private async Task<DocumentUnit> ReplaceDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
+            Action<Document, Guid> removeFromService, CancellationToken cancellationToken)
+        {
+            var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId
+                && x.CompanyId == companyId, include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
+
+            var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(
+                x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId, cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
+
+            removeFromService(document, documentUnitId);
+
+            var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
+
+            return document.NewDocumentUnit(Guid.NewGuid(), periodType, usePreviousPeriod);
+        }
+
+        // Renovar cruza dois aggregates — a cota de ciclos de validade é regra do template, o contador é do
+        // documento —, então a decisão mora aqui e para o agregado desce só o fato.
+        //
+        // Renovar NUNCA é recusado por causa do teto. O teto diz quantas vezes o documento vence, não quantas
+        // vezes o RH pode agir: esgotado, a substituta continua sendo criada, só que sem validade (ver
+        // ValidityDurationFor) — e por isso não consome ciclo. Enquanto o teto recusava a renovação, uma unidade
+        // vencida com a cota esgotada ficava sem saída nenhuma na tela: não dava para renovar, e vencida também
+        // não é invalidável (é a prova do período coberto). Chegava-se lá por dado legado (o contador foi
+        // backfillado de vencimentos), por edição do teto no template, ou simplesmente descartando a substituta
+        // de uma renovação já feita.
+        //
+        // A ordem importa: idempotência primeiro. Um pedido repetido (duplo clique, retry de rede que passou pelo
+        // IdentifiedCommand) precisa devolver a mesma substituta em vez de consumir um segundo ciclo.
+        public async Task<DocumentUnit> RenewDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
+            CancellationToken cancellationToken = default)
+        {
+            var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId
+                && x.CompanyId == companyId, include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
+
+            var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(
+                x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId, cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
+
+            var liveReplacement = document.LiveReplacementFor(documentUnitId);
+            if (liveReplacement is not null)
+                return liveReplacement;
+
+            // Esta renovação abre um ciclo de validade novo? Sem policy de vencimento, nunca houve ciclo a gastar
+            // — é o documento com validade avulsa. Com o teto esgotado, a substituta vai nascer sem validade, e o
+            // que não vence não consome cota: é o que mantém o contador significando "ciclos gastos" e faz
+            // aumentar o teto no template devolver ciclos de verdade.
+            var expirationPolicy = documentTemplate.GetPolicy<IExpirationPolicy>();
+            var opensNewValidityCycle = expirationPolicy is not null &&
+                expirationPolicy.HasValidityCycleLeft(document.RenewalCount);
+
+            // Sem data de referência: se o template for por competência, a substituta cai na mínima e espera a
+            // data real. A configuração é a ATUAL do template — editar o template vale da próxima renovação em
+            // diante.
+            var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
+            var replacement = document.NewReplacementUnit(Guid.NewGuid(), documentUnitId, periodType, usePreviousPeriod);
+
+            if (opensNewValidityCycle)
+                document.RegisterRenewal();
+
+            return replacement;
         }
 
         public async Task CreateDocumentUnitsForEvent(Guid employeeId, Guid companyId, int eventId, CancellationToken cancellationToken = default)
@@ -270,6 +371,27 @@ namespace PeopleManagement.Services.Services
             return (policy?.UsePreviousPeriod ?? false, policy?.PeriodType);
         }
 
+        // A validade da unidade vem da regra de vencimento do template, EXCETO quando os ciclos do documento já se
+        // esgotaram: daí em diante toda unidade nasce SEM validade e fica OK indefinidamente, exatamente como num
+        // template sem regra de vencimento.
+        //
+        // É aqui — e só aqui — que o teto do template age. Ele não recusa nada ao RH: renovar, substituir,
+        // depreciar e invalidar continuam disponíveis; o que acaba é o vencimento, não a ação.
+        //
+        // Cruza dois aggregates (regra no template, contador no documento), então a decisão mora aqui e para o
+        // aggregate desce só o valor.
+        private static TimeSpan? ValidityDurationFor(DocumentTemplate template, Document document)
+        {
+            var expirationPolicy = template.GetPolicy<IExpirationPolicy>();
+
+            if (expirationPolicy is null)
+                return null;
+
+            return expirationPolicy.HasValidityCycleLeft(document.RenewalCount)
+                ? expirationPolicy.Duration
+                : null;
+        }
+
         public async Task<DocumentUnit> UpdateDocumentUnitDetails(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
             DateOnly documentUnitDate, CancellationToken cancellationToken = default)
         {
@@ -285,46 +407,49 @@ namespace PeopleManagement.Services.Services
                 cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
+            return await FillUnitDetails(document, documentTemplate, documentUnitId, documentUnitDate, employeeId,
+                companyId, cancellationToken);
+        }
+
+        // Grava data, validade, competência e snapshot numa unidade pendente. Recebe o documento e o template já
+        // carregados porque os dois callers (atualizar a data e criar a unidade de uma competência) já os têm em
+        // mãos — recarregar aqui dispararia uma segunda query sobre a mesma unidade de trabalho.
+        //
+        // Escreve duas vezes de propósito: a primeira passada calcula a validade a partir da data, e é dela que o
+        // construtor de conteúdo lê o vencimento que vai impresso no documento.
+        private async Task<DocumentUnit> FillUnitDetails(Document document, DocumentTemplate documentTemplate,
+            Guid documentUnitId, DateOnly documentUnitDate, Guid employeeId, Guid companyId,
+            CancellationToken cancellationToken)
+        {
             var workloadPolicy = documentTemplate.GetPolicy<IWorkloadPolicy>();
-            var validityDuration = documentTemplate.GetPolicy<IExpirationPolicy>()?.Duration;
+            var validityDuration = ValidityDurationFor(documentTemplate, document);
             var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
 
             DateOnly? workloadEndDate = null;
             if (workloadPolicy is not null && workloadPolicy.Workload != TimeSpan.Zero)
-                workloadEndDate = await VerifyTimeConflictBetweenDocument(employeeId, companyId, documentId, documentUnitDate,
+                workloadEndDate = await VerifyTimeConflictBetweenDocument(employeeId, companyId, document.Id, documentUnitDate,
                     workloadPolicy.Workload, cancellationToken);
 
             string? content = "";
 
-            DocumentUnit documentUnit;
-
-            documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, validityDuration,
-            content, periodType, usePreviousPeriod);
-
+            var documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, validityDuration,
+                content, periodType, usePreviousPeriod);
 
             if (workloadEndDate is not null)
                 documentUnit.SetWorkloadEndDate(workloadEndDate.Value);
 
-            if(documentTemplate.TemplateFileInfo is not null)
+            if (documentTemplate.TemplateFileInfo is not null)
             {
-                content = await RecoverInfoToDocument(
+                var contentResult = await _documentContentBuilder.Build(
                     documentTemplate.TemplateFileInfo.RecoversDataType,
                     employeeId,
                     companyId,
-                    jsonObjects: [
-                        new JsonObject{
-                            ["date"] = $"{documentUnitDate}",
-                            ["validity"] = $"{documentUnit.Validity}",
-                            ["workloadEndDate"] = $"{workloadEndDate}"
-                        },
-                        ],
-                    cancellationToken: cancellationToken);
+                    documentUnitDate,
+                    documentUnit.Validity,
+                    workloadEndDate,
+                    cancellationToken);
 
-                if (content == null)
-                {
-                    throw new DomainException(this, DomainErrors.Document.ErrorRecoverData(documentId));
-                }
-
+                content = contentResult.Content;
             }
 
             documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, validityDuration,
@@ -336,7 +461,95 @@ namespace PeopleManagement.Services.Services
             return documentUnit;
         }
 
-        public async Task<byte[]> GeneratePdf(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, 
+        public async Task<IReadOnlyList<DocumentUnitContentStatus>> CheckOutdatedContent(
+            IEnumerable<(Guid DocumentUnitId, Guid DocumentId, Guid EmployeeId)> items,
+            Guid companyId, CancellationToken cancellationToken = default)
+        {
+            var itemsList = items.ToList();
+            if (itemsList.Count == 0)
+                return [];
+
+            var documentIds = itemsList.Select(x => x.DocumentId).Distinct().ToList();
+
+            var documents = (await _documentRepository.GetDataAsync(
+                x => documentIds.Contains(x.Id) && x.CompanyId == companyId,
+                include: i => i.Include(x => x.DocumentsUnits),
+                cancellation: cancellationToken)).ToList();
+
+            var documentById = documents.ToDictionary(d => d.Id);
+
+            var templateIds = documents.Select(d => d.DocumentTemplateId).Distinct().ToList();
+            var templateById = (await _documentTemplateRepository.GetDataAsync(
+                x => templateIds.Contains(x.Id) && x.CompanyId == companyId,
+                cancellation: cancellationToken)).ToDictionary(t => t.Id);
+
+            var results = new List<DocumentUnitContentStatus>();
+
+            foreach (var item in itemsList)
+            {
+                if (!documentById.TryGetValue(item.DocumentId, out var document) || document.EmployeeId != item.EmployeeId)
+                    throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), item.DocumentId.ToString()));
+
+                var documentUnit = document.DocumentsUnits.FirstOrDefault(x => x.Id == item.DocumentUnitId)
+                    ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), item.DocumentUnitId.ToString()));
+
+                if (!templateById.TryGetValue(document.DocumentTemplateId, out var documentTemplate))
+                    throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
+
+                // Template sem arquivo não gera documento, e unidade sem conteúdo ainda não teve snapshot: nos dois
+                // casos não existe "antes" para comparar.
+                if (documentTemplate.TemplateFileInfo is null || documentUnit.HasContent == false)
+                {
+                    results.Add(new DocumentUnitContentStatus(documentUnit.Id, false, false));
+                    continue;
+                }
+
+                // As datas vêm da própria unidade, não do template: o que se quer detectar é dado do funcionário
+                // que mudou, e recalcular a carga horária aqui exigiria a verificação de conflito, que escreve e
+                // lança.
+                var rebuilt = await _documentContentBuilder.Build(
+                    documentTemplate.TemplateFileInfo.RecoversDataType,
+                    document.EmployeeId,
+                    companyId,
+                    documentUnit.Date,
+                    documentUnit.Validity,
+                    documentUnit.WorkloadEndDate,
+                    cancellationToken);
+
+                if (rebuilt.IsComplete == false)
+                {
+                    results.Add(new DocumentUnitContentStatus(documentUnit.Id, false, true));
+                    continue;
+                }
+
+                var isOutdated = string.Equals(rebuilt.Content, documentUnit.Content, StringComparison.Ordinal) == false;
+                results.Add(new DocumentUnitContentStatus(documentUnit.Id, isOutdated, false));
+            }
+
+            return results;
+        }
+
+        public async Task RefreshDocumentUnitContent(
+            IEnumerable<(Guid DocumentUnitId, Guid DocumentId, Guid EmployeeId)> items,
+            Guid companyId, CancellationToken cancellationToken = default)
+        {
+            foreach (var item in items)
+            {
+                var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == item.DocumentId
+                    && x.EmployeeId == item.EmployeeId && x.CompanyId == companyId,
+                    include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken)
+                    ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), item.DocumentId.ToString()));
+
+                var documentUnit = document.DocumentsUnits.FirstOrDefault(x => x.Id == item.DocumentUnitId)
+                    ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), item.DocumentUnitId.ToString()));
+
+                // Reaproveita a data já gravada: renovar o snapshot nunca move a data do documento.
+                await UpdateDocumentUnitDetails(item.DocumentUnitId, item.DocumentId, item.EmployeeId, companyId,
+                    documentUnit.Date, cancellationToken);
+            }
+        }
+
+        public async Task<byte[]> GeneratePdf(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
             CancellationToken cancellationToken = default)
         {
             var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId 
@@ -440,48 +653,6 @@ namespace PeopleManagement.Services.Services
             await _blobService.UploadAsync(stream, fileNameWithExtesion, document.CompanyId.ToString(), overwrite: false, cancellationToken: cancellationToken);
         }
 
-
-        private async Task<string?> RecoverInfoToDocument(List<RecoverDataType> recoverDataTypes, Guid employeeId, Guid companyId, 
-            JsonObject[]? jsonObjects = null, CancellationToken cancellationToken = default)
-        {
-            var objects  = new List<JsonObject>();
-            if(jsonObjects != null)
-            {
-                var recoverDataService = GetServiceToRecoverData(RecoverDataType.ComplementaryInfo, _serviceProvider);
-                var jsonObject = await recoverDataService.RecoverInfo(employeeId, companyId, jsonObjects: jsonObjects, cancellation: cancellationToken);
-                objects.Add(jsonObject);
-            }
-                
-            foreach (var recoverDataType in recoverDataTypes)
-            {
-                try
-                {
-                    if(recoverDataType == RecoverDataType.ComplementaryInfo)
-                    {
-                        continue;
-                    }
-                    var recoverDataService = GetServiceToRecoverData(recoverDataType, _serviceProvider);
-                    var jsonObject = await recoverDataService.RecoverInfo(employeeId, companyId, cancellation: cancellationToken);
-                    objects.Add(jsonObject);
-                }
-                catch(Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to recover data of type {RecoverDataType} for employee {EmployeeId} in company {CompanyId}. Skipping this data type.",
-                        recoverDataType.Name, employeeId, companyId);
-                    continue;                    
-                }
-            }
-            var result = objects.MergeListJsonObjects();
-            return result.ToString();
-        }
-
-
-        private static IRecoverInfoToDocumentTemplateService GetServiceToRecoverData(RecoverDataType doc, IServiceProvider provider)
-        {
-            var result = provider.GetRequiredService(doc.Type) as IRecoverInfoToDocumentTemplateService 
-                ?? throw new NullReferenceException($"O Serviço de tipo {doc.Type} não foi injetado.");
-            return result;
-        }
 
         private async Task<DateOnly> VerifyTimeConflictBetweenDocument(Guid employeeId, Guid companyId, Guid documentId, DateOnly documentUnitDate,
             TimeSpan workload, CancellationToken cancellationToken)
