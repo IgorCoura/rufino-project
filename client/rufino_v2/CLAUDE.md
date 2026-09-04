@@ -213,9 +213,12 @@ abstract class AppModule {
 | 5 | `tenant_management`: seletor único + back-office | ✅ 2026-08-14 |
 | 4 | `bill_payment` nasce isolado | ✅ 2026-08-18 |
 | 2 | extrair `rufino_auth` | ⬜ adiada |
-| 3 | mover PM para pacote + costura `AppModule` | ⬜ adiada |
+| 3 | mover PM para pacote | 📋 **planejada** — [`doc/plano-migracao-people-management.md`](doc/plano-migracao-people-management.md) (2026-09-03) |
+| 3b | costura `AppModule` (D6) | ⬜ adiada — separada da 3 de propósito, ver decisão D do plano |
 
 **A ordem 0 → 1 → 5 → 4 é deliberada:** entrega o código novo isolado sem tocar nos 263 arquivos que funcionam. O PM migra quando houver motivo; o estado final é o mesmo.
+
+**A Fase 3 tem plano escrito, medido no commit `4fc925c0`**: 195 dos 249 arquivos de `lib/` são do PM, 42 são casca, 6 são mistos e 6 estão mortos. O achado que dimensiona o trabalho é que **o acoplamento é assimétrico** — a casca depende do PM (via `CompanyRepository` no `TenantSessionBridge`, as strings do menu do Home e o `app.dart`), mas o PM **não importa auth nem a casca**. Antes de executar qualquer fase, leia as seis decisões da seção 4 do plano: elas mudam o roteiro, não o detalhe.
 
 ### Pendências que bloqueiam a Fase 4
 
