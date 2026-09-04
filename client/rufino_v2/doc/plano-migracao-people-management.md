@@ -1,6 +1,11 @@
 # Plano de migração — People Management vira pacote
 
-**Data:** 2026-09-03 · **Escopo:** `client/rufino_v2` · **Fase 3** da sequência do `CLAUDE.md`
+**Data:** 2026-09-03 · **Executado:** 2026-09-04 · **Escopo:** `client/rufino_v2`
+
+> ✅ **Executado.** As fases 0 a 10 aterrissaram; a 11 (`AppModule`, D6) segue fora do escopo, por
+> decisão D. O resultado medido está na seção 10, junto com as **duas decisões que o código
+> revisou** — o documento fica como estava escrito, e a seção nova diz o que mudou e por quê. Ler
+> as duas antes de reusar este plano para outro produto.
 
 Este documento executa a linha marcada como adiada na tabela "Sequência de migração":
 *"3 — mover PM para pacote + costura `AppModule`"*. Ele descreve **como**, em que ordem e o que
@@ -414,3 +419,56 @@ e linha, enquanto a suíte só informa que algo quebrou.
 - **Não conserta o uso de `Icons` em vez de `material_symbols_icons`** em `lib/`, nem a ausência de
   testes em `rufino_core`. São dívidas reais, anotadas aqui para não se perderem, e trabalho de
   outro commit.
+
+---
+
+## 10. O que aconteceu — e o que o código revisou
+
+| | Antes | Depois |
+|---|---:|---:|
+| Arquivos `.dart` em `lib/` | 249 | **46** |
+| Arquivos no pacote | — | **197** |
+| `lib/app.dart` | 1.103 linhas | **760** |
+| Rotas declaradas na casca | 29 | **4** |
+| Testes (workspace inteiro) | 2.101 | **2.087** |
+
+Os 14 testes a menos são os do código morto removido na Fase 1. Nenhum teste foi perdido na
+migração, e `flutter analyze` fecha limpo nos quatro pacotes.
+
+### Duas decisões que o código revisou
+
+**Decisão B, item `DocumentPicker` — revisada.** O plano mandava subir o typedef do `bill_payment`
+para `rufino_core`, por ter dois consumidores. Ao escrever o segundo consumidor ficou claro que os
+contratos são diferentes: lá é **um** documento com content type, aqui são **vários** filtrados por
+extensão, mais um diálogo de salvar. Uma abstração que servisse aos dois descreveria mal os dois.
+Cada produto ficou com a sua porta. O critério D3 não mudou — a resposta dele é que aqui não sobe.
+
+**Decisão C — revisada.** O plano queria que o pacote exportasse
+`selectPeopleManagementCompany`/`clearPeopleManagementCompany` para a `TenantSessionBridge` parar
+de conhecer `CompanyRepository`. Ao chegar nela, a dependência já respeitava a fronteira: a bridge
+recebe a **interface** por construtor, e interface de repositório é contrato público do pacote —
+exatamente o que a casca já faz com `BillRepository`. A indireção proposta não compraria
+isolamento; compraria uma camada. A bridge ficou como estava.
+
+### Uma exceção consciente à decisão B
+
+`camera` foi declarada no `pubspec` do pacote. A captura com preview ao vivo é a **interface** do
+produto (`DocumentScanDialog`, 283 linhas, usada por duas telas): levá-la para a casca inverteria o
+objetivo da migração, que é a casca encolher. O que era uma linha de plugin — abrir as
+configurações do sistema — saiu por porta, no `DocumentScannerService`.
+
+### O que a ordem das fases ensinou
+
+**Duas vezes a dependência mandou antes do plano.** Na Fase 3, os repositórios arrastaram dois
+arquivos de `data/` que aparecem na assinatura deles. Na Fase 6, mover a UI sem mover as rotas
+deixaria o `app.dart` apontando para telas que o barril não exporta — e não deve exportar —, então
+as fases 6, 7 e 8 aterrissaram juntas. O faseamento por camada continua certo; o que não se
+sustenta é tratá-lo como cronograma.
+
+### O que ficou de dívida, e é a próxima coisa a fazer aqui
+
+As 25 rotas continuam criando o ViewModel **dentro do builder** — o anti-padrão do `gotchas.md`
+que `bill_payment_pages.dart` já resolve. Foi preservado de propósito: mudar de lugar e de
+comportamento no mesmo passo tornaria a suíte incapaz de dizer qual dos dois quebrou. As rotas de
+`batch-document` e `batch-download` são as mais urgentes, porque leem a empresa selecionada num
+`FutureBuilder` dentro do builder.

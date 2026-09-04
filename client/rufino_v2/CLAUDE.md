@@ -109,7 +109,7 @@ Flutter cross-platform app hosting **two distinct products** that share one shel
 
 | Produto | Escopo | Backend | Estado |
 |---|---|---|---|
-| **People Management** | funcionários, documentos, departamentos, locais de trabalho | `people-management-service` (.NET) + Keycloak | maduro — é todo o `lib/` de hoje |
+| **People Management** | funcionários, documentos, departamentos, locais de trabalho | `people-management-service` (.NET) + Keycloak | maduro — `packages/people_management/` desde 2026-09-04 |
 | **Bill Payment** | captura de boletos, verificação, aprovação, agendamento e pagamento | `BillPayment` (.NET), fases 1–3 concluídas | ✅ UI completa até o pagamento — `packages/bill_payment/` (fase 3: seção de execução no detalhe, comprovante, reabrir falhado) |
 
 Mais um módulo, que não é produto: **Tenant Management** (`packages/tenant_management/`) — a identidade do cliente da plataforma. É **a porta de entrada do app**: o usuário escolhe um tenant e só então chega ao Home, que mostra as funcionalidades dos produtos daquele cliente. Backend: `TenantManagement` (.NET).
@@ -213,12 +213,15 @@ abstract class AppModule {
 | 5 | `tenant_management`: seletor único + back-office | ✅ 2026-08-14 |
 | 4 | `bill_payment` nasce isolado | ✅ 2026-08-18 |
 | 2 | extrair `rufino_auth` | ⬜ adiada |
-| 3 | mover PM para pacote | 📋 **planejada** — [`doc/plano-migracao-people-management.md`](doc/plano-migracao-people-management.md) (2026-09-03) |
+| 3 | mover PM para pacote | ✅ 2026-09-04 — roteiro e decisões em [`doc/plano-migracao-people-management.md`](doc/plano-migracao-people-management.md) |
 | 3b | costura `AppModule` (D6) | ⬜ adiada — separada da 3 de propósito, ver decisão D do plano |
 
 **A ordem 0 → 1 → 5 → 4 é deliberada:** entrega o código novo isolado sem tocar nos 263 arquivos que funcionam. O PM migra quando houver motivo; o estado final é o mesmo.
 
-**A Fase 3 tem plano escrito, medido no commit `4fc925c0`**: 195 dos 249 arquivos de `lib/` são do PM, 42 são casca, 6 são mistos e 6 estão mortos. O achado que dimensiona o trabalho é que **o acoplamento é assimétrico** — a casca depende do PM (via `CompanyRepository` no `TenantSessionBridge`, as strings do menu do Home e o `app.dart`), mas o PM **não importa auth nem a casca**. Antes de executar qualquer fase, leia as seis decisões da seção 4 do plano: elas mudam o roteiro, não o detalhe.
+**A Fase 3 foi executada em 2026-09-04.** `lib/` caiu de 249 para 46 arquivos, `app.dart` de 1.103 para 760 linhas, e o pacote ficou com 197. Nenhum teste se perdeu: 2.087 passando, que são os 2.101 de antes menos os 14 do código morto removido antes de começar. **Duas decisões do plano foram revistas pelo código** — estão registradas na seção 10 do documento, e valem como precedente:
+
+- **Um seletor de arquivo por produto, não um compartilhado.** O plano previa subir o `DocumentPicker` do `bill_payment` para `rufino_core`. Os contratos são diferentes (lá é um documento com content type; aqui são vários filtrados por extensão), e uma abstração comum descreveria mal os dois. O critério D3 continua valendo — a resposta dele aqui foi "não sobe".
+- **A `TenantSessionBridge` continua dependendo de `CompanyRepository`.** O plano queria substituí-la por um par de funções exportadas; interface de repositório **é** contrato público do pacote, exatamente como a casca já usa `BillRepository`. A indireção não compraria isolamento, compraria uma camada.
 
 ### Pendências que bloqueiam a Fase 4
 
@@ -284,15 +287,16 @@ Reference app: https://github.com/flutter/samples/tree/main/compass_app
 
 ```
 client/rufino_v2/
-├── lib/                     casca do app + People Management
-│   ├── main*.dart, app.dart
-│   ├── core/{config,errors,monitoring,tenant,utils}/  ← o que sobrou é do PM ou da casca
-│   ├── data/{services,models,repositories}/
-│   ├── domain/{entities,repositories}/
-│   └── ui/core/widgets/ · ui/features/<feature>/{viewmodel,widgets}/
+├── lib/                     SÓ a casca (46 arquivos)
+│   ├── main*.dart, app.dart (760 linhas — compõe os três módulos)
+│   ├── core/{config,monitoring,tenant}/       AppConfig, Sentry, TenantSessionBridge
+│   ├── core/utils/                            adapters de plugin: scanner, extrator de data
+│   ├── data/{services,repositories}/          auth (OAuth, redirect web) + adapters de plugin
+│   └── ui/features/{auth,home,debug}/ · ui/core/widgets/
 └── packages/
     ├── rufino_core/         fundação compartilhada — ver D3
     ├── tenant_management/   identidade do cliente: seletor único + back-office
+    ├── people_management/   gestão de pessoas (197 arquivos)
     └── bill_payment/        contas a pagar
 ```
 
@@ -957,6 +961,44 @@ Coisas que não podem erodir:
 - **Suspenso desabilita, não esconde.** Esconder é para falta de permissão; desabilitar com o motivo à vista é para estado do cadastro.
 - **A PÁGINA é dona do ViewModel, nunca o builder da rota.** `tenant_pages.dart` existe só para isso. O `go_router` reexecuta o builder a cada mudança de pilha; criando o ViewModel lá dentro, cada `push`/`pop` produz uma instância nova em estado `loading` — e como o `State` da tela sobrevive ao rebuild, o `initState` que dispara o carregamento **não roda de novo**. O resultado é a tela anterior girando para sempre ao voltar. Mesma disciplina do `DocumentDashboardPage`.
 - **Voltar é `pop` OU `go`, nunca só `pop`.** Estas telas chegam pelos dois caminhos: empilhadas pelo seletor e por substituição pelo menu do Home. `TenantBackButton` volta se houver pilha e vai para a rota de origem quando não houver — sem ele, quem entra pelo menu fica sem saída. O detalhe leva o botão **também nos estados de carregando e de erro**, senão uma rede lenta tranca a tela.
+
+## People Management (pacote `packages/people_management/`)
+
+Gestão de pessoas: funcionários, documentos, cargos e locais de trabalho. Consome o BC
+`PeopleManagement` (`server/Services/PeopleManagement/`) — rotas `api/v1/{company}/...`, onde
+`{company}` é **o mesmo Guid do tenant** (o backfill do servidor preservou o id), resolvido pela
+`TenantSessionBridge`. Audiência de permissão: `people-management-api`.
+
+Coisas que não podem erodir:
+
+- **Este produto é o dono do `PermissionNotifier` base, e por isso NÃO tem subclasse.** O
+  `provider` resolve por tipo: `bill_payment` e `tenant_management` precisaram de
+  `BillPaymentPermissionNotifier`/`TenantPermissionNotifier` porque disputavam a mesma entrada na
+  árvore. Aqui, `PermissionGuard`/`ModuleGuard` **sem parâmetro de tipo** já resolvem para a
+  audiência certa — criar uma subclasse não resolveria colisão nenhuma e obrigaria a trocar os 55
+  guards. Use `PeopleManagementResources` e `PeopleManagementScopes` para os nomes; string crua
+  errada não quebra teste nem build, só esconde o botão.
+- **Quatro capacidades chegam da casca por porta, e nenhuma delas é plugin declarado aqui**:
+  `FilePickerService` (escolher arquivo e salvar em caminho), `FileSaveService` (salvar xlsx e
+  bytes), `DocumentScannerService` (câmera, OCR e abrir as configurações do sistema) e
+  `DocumentDateExtractor` (a data impressa no documento). As duas primeiras chegam por
+  `peopleManagementRoutes(...)`; as outras pela árvore de providers.
+- **`camera` é a única exceção**, declarada no `pubspec` do pacote com a justificativa: a captura
+  com preview ao vivo (`DocumentScanDialog`, usada por duas telas) É a interface do produto, e
+  levá-la para a casca moveria uma tela de 283 linhas para fora do pacote.
+- **O barril exporta domínio, repositórios, api services, portas, rotas e as constantes.** NÃO
+  exporta tela, ViewModel nem `*_api_model` — mapper de DTO não é API pública. A exceção
+  documentada é `DocumentRangeItem`, que aparece na assinatura de `EmployeeRepository`.
+- **Dentro do pacote os imports são relativos**, nunca o próprio barril: o self-import funciona,
+  mas faz o analyzer marcar todo import direto como redundante e some com a noção de quem depende
+  de quem.
+- ⚠️ **Dívida herdada, não introduzida: as 25 rotas criam o ViewModel dentro do builder.** É o
+  anti-padrão que o `gotchas.md` registra ("a tela volta e gira para sempre") e que
+  `bill_payment_pages.dart` e `tenant_pages.dart` já resolvem com uma `Page` dona do ViewModel. A
+  migração preservou a forma atual de propósito — mudar lugar e comportamento no mesmo passo
+  tornaria a suíte incapaz de dizer qual dos dois quebrou. **É o próximo trabalho neste pacote**, e
+  as rotas de `batch-document` e `batch-download` são as mais urgentes: elas leem a empresa
+  selecionada num `FutureBuilder` dentro do builder.
 
 ## Bill Payment (pacote `packages/bill_payment/`)
 

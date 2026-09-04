@@ -171,3 +171,60 @@ enviar?" — é sobre o **formulário inteiro**, e o anexo é estado do ViewMode
 inclusive as que não são `TextFormField`. E depois de mexer numa fonte que não é campo (anexar,
 remover), chame `_formKey.currentState?.validate()`: sem isso a mensagem de erro anterior fica na
 tela contradizendo o que a pessoa acabou de fazer.
+
+## Mover arquivo é reescrever import, e casar por sufixo não basta
+
+**What happened.** Migrando o domínio do PeopleManagement para um pacote, a
+reescrita de imports casava o caminho por sufixo (`domain/entities/x.dart`).
+Quatro imports escaparam: `'multipart_upload_helper.dart'` (mesmo diretório),
+`'../errors/...'` e `'../models/...'` — todos apontando para o mesmo arquivo por
+um caminho relativo mais curto do que o padrão previa.
+
+**Why it is treacherous.** O padrão por sufixo funciona para a maioria e falha
+em silêncio para o resto; o que sobra parece um erro de outra natureza
+("Target of URI doesn't exist" num arquivo que ninguém tocou).
+
+**The rule.** Não case texto: **resolva o caminho**. Normalize o import contra o
+diretório do arquivo e compare com a lista de arquivos que de fato se moveram —
+que o próprio git fornece (`git diff --cached --name-status -M`).
+
+**How to apply.** Depois de qualquer `git mv` em lote, rode `flutter analyze`
+antes dos testes: ele aponta arquivo e linha em segundos, a suíte só diz que
+algo quebrou.
+
+## O plugin exporta uma função com o nome do seu método
+
+**What happened.** A porta do scanner ganhou `openAppSettings()`, e a
+implementação virou `Future<void> openAppSettings() => openAppSettings();`. O
+`permission_handler` exporta uma função top-level com exatamente esse nome — o
+método passou a chamar a si mesmo. Recursão infinita, e o analyzer não reclama:
+a chamada é válida.
+
+**Why it is treacherous.** O código lê como delegação. Só a execução mostra o
+stack overflow, e a implementação de plataforma não costuma ter teste.
+
+**The rule.** Ao adotar um plugin cujo símbolo tem o mesmo nome do membro que o
+envolve, importe com prefixo (`as ph`) e use o prefixo em **todos** os usos —
+não só no que colidiu.
+
+## Barril não é para consumo interno
+
+**What happened.** Ao mover arquivos para dentro de um pacote, os imports dos
+consumidores tinham sido reapontados para o barril. Os arquivos migraram
+levando esse import junto — e 41 arquivos do pacote passaram a importar o
+próprio barril. Funciona, compila, e faz o analyzer marcar todo import direto
+como `unnecessary_import`.
+
+**Why it is treacherous.** O sinal aparece como sugestão de estilo, quando o que
+está acontecendo é que o pacote perdeu a noção de quem depende de quem: todo
+arquivo passa a "depender de tudo".
+
+**The rule.** Dentro do pacote, import relativo. O barril é a fachada para quem
+está **fora**.
+
+**How to apply.** Remover os self-imports quebra centenas de símbolos de uma vez
+— não tente resolver a mão. Construa um índice `símbolo → arquivo` varrendo as
+declarações do pacote, cruze com os `undefined_*` do analyze e insira os imports
+relativos; repita até estabilizar. Note que os erros que **não nomeiam o
+símbolo** (`implements_non_class`) escapam desse laço e pedem uma regra própria
+— `X_repository_impl.dart` importa `X_repository.dart`.
