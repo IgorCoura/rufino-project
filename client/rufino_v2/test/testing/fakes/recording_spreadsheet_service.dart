@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:rufino_v2/data/services/spreadsheet_service.dart';
+import 'package:people_management/people_management.dart';
 
 /// Captures the arguments passed to [SpreadsheetService.buildXlsx] without
 /// touching the heavy `xlsio` workbook. Returns a fixed two-byte payload

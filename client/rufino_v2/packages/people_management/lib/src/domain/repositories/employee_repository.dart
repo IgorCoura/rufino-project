@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:rufino_core/rufino_core.dart';
-import '../../data/document_range_item.dart';
-import '../../data/multipart_upload_helper.dart';
+import '../../data/models/document_range_item.dart';
+import '../../data/services/multipart_upload_helper.dart';
 import '../entities/address.dart';
 import '../entities/employee.dart';
 import '../entities/employee_contact.dart';

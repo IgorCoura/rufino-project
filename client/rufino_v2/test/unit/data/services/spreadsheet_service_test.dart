@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/data/services/spreadsheet_service.dart';
+import 'package:people_management/people_management.dart';
 
 String _readEntry(Archive archive, String path) {
   final file = archive.findFile(path);

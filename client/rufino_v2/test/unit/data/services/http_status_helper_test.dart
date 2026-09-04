@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' as http_testing;
 import 'package:rufino_core/rufino_core.dart';
-import 'package:rufino_v2/data/services/http_status_helper.dart';
+import 'package:people_management/people_management.dart';
 
 void main() {
   group('checkHttpStatus', () {

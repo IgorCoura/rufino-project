@@ -73,9 +73,69 @@ export 'src/domain/errors/employee_exception.dart';
 export 'src/domain/errors/require_document_exception.dart';
 export 'src/domain/errors/workplace_exception.dart';
 
-// Dados — auxiliares que aparecem na assinatura dos repositórios
-export 'src/data/document_range_item.dart';
-export 'src/data/multipart_upload_helper.dart';
+// Dados — implementações de repositório (a casca as instancia)
+export 'src/data/repositories/batch_document_repository_impl.dart';
+export 'src/data/repositories/batch_download_repository_impl.dart';
+export 'src/data/repositories/cep_repository_impl.dart';
+export 'src/data/repositories/company_repository_impl.dart';
+export 'src/data/repositories/department_repository_impl.dart';
+export 'src/data/repositories/document_dashboard_repository_impl.dart';
+export 'src/data/repositories/document_group_repository_impl.dart';
+export 'src/data/repositories/document_template_repository_impl.dart';
+export 'src/data/repositories/employee_repository_impl.dart';
+export 'src/data/repositories/require_document_repository_impl.dart';
+export 'src/data/repositories/workplace_repository_impl.dart';
+
+// Dados — api services (a casca as instancia)
+export 'src/data/services/batch_document_api_service.dart';
+export 'src/data/services/batch_download_api_service.dart';
+export 'src/data/services/cep_api_service.dart';
+export 'src/data/services/company_api_service.dart';
+export 'src/data/services/department_api_service.dart';
+export 'src/data/services/document_dashboard_api_service.dart';
+export 'src/data/services/document_group_api_service.dart';
+export 'src/data/services/document_template_api_service.dart';
+export 'src/data/services/employee_api_service.dart';
+export 'src/data/services/http_status_helper.dart';
+export 'src/data/services/multipart_upload_helper.dart';
+export 'src/data/services/request_id_helper.dart';
+export 'src/data/services/require_document_api_service.dart';
+export 'src/data/services/spreadsheet_service.dart';
+export 'src/data/services/workplace_api_service.dart';
 
 // Utilitários de domínio
 export 'src/utils/fuzzy_name_matcher.dart';
+
+// Dados — DTOs.
+//
+// ANDAIME: pelo critério do `bill_payment` o mapper de DTO NÃO é API pública —
+// quem está fora usa entidade, nunca o shape da API. Eles estão aqui só porque
+// os testes de DTO ainda vivem na casca; saem do barril quando esses testes
+// migrarem para o pacote (fase 10 do plano).
+export 'src/data/models/batch_document_unit_api_model.dart';
+export 'src/data/models/batch_download_api_model.dart';
+export 'src/data/models/cep_lookup_model.dart';
+export 'src/data/models/company_api_model.dart';
+export 'src/data/models/department_api_model.dart';
+export 'src/data/models/document_dashboard_api_model.dart';
+export 'src/data/models/document_group_api_model.dart';
+export 'src/data/models/document_group_with_documents_api_model.dart';
+export 'src/data/models/document_group_with_templates_api_model.dart';
+export 'src/data/models/document_range_item.dart';
+export 'src/data/models/document_template_api_model.dart';
+export 'src/data/models/employee_address_api_model.dart';
+export 'src/data/models/employee_api_model.dart';
+export 'src/data/models/employee_contact_api_model.dart';
+export 'src/data/models/employee_contract_api_model.dart';
+export 'src/data/models/employee_dependent_api_model.dart';
+export 'src/data/models/employee_document_api_model.dart';
+export 'src/data/models/employee_id_card_api_model.dart';
+export 'src/data/models/employee_medical_exam_api_model.dart';
+export 'src/data/models/employee_military_document_api_model.dart';
+export 'src/data/models/employee_personal_info_api_model.dart';
+export 'src/data/models/employee_profile_api_model.dart';
+export 'src/data/models/employee_social_integration_program_api_model.dart';
+export 'src/data/models/employee_vote_id_api_model.dart';
+export 'src/data/models/period_api_model.dart';
+export 'src/data/models/require_document_api_model.dart';
+export 'src/data/models/workplace_api_model.dart';

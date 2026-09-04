@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/data/models/batch_document_unit_api_model.dart';
+import 'package:people_management/people_management.dart';
 
 void main() {
   group('BatchDocumentUnitApiModel', () {

@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' as http_testing;
 import 'package:rufino_v2/core/errors/cep_exception.dart';
-import 'package:rufino_v2/data/services/cep_api_service.dart';
+import 'package:people_management/people_management.dart';
 
 void main() {
   group('CepApiService', () {
