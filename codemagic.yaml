@@ -16,7 +16,11 @@ workflows:
         - rufino_ios_secrets
       vars:
         APP_STORE_APPLE_ID: 0000000000
-      flutter: stable
+      # Versão fixa, a mesma do Dockerfile web, dos workflows do GitHub e do `sdks:`
+      # do pubspec.lock. Com `stable` o canal andava sozinho: em 3.44 o `IconData`
+      # do framework virou classe `final` e o `material_symbols_icons` travado no
+      # lock parou de compilar, derrubando o archive sem nada ter mudado aqui.
+      flutter: 3.38.7
       xcode: latest
       cocoapods: default
 
