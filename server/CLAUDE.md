@@ -51,8 +51,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > `view: [admin, user]`, `edit: [admin]` — copie a entrada de `tenants`).
 >
 > O `Company` deste BC e o `Tenant` do TenantManagement **não são a mesma entidade**: o Tenant é o
-> registro-mestre da identidade, o `Company` continua sendo o cadastro local do RH. O claim
-> `companies` que este BC lê segue intocado.
+> registro-mestre da identidade, o `Company` continua sendo o cadastro local do RH. **Mas o id é o
+> mesmo** — é isso que o backfill preserva —, e desde 2026-09-03 este BC lê o claim **`pm_tenants`**
+> no lugar do `companies` legado (ver "Auth" abaixo).
 
 ## Build, Run & Test
 
@@ -142,6 +143,32 @@ Services/PeopleManagement/
 - **O histórico entra no `TablesToIgnore` do Respawn** (`PeopleManagementWebApplicationFactory`). Ele vive dentro de `people_management`, que está em `SchemasToInclude`, e histórico de migração não é dado de teste — apagá-lo faz o host seguinte concluir que o banco está vazio e morrer em `42P07 relation already exists`. Mesma dupla de armadilhas registrada no `gotchas.md` do BillPayment.
 
 **Auth:** Keycloak JWT Bearer tokens. Custom `[ProtectedResource("resource", "action")]` attribute for route-level authorization. Auth config in `PeopleManagement.API/Authentication/` and `Authorization/`.
+
+- **O guard de rota lê `pm_tenants` desde 2026-09-03, não mais o `companies` legado.** O
+  `RouteAccessRequirement` confere o `{company}` da rota contra o claim POR PRODUTO emitido pelo
+  TenantManagement (ADR-005 de lá): ele traz só os tenants em que a pessoa tem vínculo ativo **e**
+  o PeopleManagement está habilitado. O `companies` era **escrito à mão no console do Keycloak** —
+  nenhum código o produzia — e suspender um cliente não o afetava, porque o
+  `KeycloakTenantAccessProvisioner` o preserva de propósito. O valor não mudou: é o mesmo Guid do
+  `Company.Id`, que o backfill preservou, então o nome do parâmetro de rota continua `{company}`.
+  **Não troque o claim por `tenants`**: o handler casa o TIPO por `Contains`, e
+  `"bp_tenants".Contains("tenants")` é verdadeiro — o genérico daria acesso a quem só assinou o
+  BillPayment. **Ordem de deploy obrigatória**: backfill → declarar `pm_tenants` no User Profile do
+  realm → mappers → reprovisionar TODOS os tenants → só então esta configuração; fora dela o
+  atributo nasce vazio e todo cliente legítimo toma 403. Cliente que não tiver o produto
+  `PeopleManagement` ativo no TenantManagement some do claim — auditar antes de virar a chave.
+- **A comparação do valor é case-insensitive** (alinhada ao BillPayment): o parâmetro vem da URL
+  como o cliente escreveu e o claim como o provisionador gravou, e um Guid com caixa diferente dos
+  dois lados produzia 403 sem explicação.
+- ⚠️ **O guard de produção não é coberto por teste neste BC.** A suíte troca a policy por
+  `MockAccessRequirement("company", "companies")` (`PeopleManagementWebApplicationFactory`), então
+  nem o claim configurado nem a comparação são exercitados — ao contrário do BillPayment, que tem
+  `Authorization/RouteGuardTests`. Enquanto isso não existir aqui, mudança nesta área se verifica
+  em ambiente, não na suíte.
+- ⚠️ **`CompanyController` está fora do guard, e trocar o claim não muda isso.** A rota é
+  `api/v1/[controller]`, sem `{company}`, e o handler **concede** quando o parâmetro é nulo — é o
+  que permite endpoint que não é de empresa nenhuma. Os três endpoints de leitura recebem os ids
+  por query string e não os validam contra claim nenhum.
 
 - **Segredo de desenvolvimento vem do `dotnet user-secrets`, e o compose NÃO pode injetá-lo por variável de ambiente.** Vale para os três BCs. A forma `${VAR:-}` do Compose **não deixa a variável ausente** quando `VAR` não está definida: ela define a variável com **string vazia**. E variável de ambiente vem **depois** do user-secrets na ordem de configuração do ASP.NET Core — então a string vazia **sobrescreve o segredo do user-secrets**, em silêncio, porque o valor existe e só está vazio. Aconteceu em 2026-08-19: `TenantProvisioning:ClientSecret` estava corretamente configurado no `secrets.json`, o container montava a pasta e enxergava a chave, e mesmo assim o DI registrava o `UnconfiguredTenantAccessProvisioner` e todo vínculo saía `Failed` — porque `TenantProvisioning__ClientSecret=` chegava vazio pelo compose. Os cinco pontos que faziam isso foram removidos do `server/docker-compose.yml` e do `Services/BillPayment/docker-compose.yml`. **Se algum dia precisar injetar segredo pelo compose, use `${VAR:?mensagem}`** — falha alto quando ausente — **nunca `${VAR:-}`**.
 - **Rodar fora do contêiner aponta para a NUVEM.** Os `appsettings.json` dos três BCs trazem `Keycloak:AuthServerUrl` (e o `TenantProvisioning:AuthServerUrl` do TenantManagement) apontando para `https://keycloak.couratechsafety.cloud`. Quem sobrepõe para o Keycloak local é o compose, via `KEYCLOAK_URL`. Logo, `dotnet run` fora do Docker — workflow documentado nos CLAUDE.md por BC — fala com a nuvem mesmo com a stack local no ar, e o token do Keycloak local é recusado. Para esse caminho, configure a URL local em `appsettings.Development.json` ou no user-secrets da API.
