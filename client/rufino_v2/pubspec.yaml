@@ -45,14 +45,12 @@ dependencies:
   jwt_decoder: ^2.0.1
   flutter_appauth: ^7.0.1
   url_launcher: ^6.3.1
-  crypto: ^3.0.3
   # HTTP
   http: ^1.2.2
   file_picker: ^8.1.7
   # UI
   google_fonts: ^6.2.1
   material_symbols_icons: ^4.2719.1
-  shimmer: ^3.0.0
   mask_text_input_formatter: ^2.9.0
   flutter_json_view: ^1.1.5
   syncfusion_flutter_pdf: ^27.1.58
@@ -71,8 +69,6 @@ dependencies:
   # Spreadsheet export
   syncfusion_flutter_xlsio: ^27.1.58
   file_saver: ^0.2.13
-  # Brand assets
-  flutter_svg: ^2.0.10+1
 
 dev_dependencies:
   sentry_dart_plugin: ^3.3.0
