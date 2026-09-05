@@ -65,6 +65,9 @@ class AuthApiService {
   /// refreshed before it is attached to a request.
   static const tokenExpiryMargin = Duration(seconds: 60);
 
+  /// The refresh currently in flight, if any. See [getCredentials].
+  Future<oauth2.Credentials>? _refreshInFlight;
+
   Future<oauth2.Credentials> getCredentials() async {
     await _recoverCredentials();
     final credentials = _credentials;
@@ -75,6 +78,15 @@ class AuthApiService {
       return credentials;
     }
 
+    // Keycloak rotates the refresh token on every use, so a second concurrent
+    // refresh presents one that was already spent and the server revokes the
+    // whole session as a replay. Callers that arrive during a refresh await
+    // the same one instead of starting another.
+    return _refreshInFlight ??= _refresh(credentials)
+        .whenComplete(() => _refreshInFlight = null);
+  }
+
+  Future<oauth2.Credentials> _refresh(oauth2.Credentials credentials) async {
     final oauth2.Credentials refreshed;
     try {
       refreshed = await credentials.refresh(

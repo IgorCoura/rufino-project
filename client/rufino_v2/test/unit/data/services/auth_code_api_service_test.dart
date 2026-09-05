@@ -206,6 +206,57 @@ void main() {
         throwsA(isA<NoCredentialsException>()),
       );
     });
+
+    test('hits the token endpoint once when several callers refresh at the same time',
+        () async {
+      var calls = 0;
+      final client = http_testing.MockClient((request) async {
+        calls++;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        return http.Response(
+          jsonEncode({
+            'access_token': 'new-access-token',
+            'refresh_token': 'new-refresh-token',
+            'token_type': 'bearer',
+            'expires_in': 300,
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+      final storage =
+          storageWith(buildCredentials(untilExpiry: const Duration(seconds: 30)));
+      final service = buildService(storage: storage, client: client);
+
+      final results = await Future.wait([
+        service.getCredentials(),
+        service.getCredentials(),
+        service.getCredentials(),
+      ]);
+
+      expect(calls, 1);
+      expect(
+        results.map((c) => c.accessToken),
+        everyElement('new-access-token'),
+      );
+    });
+
+    test('refreshes again after a failed attempt instead of staying stuck',
+        () async {
+      var calls = 0;
+      final client = http_testing.MockClient((request) async {
+        calls++;
+        throw http.ClientException('offline');
+      });
+      final storage =
+          storageWith(buildCredentials(untilExpiry: const Duration(seconds: 30)));
+      final service = buildService(storage: storage, client: client);
+
+      await service.getCredentials();
+      await service.getCredentials();
+
+      expect(calls, 2);
+    });
   });
 
   group('AuthCodeApiService.hasValidCredentials', () {
