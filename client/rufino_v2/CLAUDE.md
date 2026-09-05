@@ -1685,6 +1685,13 @@ of required GitHub secrets and where to obtain each in the Google Play Console.
   framework virou classe `final`, e o `material_symbols_icons` travado no lock passou a não
   compilar — derrubou o `dart2js` do web e o archive do iOS, com a mesma mensagem. Ao subir o
   Flutter do projeto, suba os cinco lugares no mesmo commit.
+- **A incompatibilidade em si morreu no pacote, não no pin.** O `material_symbols_icons` parou
+  de estender `IconData` na **4.2928.0**; o lock estava parado na 4.2906.0, anterior à correção,
+  e por isso o mesmo erro aparecia em qualquer SDK novo. Hoje o lock está na **4.2960.0**, que
+  compila tanto em 3.38 quanto em 3.44+. **O pin continua valendo por reprodutibilidade** — build
+  que muda de SDK sozinho é build que quebra sozinho —, mas ele não é mais a única coisa
+  segurando o iOS de pé, e é por isso que o Codemagic parou de falhar mesmo com o runner podendo
+  discordar do número pedido.
 - **Os pubspecs dos quatro membros do workspace são copiados antes do `flutter pub get`** — a
   resolução lê o de cada membro, e só o da raiz dá "No workspace packages matching". Um `COPY`
   por pacote: com curinga o Docker achata os caminhos e eles colidem no mesmo destino.
