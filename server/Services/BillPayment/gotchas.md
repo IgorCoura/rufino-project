@@ -667,3 +667,23 @@ materializa o agregado esperando o campo a mais e não encontra.
 (ou lista as colunas). Projeção sem tipo de entidade (o ADO direto de `BillReadingWorkQueries`)
 não sofre disso — não há o que materializar. Ao acrescentar token a um agregado novo, procure por
 `FromSql` sobre ele antes de rodar a suíte.
+
+## "Invalid payload signature" NÃO é credencial errada — é formato de corpo (2026-09-05)
+
+**Quando:** 2026-09-05, ligando a captura por e-mail em produção pela primeira vez.
+
+**O que aconteceu:** a varredura falhava a cada ciclo, sempre no primeiro `PutObject` (o corpo do e-mail), e o erro **mudou três vezes** conforme o balde ia sendo arrumado:
+
+| Erro do Garage | O que de fato significa |
+|---|---|
+| `Bucket not found: billpayment-captures` | balde inexistente (o adapter não provisiona, por decisão) |
+| `403 Forbidden: Invalid signature` | HMAC do **cabeçalho** não bateu → segredo errado |
+| `400 Bad request: Invalid payload signature` | HMAC do **corpo** não bateu → formato que o servidor não aceita |
+
+Os dois últimos parecem a mesma coisa e não são. No terceiro a credencial já estava **correta**: o Garage autenticou a requisição e reprovou o corpo. A causa era o `AWSSDK.S3 4.0.102`, que mudou o padrão para `RequestChecksumCalculation = WHEN_SUPPORTED` e passou a mandar o corpo em `aws-chunked` com trailer de CRC32.
+
+**Por que é traiçoeiro:** três coisas conspiram. (1) O erro do meio é real e leva a rotacionar chave, o que **muda o sintoma** e reforça a pista errada. (2) O `PeopleManagement` grava no **mesmo balde** e funciona — o que parece exonerar o SDK e acusar a configuração —, mas ele está no `AWSSDK.S3 3.7.x`, anterior à mudança de padrão. (3) A suíte inteira troca `IAttachmentStorage` por dublê em memória, então **nada** exercitava o que o `AmazonS3Config` carrega: 736 testes verdes com a gravação real quebrada.
+
+**Regra:** contra serviço S3 auto-hospedado (Garage, MinIO, Ceph), desligue os dois checksums do SDK 4 no `AmazonS3Config` — `RequestChecksumCalculation` e `ResponseChecksumValidation` em `WHEN_REQUIRED`. Só o primeiro conserta a escrita; sem o segundo, a leitura do documento original quebra do mesmo jeito quando o servidor não devolve os cabeçalhos de checksum. **Ao subir o `AWSSDK.S3` do PeopleManagement de 3.7.x para 4.x, esta configuração vai junto** — senão o mesmo defeito nasce lá.
+
+**Como pegar de novo:** leia o **verbo** do erro antes de mexer em credencial — `Invalid signature` (403) e `Invalid payload signature` (400) apontam para lados opostos. E toda configuração de cliente de serviço externo precisa de um teste que monte o contêiner a partir do `AddInfraDependencies`, como já valia para o `User-Agent` do Asaas: `Storage/S3ClientConfigurationTests` é a guarda desta, e foi provada reprovando com a correção removida.

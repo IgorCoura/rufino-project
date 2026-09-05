@@ -73,6 +73,26 @@ if ! python "$HERE/validate-realm.py" "$HERE/RufinoRealm/realm-import-2026-08-18
 fi
 echo
 
+# Renova o access token pelo refresh, quando ele existir. O access do Keycloak vale
+# 60s por padrao e a migracao tem seis passos: sem isto o token vence no meio e o
+# script morre com 401 num ponto arbitrario — foi o que aconteceu na 1a tentativa.
+renovar_token() {
+  [[ -f "$HERE/.kc-refresh" ]] || return 1
+  local refresh resposta acesso giro
+  refresh="$(tr -d ' \r\n' < "$HERE/.kc-refresh")"
+  resposta="$(curl -sS -X POST "$KC_URL/realms/master/protocol/openid-connect/token" \
+    -d grant_type=refresh_token -d client_id=admin-cli \
+    --data-urlencode "refresh_token=$refresh" \
+    | python -c 'import json,sys; d=json.load(sys.stdin); print(d.get("access_token","")); print(d.get("refresh_token",""))' 2>/dev/null)" || return 1
+  acesso="$(sed -n 1p <<<"$resposta")"
+  giro="$(sed -n 2p <<<"$resposta")"
+  [[ -z "$acesso" ]] && return 1
+  KC_ADMIN_TOKEN="$acesso"
+  printf '%s' "$acesso" > "$HERE/.kc-token"
+  [[ -n "$giro" ]] && printf '%s' "$giro" > "$HERE/.kc-refresh"
+  return 0
+}
+
 api() { # api <método> <caminho> [corpo]
   local method="$1" path="$2" body="${3:-}"
   if [[ -n "$body" ]]; then
@@ -85,7 +105,11 @@ api() { # api <método> <caminho> [corpo]
   fi
 }
 
-get() { api GET "$1" >/dev/null; cat /tmp/kc-out; }
+get() {
+  local codigo; codigo="$(api GET "$1")"
+  if [[ "$codigo" == "401" ]] && renovar_token; then codigo="$(api GET "$1")"; fi
+  cat /tmp/kc-out
+}
 
 client_uuid() { # o UUID interno, que é o que os endpoints de autorização usam
   get "/clients?clientId=$1" | python -c 'import json,sys; c=json.load(sys.stdin); print(c[0]["id"] if c else "")'
@@ -100,12 +124,13 @@ do_or_report() { # do_or_report <descrição> <método> <caminho> [corpo]
   local desc="$1"; shift
   if [[ $APPLY -eq 0 ]]; then todo "$desc"; return 0; fi
   local code; code="$(api "$@")"
+  if [[ "$code" == "401" ]] && renovar_token; then code="$(api "$@")"; fi
   if [[ "$code" =~ ^2 ]]; then ok "$desc"; else
     echo "   ✘ $desc  (HTTP $code)"; head -c 400 /tmp/kc-out; echo; return 1
   fi
 }
 
-# `tr -d` porque o print do Python no Windows emite CRLF: o  fica preso no nome
+# `tr -d` porque o print do Python no Windows emite CRLF: o CR fica preso no nome
 # lido do realm, o grep normaliza o do lado do arquivo, NADA casa — e a limpeza
 # conclui que tudo e' obsoleto. Medido em 2026-09-04, apagando a configuracao
 # inteira do realm local num ensaio. Na nuvem teria sido irreversivel.
@@ -144,6 +169,14 @@ import_authz() { # <uuid> <arquivo> <rótulo>
     -H "Authorization: Bearer $KC_ADMIN_TOKEN" -H 'Content-Type: application/json' \
     --data-binary "@$arquivo" \
     "$KC_URL/admin/realms/$REALM/clients/$cid/authz/resource-server/import")"
+
+  # 401 aqui e token vencido no meio da migracao, nao recusa de permissao.
+  if [[ "$code" == "401" ]] && renovar_token; then
+    code="$(curl -sS -o /tmp/kc-out -w '%{http_code}' -X POST \
+      -H "Authorization: Bearer $KC_ADMIN_TOKEN" -H 'Content-Type: application/json' \
+      --data-binary "@$arquivo" \
+      "$KC_URL/admin/realms/$REALM/clients/$cid/authz/resource-server/import")"
+  fi
 
   if [[ ! "$code" =~ ^2 ]]; then
     echo "   ✘ importar authz de $rotulo  (HTTP $code)"; head -c 400 /tmp/kc-out; echo; return 1
