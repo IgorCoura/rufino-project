@@ -580,4 +580,10 @@ FodyWeavers.xsd
 # Backup do realm gerado por migrate-realm.sh: contem a configuracao de um
 # ambiente real e nao e artefato de projeto.
 utils/KeyCloakConfig/backup-*.json
+
+# Credenciais de admin do realm master, gravadas em disco pelo kc.sh porque
+# variavel exportada num shell nao atravessa para outro processo. O .kc-refresh
+# faltava aqui ate 2026-09-04 e ficava visivel como nao rastreado no status: um
+# `git add -A` distraido publicaria administrador do Keycloak no GitHub.
 utils/KeyCloakConfig/.kc-token
+utils/KeyCloakConfig/.kc-refresh
