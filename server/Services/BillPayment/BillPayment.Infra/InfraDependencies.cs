@@ -222,6 +222,19 @@ public static class InfraDependencies
                 // auto-hospedado recusa a assinatura e a falha só aparece ao gravar o primeiro
                 // anexo. IsConfigured garante que o valor existe.
                 AuthenticationRegion = options.AuthenticationRegion,
+
+                // O AWSSDK 4 passou a calcular checksum de requisição por padrão
+                // (WHEN_SUPPORTED), e com isso manda o corpo do PutObject em `aws-chunked` com
+                // trailer de CRC32. O Garage recusa esse formato com "Invalid payload signature"
+                // — um 400 que se parece com credencial errada, mas não é: a assinatura do
+                // CABEÇALHO passou, e o que ele reprova é a do CORPO. Medido em produção em
+                // 2026-09-05, e é a diferença para o PeopleManagement, que grava no mesmo balde
+                // com o SDK 3.x e por isso nunca viu o problema.
+                RequestChecksumCalculation = Amazon.Runtime.RequestChecksumCalculation.WHEN_REQUIRED,
+
+                // Pelo mesmo motivo, do lado da leitura: o serviço auto-hospedado não devolve os
+                // cabeçalhos de checksum que o SDK 4 passou a querer validar.
+                ResponseChecksumValidation = Amazon.Runtime.ResponseChecksumValidation.WHEN_REQUIRED,
             }));
 
         services.AddScoped<IAttachmentStorage, S3AttachmentStorage>();
