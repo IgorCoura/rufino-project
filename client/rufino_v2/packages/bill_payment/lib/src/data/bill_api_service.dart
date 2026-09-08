@@ -220,8 +220,25 @@ abstract final class BillMapper {
           : DateTime.parse(json['scheduledFor'] as String),
       origin: originFromJson(json['origin'] as Map<String, dynamic>),
       createdAt: DateTime.parse(json['createdAt'] as String),
+      history: [
+        for (final entry in (json['history'] as List<dynamic>? ?? const []))
+          historyEntryFromJson(entry as Map<String, dynamic>),
+      ],
     );
   }
+
+  /// Reads one line of the bill's trail.
+  static BillHistoryEntry historyEntryFromJson(Map<String, dynamic> json) =>
+      BillHistoryEntry(
+        action: json['action'] as String,
+        origin: json['origin'] as String? ?? BillActionOrigins.system,
+        occurredAt: DateTime.parse(json['occurredAt'] as String),
+        actorUserId: json['actorUserId'] as String?,
+        actorName: json['actorName'] as String? ?? 'Sistema',
+        fromStatus: json['fromStatus'] as String?,
+        toStatus: json['toStatus'] as String,
+        note: json['note'] as String?,
+      );
 }
 
 /// HTTP client for the bill endpoints.
@@ -437,10 +454,15 @@ class BillApiService {
     );
   }
 
-  /// Authorizes the payment.
+  /// Authorizes the payment, optionally scheduling it in the same call.
+  ///
+  /// Without [scheduleFor] the bill is only approved and waits for someone to
+  /// schedule it. With it, the server approves AND schedules in one
+  /// transaction — the "Aprovar e agendar" button — which is why the two never
+  /// travel as separate requests.
   Future<void> approveBill(
     String id, {
-    required DateTime scheduleFor,
+    DateTime? scheduleFor,
     String? note,
     bool acknowledgeRisk = false,
     bool acknowledgeImmediateExecution = false,
@@ -449,9 +471,30 @@ class BillApiService {
       _uri('/bills/$id/approve'),
       headers: await _headers(write: true),
       body: jsonEncode({
-        'scheduleFor': dateOnly(scheduleFor),
+        'scheduleFor': scheduleFor == null ? null : dateOnly(scheduleFor),
         'note': note?.trim(),
         'acknowledgeRisk': acknowledgeRisk,
+        'acknowledgeImmediateExecution': acknowledgeImmediateExecution,
+      }),
+    );
+    checkApiStatus(response);
+  }
+
+  /// Sends an already-approved bill to the payment queue on [scheduleFor].
+  ///
+  /// Also the re-scheduling path: a bill whose schedule was cancelled is back
+  /// in `Approved` without a date and comes through here again, with no new
+  /// approval.
+  Future<void> scheduleBill(
+    String id, {
+    required DateTime scheduleFor,
+    bool acknowledgeImmediateExecution = false,
+  }) async {
+    final response = await client.post(
+      _uri('/bills/$id/schedule'),
+      headers: await _headers(write: true),
+      body: jsonEncode({
+        'scheduleFor': dateOnly(scheduleFor),
         'acknowledgeImmediateExecution': acknowledgeImmediateExecution,
       }),
     );
@@ -493,6 +536,16 @@ class BillApiService {
   Future<void> cancelBill(String id, String reason) async {
     final response = await client.post(
       _uri('/bills/$id/cancel'),
+      headers: await _headers(write: true),
+      body: jsonEncode({'reason': reason.trim()}),
+    );
+    checkApiStatus(response);
+  }
+
+  /// Undoes a denial or a cancellation; the server revalidates the bill.
+  Future<void> undoBillDecision(String id, String reason) async {
+    final response = await client.post(
+      _uri('/bills/$id/undo-decision'),
       headers: await _headers(write: true),
       body: jsonEncode({'reason': reason.trim()}),
     );

@@ -1,4 +1,4 @@
-namespace BillPayment.Domain.PaymentOrders;
+﻿namespace BillPayment.Domain.PaymentOrders;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.SeedWork;
@@ -47,10 +47,22 @@ public sealed record PaymentOrderFailedDomainEvent(
 }
 
 /// <summary>A ordem saiu do fluxo antes de executar.</summary>
+/// <param name="Origin">
+/// <strong>De ONDE partiu o cancelamento</strong>, e é o campo que a trilha do boleto consome.
+/// Sem ele, o mesmo evento servia ao cancelamento pedido no nosso app e ao feito no painel do
+/// provedor — e o espelho gravava "Sistema" nos dois, deixando sem resposta a pergunta "quem
+/// cancelou isto?". Acrescentado em 2026-09-08.
+/// </param>
+/// <param name="RequestedBy">
+/// Quem pediu, quando <paramref name="Origin"/> é <c>User</c>. Nulo nas demais origens: atribuir
+/// a alguém um ato do provedor seria pior que não ter autor nenhum.
+/// </param>
 public sealed record PaymentOrderCancelledDomainEvent(
     PaymentOrderId PaymentOrderId,
     TenantId TenantId,
     BillId BillId,
+    BillActionOrigin Origin,
+    UserId? RequestedBy,
     DateTime OccurredAt) : IDomainEvent
 {
     public Guid EventId { get; init; } = Guid.CreateVersion7();

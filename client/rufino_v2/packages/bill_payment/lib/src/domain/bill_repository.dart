@@ -85,18 +85,34 @@ abstract class BillRepository {
   /// Re-runs the official lookup and the twelve checks.
   Future<Result<ValidationRunOutcome>> revalidateBill(String id);
 
-  /// Authorizes the payment for [scheduleFor], with an optional [note].
+  /// Authorizes the payment, with an optional [note].
+  ///
+  /// Approving and scheduling are two acts (ADR-018): without [scheduleFor]
+  /// the bill only becomes approved and waits for someone to pick a date.
+  /// With it, the server does both in one transaction — and requires the
+  /// scheduling clearance too.
   ///
   /// [acknowledgeRisk] must be `true` for a bill classified as Danger — the
   /// explicit acceptance the audit trail records (ADR-015).
   /// [acknowledgeImmediateExecution] must be `true` for an OVERDUE bill: the
   /// provider processes it at once, with no reaction window, and the server
-  /// refuses the approval without the explicit consent (ADR-017).
+  /// refuses the SCHEDULING without the explicit consent (ADR-017).
   Future<Result<void>> approveBill(
     String id, {
-    required DateTime scheduleFor,
+    DateTime? scheduleFor,
     String? note,
     bool acknowledgeRisk = false,
+    bool acknowledgeImmediateExecution = false,
+  });
+
+  /// Sends an already-approved bill to the payment queue on [scheduleFor].
+  ///
+  /// Also the re-scheduling path: a bill whose schedule was cancelled goes
+  /// back to `Approved` without a date and comes through here again, with no
+  /// new approval.
+  Future<Result<void>> scheduleBill(
+    String id, {
+    required DateTime scheduleFor,
     bool acknowledgeImmediateExecution = false,
   });
 
@@ -118,6 +134,10 @@ abstract class BillRepository {
 
   /// Removes the bill from the flow.
   Future<Result<void>> cancelBill(String id, String reason);
+
+  /// Undoes a denial or a cancellation. The bill returns to the decision
+  /// queue and the server revalidates it automatically.
+  Future<Result<void>> undoBillDecision(String id, String reason);
 
   /// Downloads the original document the bill came from.
   ///

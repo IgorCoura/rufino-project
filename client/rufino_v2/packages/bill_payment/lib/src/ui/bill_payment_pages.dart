@@ -214,6 +214,9 @@ class _BillListPageState extends State<BillListPage> {
       viewModel: _viewModel,
       backFallback: widget.backFallback,
       onOpenBill: widget.onOpenBill,
+      // Agendar abre o mesmo detalhe: a folha de data vive lá, e quem libera
+      // dinheiro precisa das verificações à vista antes de escolher o dia.
+      onScheduleBill: widget.onOpenBill,
       onImportBill: widget.onImportBill,
     );
   }

@@ -19,6 +19,7 @@ class BillListScreen extends StatefulWidget {
     required this.viewModel,
     required this.backFallback,
     required this.onOpenBill,
+    required this.onScheduleBill,
     required this.onImportBill,
   });
 
@@ -30,6 +31,12 @@ class BillListScreen extends StatefulWidget {
 
   /// Called with the id of the bill to open.
   final void Function(String id) onOpenBill;
+
+  /// Called with the id of the approved bill to schedule.
+  ///
+  /// Opens the same detail screen — the date sheet lives there, and the
+  /// approver needs the checks in front of them before releasing money.
+  final void Function(String id) onScheduleBill;
 
   /// Opens the manual import form.
   final VoidCallback onImportBill;
@@ -133,6 +140,7 @@ class _BillListScreenState extends State<BillListScreen> {
                       viewModel: widget.viewModel,
                       scrollController: _scrollController,
                       onOpenBill: widget.onOpenBill,
+                      onScheduleBill: widget.onScheduleBill,
                     ),
                   ),
                 ],
@@ -150,11 +158,13 @@ class _Results extends StatelessWidget {
     required this.viewModel,
     required this.scrollController,
     required this.onOpenBill,
+    required this.onScheduleBill,
   });
 
   final BillListViewModel viewModel;
   final ScrollController scrollController;
   final void Function(String id) onOpenBill;
+  final void Function(String id) onScheduleBill;
 
   @override
   Widget build(BuildContext context) {
@@ -268,11 +278,41 @@ class _Results extends StatelessWidget {
                                         bill.readingStatus,
                                       ),
                                     ),
+                                  // Aprovado passou a ter dois significados
+                                  // (ADR-018): sem data espera alguém agendar,
+                                  // com data já tem ordem a caminho. Sem este
+                                  // selo a aba de Aprovados mistura os dois.
+                                  if (BillStatuses.isAwaitingSubmission(
+                                    bill.status,
+                                    bill.scheduledFor,
+                                  ))
+                                    const StatusBadge(
+                                      label: 'Na fila de envio',
+                                    ),
                                 ],
                               ),
                             ],
                           ),
                         ),
+                        // O agendamento direto no card: era isso ou abrir o
+                        // detalhe de cada boleto para mandar pagar.
+                        if (BillStatuses.acceptsScheduling(
+                          bill.status,
+                          bill.scheduledFor,
+                        ))
+                          BillPaymentPermissionGuard(
+                            resource: BillPaymentResources.bill,
+                            scope: BillPaymentScopes.schedule,
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                right: AppSpacing.sm,
+                              ),
+                              child: FilledButton.tonal(
+                                onPressed: () => onScheduleBill(bill.id),
+                                child: const Text('Agendar'),
+                              ),
+                            ),
+                          ),
                         const Icon(Icons.chevron_right),
                       ],
                     ),

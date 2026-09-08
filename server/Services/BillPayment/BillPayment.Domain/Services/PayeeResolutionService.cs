@@ -1,10 +1,9 @@
 namespace BillPayment.Domain.Services;
 
-using System.Globalization;
-using System.Text;
 using BillPayment.Domain.Lookups;
 using BillPayment.Domain.Payees;
 using BillPayment.Domain.SeedWork;
+using BillPayment.Domain.SharedKernel;
 
 /// <summary>
 /// Como o beneficiário que a consulta oficial devolveu se relaciona com o cadastro do tenant.
@@ -114,14 +113,14 @@ public static class PayeeResolutionService
     }
 
     /// <summary>
-    /// Compara dois nomes ignorando acento, pontuação e caixa. Mais tolerante que o
-    /// <c>MatchesName</c> do cadastro <strong>de propósito</strong>: aqui o objetivo é
-    /// <em>levantar</em> semelhança suspeita, não confirmar identidade.
+    /// Quão parecidos são dois nomes, sobre a mesma normalização que o cadastro usa
+    /// (<see cref="PartyName"/>). Aqui o objetivo é <em>levantar</em> semelhança suspeita — a
+    /// confirmação de identidade é do <c>MatchesName</c>, que exige igualdade.
     /// </summary>
     public static double Similarity(string? left, string? right)
     {
-        var a = NormalizeForComparison(left);
-        var b = NormalizeForComparison(right);
+        var a = PartyName.Normalize(left);
+        var b = PartyName.Normalize(right);
 
         if (a.Length == 0 || b.Length == 0)
             return 0d;
@@ -132,9 +131,24 @@ public static class PayeeResolutionService
         return 1d - ((double)distance / Math.Max(a.Length, b.Length));
     }
 
-    private static bool NameMatches(Payee payee, LookupParty beneficiary)
-        => (beneficiary.Name is not null && payee.MatchesName(beneficiary.Name))
-        || (beneficiary.TradingName is not null && payee.MatchesName(beneficiary.TradingName));
+    /// <summary>
+    /// O cadastro reconhece algum dos nomes que a consulta devolveu — razão social <em>ou</em>
+    /// nome fantasia?
+    /// </summary>
+    /// <remarks>
+    /// <strong>Público desde 2026-09-08</strong> para o check de beneficiário decidir a
+    /// divergência de nome pelo mesmo critério da resolução. Antes ele comparava só o
+    /// <c>DisplayName</c>, e quem cadastrava o beneficiário pelo nome fantasia via divergência
+    /// em todo boleto — mesmo com o <c>TradingName</c> da consulta batendo exatamente.
+    /// </remarks>
+    public static bool NameMatches(Payee payee, LookupParty beneficiary)
+    {
+        ArgumentNullException.ThrowIfNull(payee);
+        ArgumentNullException.ThrowIfNull(beneficiary);
+
+        return (beneficiary.Name is not null && payee.MatchesName(beneficiary.Name))
+            || (beneficiary.TradingName is not null && payee.MatchesName(beneficiary.TradingName));
+    }
 
     private static Payee? MostSimilar(LookupParty beneficiary, IReadOnlyCollection<Payee> candidates)
     {
@@ -145,7 +159,7 @@ public static class PayeeResolutionService
         {
             foreach (var name in new[] { beneficiary.Name, beneficiary.TradingName })
             {
-                if (NormalizeForComparison(name).Length < MIN_NAME_LENGTH_FOR_LOOKALIKE)
+                if (PartyName.Normalize(name).Length < MIN_NAME_LENGTH_FOR_LOOKALIKE)
                     continue;
 
                 var score = Math.Max(
@@ -161,25 +175,6 @@ public static class PayeeResolutionService
         }
 
         return best;
-    }
-
-    private static string NormalizeForComparison(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return string.Empty;
-
-        var decomposed = value.Normalize(NormalizationForm.FormD);
-        var builder = new StringBuilder(decomposed.Length);
-
-        foreach (var c in decomposed)
-        {
-            if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark)
-                continue;
-            if (char.IsLetterOrDigit(c))
-                builder.Append(char.ToUpperInvariant(c));
-        }
-
-        return builder.ToString();
     }
 
     // Levenshtein com duas linhas: o nome mais longo do cadastro tem centenas de caracteres e

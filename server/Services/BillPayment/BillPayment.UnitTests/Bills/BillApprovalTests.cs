@@ -1,4 +1,4 @@
-namespace BillPayment.UnitTests.Bills;
+﻿namespace BillPayment.UnitTests.Bills;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Bills.Checks;
@@ -18,6 +18,32 @@ public class BillApprovalTests
     private static readonly DateOnly Today = new(2026, 6, 20);
     private static readonly DateOnly ScheduleFor = new(2026, 6, 24);
 
+    /// <summary>
+    /// Aprovar e agendar num passo, como era antes do ADR-018.
+    /// </summary>
+    /// <remarks>
+    /// A separação dos dois atos não mudou NENHUMA regra — só o momento em que cada uma é
+    /// aplicada. Este helper mantém os testes existentes exercitando exatamente o que
+    /// exercitavam, e é por isso que a suíte inteira continua valendo como rede de regressão da
+    /// refatoração. Os testes do que é NOVO (aprovar sem data, agendar depois) chamam os métodos
+    /// separados, de propósito.
+    /// </remarks>
+    private static void ApproveAndSchedule(
+        Bill bill,
+        UserId approvedBy,
+        DateOnly scheduleFor,
+        string? note,
+        ApprovalPolicy policy,
+        RiskLevel clearance,
+        DateOnly today,
+        DateTime occurredAt,
+        bool acknowledgeRisk = false,
+        bool acknowledgeImmediateExecution = false)
+    {
+        bill.Approve(approvedBy, note, policy, clearance, occurredAt, acknowledgeRisk);
+        bill.Schedule(approvedBy, scheduleFor, policy, today, occurredAt, acknowledgeImmediateExecution);
+    }
+
     // Caminho feliz: o boleto verificado e limpo é aprovado, a decisão fica gravada com quem
     // decidiu, e o evento que a fase 3 consome é emitido.
     [Fact]
@@ -25,7 +51,7 @@ public class BillApprovalTests
     {
         var bill = ReadyForApproval();
 
-        bill.Approve(Approver, ScheduleFor, "confere com o contrato", Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt);
+        ApproveAndSchedule(bill, Approver, ScheduleFor, "confere com o contrato", Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt);
 
         Assert.Equal(BillStatus.Approved, bill.Status);
         Assert.Equal(ScheduleFor, bill.ScheduledFor);
@@ -33,9 +59,15 @@ public class BillApprovalTests
         Assert.Equal(ApprovalDecision.Approved, bill.Approval.Decision);
         Assert.Equal("confere com o contrato", bill.Approval.Note);
 
-        var approved = Assert.IsType<BillApprovedDomainEvent>(Assert.Single(bill.PullDomainEvents()));
+        // Dois eventos desde o ADR-018: um diz que alguém autorizou, o outro que alguém mandou
+        // executar. Só o segundo cria ordem de pagamento.
+        var events = bill.PullDomainEvents();
+        var approved = Assert.IsType<BillApprovedDomainEvent>(events[0]);
         Assert.Equal(Approver, approved.ApprovedBy);
-        Assert.Equal(ScheduleFor, approved.ScheduleFor);
+
+        var scheduled = Assert.IsType<BillSchedulingRequestedDomainEvent>(events[1]);
+        Assert.Equal(Approver, scheduled.RequestedBy);
+        Assert.Equal(ScheduleFor, scheduled.ScheduleFor);
     }
 
     // Invariante 3, pelo caminho que existe: boleto recém-capturado, sem verificação nenhuma,
@@ -48,7 +80,7 @@ public class BillApprovalTests
         var bill = BillMother.Capture();
 
         var ex = Assert.Throws<DomainException>(
-            () => bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
+            () => ApproveAndSchedule(bill, Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL25", ex.Id);
         Assert.Empty(bill.Checks);
@@ -65,7 +97,7 @@ public class BillApprovalTests
         bill.PullDomainEvents();
 
         var ex = Assert.Throws<DomainException>(
-            () => bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
+            () => ApproveAndSchedule(bill, Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL27", ex.Id);
         Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
@@ -85,7 +117,7 @@ public class BillApprovalTests
         bill.PullDomainEvents();
 
         var ex = Assert.Throws<DomainException>(
-            () => bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
+            () => ApproveAndSchedule(bill, Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL27", ex.Id);
         Assert.Contains(RiskLevel.ExtremeDanger.Name, ex.Message, StringComparison.Ordinal);
@@ -103,7 +135,7 @@ public class BillApprovalTests
         bill.PullDomainEvents();
 
         var ex = Assert.Throws<DomainException>(
-            () => bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.Attention, Today, DecidedAt));
+            () => ApproveAndSchedule(bill, Approver, ScheduleFor, null, Policy(), RiskLevel.Attention, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL32", ex.Id);
         Assert.Same(DomainErrorCategory.Forbidden, ex.Category);
@@ -122,7 +154,7 @@ public class BillApprovalTests
             DecidedAt);
         bill.PullDomainEvents();
 
-        var ex = Assert.Throws<DomainException>(() => bill.Approve(
+        var ex = Assert.Throws<DomainException>(() => ApproveAndSchedule(bill, 
             Approver, ScheduleFor, null, Policy(), RiskLevel.Danger, Today, DecidedAt, acknowledgeRisk: true));
 
         Assert.Equal("BLP.BIL32", ex.Id);
@@ -139,7 +171,7 @@ public class BillApprovalTests
             DecidedAt);
         bill.PullDomainEvents();
 
-        bill.Approve(
+        ApproveAndSchedule(bill, 
             Approver, ScheduleFor, "urgência real, risco assumido", Policy(),
             RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true);
 
@@ -154,7 +186,7 @@ public class BillApprovalTests
         var bill = ReadyForApproval();
 
         var ex = Assert.Throws<DomainException>(
-            () => bill.Approve(Approver, ScheduleFor, null, Policy(), null!, Today, DecidedAt));
+            () => ApproveAndSchedule(bill, Approver, ScheduleFor, null, Policy(), null!, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL33", ex.Id);
     }
@@ -168,24 +200,66 @@ public class BillApprovalTests
         bill.RecordChecks(AllPassing(CheckResult.Failed(CheckType.PayeeMatch, CheckReasons.PAYEE_LOOKALIKE)), DecidedAt);
         bill.PullDomainEvents();
 
-        bill.Approve(Approver, ScheduleFor, "risco assumido", Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true);
+        ApproveAndSchedule(bill, Approver, ScheduleFor, "risco assumido", Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true);
 
         Assert.Equal(BillStatus.Approved, bill.Status);
         Assert.Same(RiskLevel.Danger, bill.Approval!.RiskAtDecision);
     }
 
-    // Falha apenas advisory NÃO impede a aprovação — o aprovador assume o risco e a decisão
-    // fica gravada. É a diferença entre as duas severidades.
+    // Falha apenas advisory continua NÃO impedindo a aprovação, mas desde o ADR-020 ela
+    // classifica o boleto como Perigo — então o aceite explícito passou a ser exigido, e a
+    // decisão fica gravada contra esse nível. Antes de 2026-09-08 isto era Atenção e passava
+    // sem aceite; o teste foi reescrito com a régua nova.
     [Fact]
-    public void Approve_WithOnlyAnAdvisoryFailure_ShouldBeAllowed()
+    public void Approve_WithOnlyAnAdvisoryFailure_ShouldBeAllowedWithTheRiskAcknowledged()
     {
         var bill = ReadyForApproval();
         bill.RecordChecks(AllPassing(CheckResult.Failed(CheckType.AmountMatch, CheckReasons.AMOUNT_OUTSIDE_POLICY)), DecidedAt);
         bill.PullDomainEvents();
 
-        bill.Approve(Approver, ScheduleFor, "valor conferido com o fornecedor", Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt);
+        ApproveAndSchedule(
+            bill, Approver, ScheduleFor, "valor conferido com o fornecedor", Policy(),
+            RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true);
 
         Assert.Equal(BillStatus.Approved, bill.Status);
+        Assert.Same(RiskLevel.Danger, bill.Approval!.RiskAtDecision);
+    }
+
+    // A contraprova do teste acima: sem o aceite, a mesma falha advisory recusa com BLP.BIL27.
+    // É o que prova que a promoção de Atenção para Perigo de fato chegou até a guarda.
+    [Fact]
+    public void Approve_WithOnlyAnAdvisoryFailure_AndNoAcknowledgement_ShouldThrow_BLP_BIL27()
+    {
+        var bill = ReadyForApproval();
+        bill.RecordChecks(AllPassing(CheckResult.Failed(CheckType.AmountMatch, CheckReasons.AMOUNT_OUTSIDE_POLICY)), DecidedAt);
+        bill.PullDomainEvents();
+
+        var ex = Assert.Throws<DomainException>(() => ApproveAndSchedule(
+            bill, Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
+
+        Assert.Equal("BLP.BIL27", ex.Id);
+    }
+
+    // O teto do Notice: verificação de nome do beneficiário que não bate NÃO leva a Perigo, e
+    // por isso o boleto continua aprovável sem aceite nenhum. É o carve-out do ADR-020 — sem
+    // ele, divergência de grafia exigiria "assumo o risco" com o CNPJ conferindo.
+    [Fact]
+    public void Approve_WithOnlyANoticeOutcome_ShouldStillBeAllowedWithoutAcknowledgement()
+    {
+        var bill = ReadyForApproval();
+        bill.RecordChecks(
+            AllPassing(CheckResult.Warning(
+                CheckType.PayeeMatch,
+                CheckReasons.PAYEE_NAME_DIVERGENCE,
+                severity: CheckSeverity.Notice)),
+            DecidedAt);
+        bill.PullDomainEvents();
+
+        ApproveAndSchedule(
+            bill, Approver, ScheduleFor, null, Policy(), RiskLevel.Attention, Today, DecidedAt);
+
+        Assert.Equal(BillStatus.Approved, bill.Status);
+        Assert.Same(RiskLevel.Attention, bill.Approval!.RiskAtDecision);
     }
 
     // Invariante 6: aprovar contra retrato velho é consentir com um número que já não é o que
@@ -195,7 +269,7 @@ public class BillApprovalTests
     {
         var bill = ReadyForApproval();
 
-        var ex = Assert.Throws<DomainException>(() => bill.Approve(
+        var ex = Assert.Throws<DomainException>(() => ApproveAndSchedule(bill, 
             Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt.AddHours(30)));
 
         Assert.Equal("BLP.BIL06", ex.Id);
@@ -207,7 +281,7 @@ public class BillApprovalTests
     {
         var bill = ReadyForApproval();
 
-        var ex = Assert.Throws<DomainException>(() => bill.Approve(
+        var ex = Assert.Throws<DomainException>(() => ApproveAndSchedule(bill, 
             Approver, Today.AddDays(-1), null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL05", ex.Id);
@@ -220,7 +294,7 @@ public class BillApprovalTests
         var minimum = Today.AddDays(3);
         var bill = ReadyForApproval(ValidationMother.ConsistentWithBarcode(minimumScheduleDate: minimum));
 
-        var ex = Assert.Throws<DomainException>(() => bill.Approve(
+        var ex = Assert.Throws<DomainException>(() => ApproveAndSchedule(bill, 
             Approver, Today.AddDays(1), null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL31", ex.Id);
@@ -232,7 +306,7 @@ public class BillApprovalTests
     {
         var bill = ReadyForApproval();
 
-        var ex = Assert.Throws<DomainException>(() => bill.Approve(
+        var ex = Assert.Throws<DomainException>(() => ApproveAndSchedule(bill, 
             Approver, ScheduleFor, null, Policy(limit: 100m), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL24", ex.Id);
@@ -247,7 +321,7 @@ public class BillApprovalTests
         var bill = DangerWithoutLookup();
         var declared = bill.Instruments.Single().DeclaredAmount!.Amount;
 
-        var ex = Assert.Throws<DomainException>(() => bill.Approve(
+        var ex = Assert.Throws<DomainException>(() => ApproveAndSchedule(bill, 
             Approver, ScheduleFor, null, Policy(limit: declared - 1), RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true));
 
         Assert.Equal("BLP.BIL24", ex.Id);
@@ -260,7 +334,7 @@ public class BillApprovalTests
         var bill = DangerWithoutLookup();
         var declared = bill.Instruments.Single().DeclaredAmount!.Amount;
 
-        bill.Approve(Approver, ScheduleFor, null, Policy(limit: declared + 1), RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true);
+        ApproveAndSchedule(bill, Approver, ScheduleFor, null, Policy(limit: declared + 1), RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true);
 
         Assert.Equal(BillStatus.Approved, bill.Status);
     }
@@ -272,7 +346,7 @@ public class BillApprovalTests
     {
         var bill = DangerWithoutLookup(BillMother.Capture([StaticPixWithoutAmount()]));
 
-        var ex = Assert.Throws<DomainException>(() => bill.Approve(
+        var ex = Assert.Throws<DomainException>(() => ApproveAndSchedule(bill, 
             Approver, ScheduleFor, null, Policy(limit: 100m), RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true));
 
         Assert.Equal("BLP.BIL30", ex.Id);
@@ -285,7 +359,7 @@ public class BillApprovalTests
     {
         var bill = DangerWithoutLookup(BillMother.Capture([StaticPixWithoutAmount()]));
 
-        bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true);
+        ApproveAndSchedule(bill, Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true);
 
         Assert.Equal(BillStatus.Approved, bill.Status);
     }
@@ -296,7 +370,7 @@ public class BillApprovalTests
     {
         var bill = ReadyForApproval();
 
-        bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt);
+        ApproveAndSchedule(bill, Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt);
 
         Assert.Equal(BillStatus.Approved, bill.Status);
     }
@@ -307,7 +381,7 @@ public class BillApprovalTests
     {
         var bill = ReadyForApproval();
 
-        var ex = Assert.Throws<DomainException>(() => bill.Approve(
+        var ex = Assert.Throws<DomainException>(() => ApproveAndSchedule(bill, 
             UserId.Empty, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL22", ex.Id);
@@ -373,7 +447,7 @@ public class BillApprovalTests
         bill.Deny(Approver, "não reconheço este boleto", DecidedAt);
 
         var ex = Assert.Throws<DomainException>(
-            () => bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
+            () => ApproveAndSchedule(bill, Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL25", ex.Id);
     }
@@ -388,7 +462,7 @@ public class BillApprovalTests
         bill.PullDomainEvents();
 
         var ex = Assert.Throws<DomainException>(
-            () => bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
+            () => ApproveAndSchedule(bill, Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL27", ex.Id);
     }

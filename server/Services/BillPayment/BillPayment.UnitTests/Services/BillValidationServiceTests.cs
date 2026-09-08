@@ -254,6 +254,31 @@ public class BillValidationServiceTests
         Assert.Equal(CheckOutcome.Warning, result.Outcome);
         Assert.Equal(CheckReasons.PAYEE_NAME_DIVERGENCE, result.ReasonCode);
         Assert.False(result.IsBlockingFailure);
+
+        // O que o ADR-020 acrescentou: com o CNPJ conferindo, a divergência de nome tem teto de
+        // Atenção. Sem o Notice ela subiria para Perigo junto com o resto e exigiria "assumo o
+        // risco" num boleto cujo documento fiscal bateu exatamente.
+        Assert.Same(CheckSeverity.Notice, result.Severity);
+        Assert.Same(RiskLevel.Attention, result.RiskContribution);
+    }
+
+    // O cadastro pelo NOME FANTASIA não pode virar divergência: até 2026-09-08 o check comparava
+    // só a razão social da consulta, e quem cadastrava assim via divergência em todo boleto.
+    [Fact]
+    public void Evaluate_PayeeMatch_WhenTheRegisteredNameIsTheTradingName_ShouldPassClean()
+    {
+        var bill = ValidationMother.BankSlipWithLookup(
+            ValidationMother.ConsistentWithBarcode(beneficiary: LookupParty.From(
+                "PADARIA SAO JOSE COMERCIO DE ALIMENTOS LTDA",
+                "PADARIA SÃO JOSÉ",
+                LookupMother.BENEFICIARY_CNPJ)));
+
+        var payee = ValidationMother.RegisteredPayee(legalName: "PADARIA SAO JOSE");
+
+        var result = Check(
+            ValidationMother.Context(bill, payee: payee), CheckType.PayeeMatch);
+
+        Assert.Equal(CheckOutcome.Passed, result.Outcome);
     }
 
     // Casar só por nome NÃO é Verde (decisão do usuário, 2026-08-31): sem documento fiscal não
@@ -272,6 +297,26 @@ public class BillValidationServiceTests
         Assert.Equal(CheckOutcome.Inconclusive, result.Outcome);
         Assert.Equal(CheckReasons.MATCHED_BY_NAME_ONLY, result.ReasonCode);
         Assert.True(result.Outcome.RequiresAttention);
+
+        // E continua sendo Atenção depois do ADR-020: 100% da arrecadação chega por aqui, e
+        // promovê-la a Perigo faria a conta de luz exigir aceite todo mês — pelo nome ter
+        // batido, que é o desfecho BOM deste ramo.
+        Assert.Same(CheckSeverity.Notice, result.Severity);
+        Assert.Same(RiskLevel.Attention, result.RiskContribution);
+    }
+
+    // Contraprova do teto: o beneficiário NÃO cadastrado continua sendo Perigo. O carve-out do
+    // Notice alcança só os dois desfechos de nome — conferência incompleta de identidade segue
+    // no endurecimento do ADR-020.
+    [Fact]
+    public void Evaluate_PayeeMatch_WhenThePayeeIsNotRegistered_ShouldStillBeDanger()
+    {
+        var result = Check(
+            ValidationMother.Context(ValidationMother.BankSlipWithLookup()),
+            CheckType.PayeeMatch);
+
+        Assert.Equal(CheckReasons.PAYEE_NOT_REGISTERED, result.ReasonCode);
+        Assert.Same(RiskLevel.Danger, result.RiskContribution);
     }
 
     // Arrecadação não tem campo de banco em posição nenhuma — ausência estrutural, não omissão.

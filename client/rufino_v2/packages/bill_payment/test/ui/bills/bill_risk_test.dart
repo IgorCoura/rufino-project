@@ -56,7 +56,7 @@ void main() {
   }
 
   FilledButton approveButton(WidgetTester tester) => tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Aprovar…'),
+        find.widgetWithText(FilledButton, 'Aprovar e agendar…'),
       );
 
   group('banner de risco', () {
@@ -140,7 +140,7 @@ void main() {
         billScopes: const ['view', 'approve', 'approve-extreme'],
       );
 
-      await tester.tap(find.text('Aprovar…'));
+      await tester.tap(find.text('Aprovar e agendar…'));
       await tester.pumpAndSettle();
 
       expect(
@@ -148,7 +148,7 @@ void main() {
         findsOneWidget,
       );
       final authorize = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Autorizar'),
+        find.widgetWithText(FilledButton, 'Autorizar e agendar'),
       );
       expect(authorize.onPressed, isNull);
     });

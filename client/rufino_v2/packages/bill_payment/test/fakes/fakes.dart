@@ -909,11 +909,15 @@ BillDetail billDetail({
   List<BillCheck> checks = const [],
   bool hasArtifact = false,
   String readingStatus = ReadingStatuses.notApplicable,
+  DateTime? scheduledFor,
+  List<BillHistoryEntry> history = const [],
 }) {
   return BillDetail(
     id: id,
     status: status,
     riskLevel: riskLevel,
+    scheduledFor: scheduledFor,
+    history: history,
     dueDate: dueDate,
     kind: BillKinds.bankSlip,
     rail: PaymentRails.boleto,
@@ -948,6 +952,12 @@ class FakeBillRepository implements BillRepository {
 
   /// The acknowledgement flag the last approval carried (phase 3).
   bool? lastApproveImmediateAck;
+
+  /// The date the last approve/schedule call carried; null means "approve only".
+  DateTime? lastApproveScheduleFor;
+
+  /// Errors the next [scheduleBill] calls should return, in order.
+  final List<Object> scriptedScheduleRefusals = [];
 
   /// The preview served by [previewSchedule]; null echoes the asked date.
   SchedulePreview? schedulePreview;
@@ -1044,17 +1054,44 @@ class FakeBillRepository implements BillRepository {
   @override
   Future<Result<void>> approveBill(
     String id, {
-    required DateTime scheduleFor,
+    DateTime? scheduleFor,
     String? note,
     bool acknowledgeRisk = false,
     bool acknowledgeImmediateExecution = false,
   }) async {
     if (_shouldFail) return _fail();
-    calls.add('approveBill:$id');
+
+    // A chamada registra SE veio data: é o que distingue "aprovar" de
+    // "aprovar e agendar" para quem assere sobre os calls.
+    calls.add(scheduleFor == null ? 'approveBill:$id' : 'approveAndSchedule:$id');
+    lastApproveScheduleFor = scheduleFor;
     lastApproveImmediateAck = acknowledgeImmediateExecution;
     if (scriptedApproveRefusals.isNotEmpty) {
       return Result.error(scriptedApproveRefusals.removeAt(0));
     }
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<void>> scheduleBill(
+    String id, {
+    required DateTime scheduleFor,
+    bool acknowledgeImmediateExecution = false,
+  }) async {
+    if (_shouldFail) return _fail();
+    calls.add('scheduleBill:$id');
+    lastApproveScheduleFor = scheduleFor;
+    lastApproveImmediateAck = acknowledgeImmediateExecution;
+    if (scriptedScheduleRefusals.isNotEmpty) {
+      return Result.error(scriptedScheduleRefusals.removeAt(0));
+    }
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<void>> undoBillDecision(String id, String reason) async {
+    if (_shouldFail) return _fail();
+    calls.add('undoBillDecision:$id:$reason');
     return const Result.success(null);
   }
 

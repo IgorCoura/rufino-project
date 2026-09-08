@@ -1,9 +1,10 @@
-using BillPayment.API.Authentication;
+﻿using BillPayment.API.Authentication;
 using BillPayment.API.Authorization;
 using BillPayment.API.BackgroundServices;
 using BillPayment.API.Extension;
 using BillPayment.API.Filters;
 using BillPayment.Application;
+using BillPayment.Application.PayerProfiles.Commands;
 using BillPayment.Infra;
 using BillPayment.Infra.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -89,9 +90,12 @@ builder.Services.Configure<PaymentReconciliationOptions>(
 if (builder.Configuration.GetValue<bool?>($"{PaymentReconciliationOptions.SectionName}:Enabled") ?? true)
     builder.Services.AddHostedService<PaymentReconciliationBackgroundService>();
 
-// O token do webhook do provedor — sem ele o endpoint responde 404, de propósito.
-builder.Services.Configure<BillPayment.API.Controllers.PaymentWebhookOptions>(
-    builder.Configuration.GetSection(BillPayment.API.Controllers.PaymentWebhookOptions.SectionName));
+// O token do webhook NÃO é mais configuração da instalação (ADR-019, 2026-09-08): cada tenant
+// tem o seu, gerado no provisionamento e guardado cifrado no cofre. Um segredo compartilhado
+// entre contas deixaria qualquer tenant forjar evento de qualquer outro. O que resta aqui é
+// endereço — para onde o provedor entrega —, que é público por natureza.
+builder.Services.Configure<PaymentWebhookOptions>(
+    builder.Configuration.GetSection(PaymentWebhookOptions.SectionName));
 
 var app = builder.Build();
 

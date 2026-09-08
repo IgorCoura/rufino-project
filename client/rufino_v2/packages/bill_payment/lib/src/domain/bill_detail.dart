@@ -202,6 +202,49 @@ class BillApproval {
   final String? note;
 }
 
+/// One line of the bill's trail: what was done, when, and by whom.
+///
+/// [actorUserId] is null when the action did not come from a person — the
+/// outbox, a webhook, the reconciler. That is information, not absence: it
+/// says nobody decided it.
+class BillHistoryEntry {
+  /// Creates the entry.
+  const BillHistoryEntry({
+    required this.action,
+    required this.origin,
+    required this.occurredAt,
+    required this.actorName,
+    required this.toStatus,
+    this.actorUserId,
+    this.fromStatus,
+    this.note,
+  });
+
+  /// Wire value of `BillAction` — `Approved`, `Scheduled`, `Reverted`, ...
+  final String action;
+
+  /// Wire value of `BillActionOrigin` — where the action came from.
+  final String origin;
+
+  /// When it happened.
+  final DateTime occurredAt;
+
+  /// The `sub` of whoever acted, or null for the system.
+  final String? actorUserId;
+
+  /// The name frozen at the moment of the action; "Sistema" when automatic.
+  final String actorName;
+
+  /// Where the bill came from. Null on the very first entry.
+  final String? fromStatus;
+
+  /// Where it went.
+  final String toStatus;
+
+  /// The reason, or the detail that makes the line legible months later.
+  final String? note;
+}
+
 /// A bill as the approval screen consumes it: the document, the beneficiary
 /// the lookup returned, and the twelve checks with evidence.
 class BillDetail {
@@ -223,6 +266,7 @@ class BillDetail {
     this.lastConsultedAt,
     this.approval,
     this.scheduledFor,
+    this.history = const [],
     this.reading,
     this.readingStatus = ReadingStatuses.notApplicable,
     this.riskLevel,
@@ -303,8 +347,11 @@ class BillDetail {
   /// The human decision, once one exists.
   final BillApproval? approval;
 
-  /// The scheduled payment date, once approved.
+  /// The scheduled payment date. Null while approved and not yet scheduled.
   final DateTime? scheduledFor;
+
+  /// The full trail, oldest first.
+  final List<BillHistoryEntry> history;
 
   /// Where the bill came from.
   final BillOrigin origin;
@@ -326,6 +373,17 @@ class BillDetail {
 
   /// Whether the reopen action applies — only a failed payment reopens.
   bool get acceptsReopen => BillStatuses.acceptsReopen(status);
+
+  /// Whether the bill can be scheduled right now (ADR-018).
+  bool get acceptsScheduling =>
+      BillStatuses.acceptsScheduling(status, scheduledFor);
+
+  /// Whether the bill is approved with an order already on its way.
+  bool get isAwaitingSubmission =>
+      BillStatuses.isAwaitingSubmission(status, scheduledFor);
+
+  /// Whether a denial or cancellation can be undone.
+  bool get acceptsUndo => BillStatuses.acceptsUndo(status);
 
   /// Whether the bill is already overdue at [now].
   ///

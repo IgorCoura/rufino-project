@@ -1,4 +1,4 @@
-namespace BillPayment.Domain.PayerProfiles;
+﻿namespace BillPayment.Domain.PayerProfiles;
 
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -147,6 +147,30 @@ public static class PayerProfileErrors
             id: $"{AGGREGATE_PREFIX}13",
             messageTemplate: "Não foi possível provar a chave junto ao provedor ({0}). Tente novamente em instantes.",
             parameters: new object[] { reasonCode },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    /// <summary>O provedor aceitou criar o webhook mas não devolveu id — sem ele não há como atualizar nem remover.</summary>
+    public static DomainException AsaasWebhookIdRequired(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}14",
+            messageTemplate: "O provedor não devolveu o identificador do webhook.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    /// <summary>Webhook sem token é endpoint anônimo para mexer em ordem de pagamento.</summary>
+    public static DomainException AsaasWebhookTokenRequired(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}15",
+            messageTemplate: "O webhook do provedor precisa de um token de autenticação.",
+            parameters: Array.Empty<object>(),
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
 

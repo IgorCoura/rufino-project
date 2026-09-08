@@ -138,9 +138,66 @@ public sealed class PayerProfile : AggregateRoot<PayerProfileId>
     }
 
     /// <summary>Vincula a subconta do provedor, concluindo o onboarding de pagamento.</summary>
+    /// <summary>
+    /// O <c>authToken</c> que o provedor devolve em cada webhook desta conta, guardado cifrado.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Não é a chave de API</strong>, e a diferença é de direção: a chave autentica NÓS
+    /// no provedor; este token autentica O PROVEDOR em nós. Usar a chave para os dois papéis
+    /// faria a credencial que paga contas trafegar em todo header de entrada.
+    /// <c>GET /v3/webhooks/{id}</c> devolve apenas <c>hasAuthToken: true</c> (medido em
+    /// 2026-09-08), então o valor não é recuperável do provedor — guardar aqui é a única chance.
+    /// </remarks>
+    public CredentialRef? AsaasWebhookRef { get; private set; }
+
+    /// <summary>O id do webhook no provedor, para atualizar, remover e conferir saúde.</summary>
+    public string? AsaasWebhookId { get; private set; }
+
+    /// <summary>
+    /// Quando chegou o último evento desta conta. Silêncio prolongado com ordens vivas significa
+    /// webhook morto (fila interrompida, URL quebrada) — é o gatilho para voltar ao polling
+    /// agressivo em vez de descobrir pelo boleto que não andou.
+    /// </summary>
+    public DateTime? LastWebhookEventAt { get; private set; }
+
+    public void LinkAsaasWebhook(CredentialRef webhookRef, string providerWebhookId, DateTime occurredAt)
+    {
+        if (string.IsNullOrWhiteSpace(providerWebhookId))
+            throw PayerProfileErrors.AsaasWebhookIdRequired();
+
+        AsaasWebhookRef = webhookRef ?? throw PayerProfileErrors.AsaasWebhookTokenRequired();
+        AsaasWebhookId = providerWebhookId.Trim();
+        UpdatedAt = occurredAt;
+    }
+
+    public void UnlinkAsaasWebhook(DateTime occurredAt)
+    {
+        AsaasWebhookRef = null;
+        AsaasWebhookId = null;
+        LastWebhookEventAt = null;
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>Marca que o provedor deu sinal de vida. Monotônica: evento atrasado não regride.</summary>
+    public void RecordWebhookActivity(DateTime occurredAt)
+    {
+        if (LastWebhookEventAt is { } last && last >= occurredAt)
+            return;
+
+        LastWebhookEventAt = occurredAt;
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>O webhook desta conta já foi provisionado no provedor?</summary>
+    public bool HasWebhook => AsaasWebhookRef is not null && AsaasWebhookId is not null;
+
     public void LinkAsaasAccount(CredentialRef accountRef, DateTime occurredAt)
     {
         AsaasAccountRef = accountRef ?? throw PayerProfileErrors.AsaasKeyRequired();
+
+        // O webhook daquela conta é provisionado por este evento, fora desta transação. Chave
+        // nova é conta possivelmente nova, então vale também na troca.
+        AddDomainEvent(new AsaasAccountLinkedDomainEvent(Id, TenantId, occurredAt));
         UpdatedAt = occurredAt;
     }
 

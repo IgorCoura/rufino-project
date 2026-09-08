@@ -320,6 +320,27 @@ else
   todo "compor bill-approver-danger ⊃ attention, e extreme ⊃ danger"
 fi
 
+# ─────────── ADR-018: 'cancel' saiu da permissão de decisão para a de agendamento.
+# Sem este passo, TODO bill-approver existente perde o poder de cancelar no instante em que a
+# configuração de autorização nova é importada — o papel novo não se concede sozinho. Conceder
+# bill-scheduler a quem já é bill-approver preserva exatamente o que essas pessoas já podiam
+# fazer; separar de verdade quem agenda de quem aprova é decisão de quem administra o realm,
+# depois, com a alçada já existindo.
+if [[ $APPLY -eq 1 ]]; then
+  approver_id="$(get "/clients/$BP_ID/roles/bill-approver" | python -c 'import json,sys;print(json.load(sys.stdin).get("id",""))')"
+  if [[ -n "$approver_id" ]]; then
+    holders="$(get "/clients/$BP_ID/roles/bill-approver/users" | python -c 'import json,sys;print(" ".join(u["id"] for u in json.load(sys.stdin)))')"
+    scheduler_repr="$(get "/clients/$BP_ID/roles/bill-scheduler")"
+    for uid in $holders; do
+      ja="$(get "/users/$uid/role-mappings/clients/$BP_ID" | python -c 'import json,sys;print(",".join(r["name"] for r in json.load(sys.stdin)))')"
+      if grep -q "bill-scheduler" <<<"$ja"; then skip "usuario $uid ja tem bill-scheduler"; continue; fi
+      do_or_report "conceder bill-scheduler a $uid (tinha bill-approver)"         POST "/users/$uid/role-mappings/clients/$BP_ID" "[$scheduler_repr]"
+    done
+  fi
+else
+  todo "conceder bill-scheduler a quem ja tem bill-approver (senao eles PERDEM o cancelar)"
+fi
+
 # ─────────────────────────────────────────── 4. configuração de autorização
 step "4. Configuração de autorização (recursos, escopos, policies, permissões)"
 echo "   O import MESCLA, não substitui — medido contra o Keycloak 26.3. O que existe no"

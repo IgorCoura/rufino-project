@@ -1,4 +1,4 @@
-namespace BillPayment.IntegrationTests.Contracts;
+﻿namespace BillPayment.IntegrationTests.Contracts;
 
 // DTOs DUPLICADOS de propósito — ver a nota em PayeeContracts.
 
@@ -35,13 +35,21 @@ internal sealed record BillPageContract(IReadOnlyList<BillContract> Items, strin
 
 // AcknowledgeImmediateExecution: o boleto sintetico da suite ja esta VENCIDO em relogio real,
 // e o ADR-017 exige o aceite de pagamento imediato para aprovar vencido (BLP.BIL35).
+// ScheduleFor e NULAVEL desde o ADR-018: sem ela o endpoint so aprova; com ela, aprova e agenda
+// na mesma transacao (e exige tambem a alcada bill:schedule).
 internal sealed record ApproveBillRequest(
-    DateOnly ScheduleFor,
+    DateOnly? ScheduleFor,
     string? Note,
     bool AcknowledgeRisk = false,
     bool AcknowledgeImmediateExecution = false);
 
-internal sealed record ApproveBillResponseContract(Guid Id, string Status, DateOnly ScheduledFor);
+internal sealed record ScheduleBillRequest(
+    DateOnly ScheduleFor,
+    bool AcknowledgeImmediateExecution = false);
+
+internal sealed record ApproveBillResponseContract(Guid Id, string Status, DateOnly? ScheduledFor);
+
+internal sealed record ScheduleBillResponseContract(Guid Id, string Status, DateOnly ScheduledFor);
 
 internal sealed record BillDecisionRequest(string Reason);
 
@@ -82,4 +90,15 @@ internal sealed record BillDetailContract(
     BillApprovalContract? Approval,
     DateTime? ScheduledFor,
     BillOriginContract Origin,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    IReadOnlyList<BillHistoryEntryContract> History);
+
+internal sealed record BillHistoryEntryContract(
+    string Action,
+    string Origin,
+    DateTime OccurredAt,
+    Guid? ActorUserId,
+    string ActorName,
+    string? FromStatus,
+    string ToStatus,
+    string? Note);

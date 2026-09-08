@@ -29,4 +29,16 @@ public sealed record ProviderPaymentSnapshot(
     string? ReceiptUrl,
     // No fim e opcional de propósito: a adoção por referência precisa do valor que o provedor
     // registrou (a ordem local pode não ter nenhum), e o parâmetro tardio não quebra chamador.
-    Money? Amount = null);
+    Money? Amount = null,
+
+    // MEDIDO EM SANDBOX (2026-09-08): pagar um QR Pix cria DUAS coisas no provedor — a transação
+    // Pix (cujo id é o nosso ProviderOrderId) e um `transfer` que a espelha, ligado por este
+    // campo. O webhook de Pix é da família TRANSFER_*, e o id que chega nele é o do transfer —
+    // sem guardá-lo, um evento de Pix é irresolvível. Nulo no trilho boleto, que não tem transfer.
+    string? TransferId = null,
+
+    // MEDIDO EM SANDBOX (2026-09-08): o provedor exige autorização de ação crítica (o código no
+    // celular) e expõe o veredito neste booleano. Sem ele, "travado esperando uma pessoa liberar"
+    // fica indistinguível de "aceito, vai processar na data" — a tela mentia. Nulo = o provedor
+    // não se pronunciou.
+    bool? Authorized = null);

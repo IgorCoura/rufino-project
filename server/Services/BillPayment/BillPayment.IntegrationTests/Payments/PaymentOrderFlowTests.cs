@@ -81,13 +81,13 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
         var billId = await ImportAndValidateAsync(OverdueSnapshot());
 
         var refused = await PostBillAsync(
-            $"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null));
+            $"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null, AcknowledgeRisk: true));
         Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
         Assert.Contains("BLP.BIL35", await refused.Content.ReadAsStringAsync(CancellationToken.None), StringComparison.Ordinal);
 
         var accepted = await PostBillAsync(
             $"{billId}/approve",
-            new ApproveBillRequest(ScheduleDate(), null, AcknowledgeImmediateExecution: true));
+            new ApproveBillRequest(ScheduleDate(), null, AcknowledgeRisk: true, AcknowledgeImmediateExecution: true));
         Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
 
         // O consentimento dado na aprovação viaja até a ordem — a fila não pergunta de novo.
@@ -387,7 +387,7 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
         var billId = await ImportAndValidateAsync(OverdueSnapshot());
         var approve = await PostBillAsync(
             $"{billId}/approve",
-            new ApproveBillRequest(ScheduleDate(), null, AcknowledgeImmediateExecution: true));
+            new ApproveBillRequest(ScheduleDate(), null, AcknowledgeRisk: true, AcknowledgeImmediateExecution: true));
         approve.EnsureSuccessStatusCode();
 
         // Simula a entrega atrasada do outbox: o flag que viaja é o que valia na APROVAÇÃO —

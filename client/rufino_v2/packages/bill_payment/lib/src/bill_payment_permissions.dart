@@ -74,7 +74,23 @@ abstract final class BillPaymentScopes {
   static const String deny = 'deny';
 
   /// Remove a bill from the flow.
+  ///
+  /// Since ADR-018 this lives in the SCHEDULING permission, not the decision
+  /// one: taking a bill out of the flow and stopping a payment are the same
+  /// kind of power, and neither follows from being able to approve.
   static const String cancel = 'cancel';
+
+  /// Send an approved bill to the payment queue — the act that moves money.
+  ///
+  /// Separate from [approve] on purpose (ADR-018): approving authorizes,
+  /// scheduling executes, and not every approver should be able to execute.
+  static const String schedule = 'schedule';
+
+  /// Undo a denial or a cancellation.
+  ///
+  /// Its own clearance because undoing what someone else decided is a bigger
+  /// power than deciding.
+  static const String undoDecision = 'undo-decision';
 
   /// Send a quarantined item back through the extraction cascade. Has its
   /// own scope because it spends the vision extractor's daily quota.
@@ -113,6 +129,10 @@ class BillPaymentPermissionNotifier extends PermissionNotifier {
   /// Whether the person can decide the destiny of a bill.
   bool get canDecide =>
       hasPermission(BillPaymentResources.bill, BillPaymentScopes.approve);
+
+  /// Whether the person can send a bill to the payment queue, or stop one.
+  bool get canSchedule =>
+      hasPermission(BillPaymentResources.bill, BillPaymentScopes.schedule);
 
   /// The highest risk tier this person's clearance covers (see
   /// [RiskLevels.tier]). Hierarchical, mirroring the server's rule.

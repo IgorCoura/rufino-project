@@ -1,6 +1,7 @@
 ﻿namespace BillPayment.UnitTests.Services.Mothers;
 
 using BillPayment.Domain.Bills;
+using BillPayment.Domain.Expectations;
 using BillPayment.Domain.Lookups;
 using BillPayment.Domain.Payees;
 using BillPayment.Domain.PayerProfiles;
@@ -138,9 +139,10 @@ internal static class ValidationMother
     public static LookupSnapshot ConsistentWithBarcode(
         DateOnly? dueDate = null,
         DateOnly? minimumScheduleDate = null,
-        bool isOverdue = false)
+        bool isOverdue = false,
+        LookupParty? beneficiary = null)
         => LookupSnapshot.Create(
-            LookupParty.From(LookupMother.BENEFICIARY_NAME, null, LookupMother.BENEFICIARY_CNPJ),
+            beneficiary ?? LookupParty.From(LookupMother.BENEFICIARY_NAME, null, LookupMother.BENEFICIARY_CNPJ),
             ConsultedAt,
             bankCode: new BankCode(BarcodeBankCode),
             amount: BarcodeAmount,
@@ -160,7 +162,8 @@ internal static class ValidationMother
         BillId? duplicateOf = null,
         DateOnly? today = null,
         TimeOnly? timeOfDay = null,
-        IBankDirectory? bankDirectory = null)
+        IBankDirectory? bankDirectory = null,
+        IReadOnlyCollection<BillExpectation>? expectations = null)
         => new()
         {
             Bill = bill,
@@ -168,6 +171,7 @@ internal static class ValidationMother
             Origin = origin,
             PayerProfile = payerProfile,
             BankDirectory = bankDirectory ?? new FakeBankDirectory(),
+            Expectations = expectations ?? [],
             Duplicate = duplicate ?? DuplicateFinding.None,
             DuplicateOf = duplicateOf,
             Today = today ?? Today,

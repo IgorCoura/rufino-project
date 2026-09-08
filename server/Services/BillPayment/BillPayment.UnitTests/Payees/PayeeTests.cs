@@ -485,4 +485,43 @@ public class PayeeTests
         Assert.IsNotAssignableFrom<List<string>>(payee.Aliases);
         Assert.IsNotAssignableFrom<List<BankCode>>(payee.AcceptedBanks);
     }
+
+    // TESTE-ÂNCORA da normalização de nome. Era a causa raiz do alarme falso crônico: até
+    // 2026-09-08 a comparação era Trim() e nada mais, e um ponto ou um acento a mais na razão
+    // social que a consulta oficial devolve bastava para o cotejo falhar.
+    [Theory]
+    [InlineData("EDP SÃO PAULO DISTRIBUIÇÃO DE ENERGIA S.A.", "EDP SAO PAULO DISTRIBUICAO DE ENERGIA S/A")]
+    [InlineData("SABESP - CIA. DE SANEAMENTO", "SABESP CIA DE SANEAMENTO")]
+    [InlineData("Despacon  Contabilidade", "DESPACON CONTABILIDADE")]
+    public void MatchesName_WithTheSameNameSpelledDifferently_ShouldMatch(
+        string registered, string consulted)
+    {
+        var payee = PayeeMother.Register(legalName: registered);
+
+        Assert.True(payee.MatchesName(consulted));
+    }
+
+    // CONTRAPROVA da anterior, e é ela que sustenta a defesa contra sósia: a tolerância é de
+    // GRAFIA, não de semelhança. Nomes de fato diferentes continuam não casando.
+    [Theory]
+    [InlineData("EDP SAO PAULO DISTRIBUICAO DE ENERGIA")]
+    [InlineData("EDP SAO PAULO DISTRIBUIDORA DE ENERGIA S/A")]
+    [InlineData("")]
+    public void MatchesName_WithADifferentName_ShouldNotMatch(string consulted)
+    {
+        var payee = PayeeMother.Register(legalName: "EDP SÃO PAULO DISTRIBUIÇÃO DE ENERGIA S.A.");
+
+        Assert.False(payee.MatchesName(consulted));
+    }
+
+    // O apelido aprendido passa pela mesma normalização — senão a tolerância valeria só para a
+    // razão social e o cadastro divergiria de si mesmo.
+    [Fact]
+    public void MatchesName_WithAnAliasSpelledDifferently_ShouldMatch()
+    {
+        var payee = PayeeMother.Register();
+        payee.LearnAlias("SEÇONCI - SÃO PAULO", Later);
+
+        Assert.True(payee.MatchesName("SECONCI SAO PAULO"));
+    }
 }

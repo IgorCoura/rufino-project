@@ -141,6 +141,34 @@ public class BaseController(ILogger<BaseController> logger) : ControllerBase
     protected Guid ResolveDecidingUserId()
         => TryGetUserId(out var fromToken) ? fromToken : Guid.Empty;
 
+    /// <summary>
+    /// O nome de quem está decidindo, para a trilha do boleto. Sai do token, como o
+    /// <see cref="ResolveDecidingUserId"/> — e de nenhum outro lugar.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Não vem do corpo da requisição</strong>, pelo mesmo motivo do <c>sub</c>: quem
+    /// alcança a API não assina a história com o nome de outra pessoa. A trilha guarda o nome
+    /// <em>como ele era na hora</em> (o BC não tem cadastro de pessoas, e resolver depois exigiria
+    /// consultar outro contexto para renderizar histórico).
+    /// </para>
+    /// <para>
+    /// A ordem de preferência segue o que o Keycloak costuma emitir. Devolve <c>null</c> quando
+    /// nenhum claim de nome existe — e aí o domínio grava o id, que ao menos é rastreável.
+    /// </para>
+    /// </remarks>
+    protected string? ResolveDecidingUserName()
+    {
+        foreach (var claim in new[] { "name", "preferred_username", "given_name", "email" })
+        {
+            var value = User.FindFirst(claim)?.Value;
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+        }
+
+        return null;
+    }
+
     // Idempotência permissiva: header x-requestid ausente (Guid.Empty) gera um novo Id por request,
     // de modo que cada chamada sem header é tratada como intenção distinta (nunca colide na tabela).
     protected static Guid EnsureRequestId(Guid requestId)

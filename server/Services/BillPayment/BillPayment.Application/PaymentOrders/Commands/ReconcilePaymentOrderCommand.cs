@@ -1,4 +1,4 @@
-namespace BillPayment.Application.PaymentOrders.Commands;
+﻿namespace BillPayment.Application.PaymentOrders.Commands;
 
 using BillPayment.Application.Mediator;
 using BillPayment.Domain.Instruments;
@@ -64,6 +64,13 @@ public sealed class ReconcilePaymentOrderCommandHandler(
         }
 
         var snapshot = fetch.Snapshot!;
+
+        // Antes de traduzir: o que o provedor disse sobre si. Uma ordem que continua Pending
+        // porque está esperando autorização de ação crítica não muda de status, e sem isto a
+        // conciliação passaria por ela sem deixar rastro do motivo.
+        order.RecordProviderDiagnostics(
+            snapshot.RawStatus, snapshot.Authorized, snapshot.TransferId, nowUtc.UtcDateTime);
+
         var applied = order.ApplyProviderStatus(
             snapshot.Status, snapshot.PaidAt, snapshot.Fee, snapshot.FailReasons, nowUtc, nowUtc.UtcDateTime);
 

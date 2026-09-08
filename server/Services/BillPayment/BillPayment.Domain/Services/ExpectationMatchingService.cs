@@ -1,5 +1,6 @@
 namespace BillPayment.Domain.Services;
 
+using BillPayment.Domain.Bills;
 using BillPayment.Domain.Expectations;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
@@ -77,10 +78,15 @@ public static class ExpectationMatchingService
     /// ciclo segue aberto: é melhor alertar por uma conta que chegou do que dar por cumprida a
     /// que não chegou.
     /// </param>
+    /// <param name="alreadyFulfilledBy">
+    /// O boleto que está perguntando, quando ele pode já ter cumprido o ciclo numa passagem
+    /// anterior. Com ele, um ciclo <c>Fulfilled</c> por ESTE boleto volta a casar.
+    /// </param>
     public static ExpectationMatch? Match(
         IReadOnlyCollection<BillExpectation> candidates,
         DateOnly? billDueDate,
-        DateOnly today)
+        DateOnly today,
+        BillId? alreadyFulfilledBy = null)
     {
         ArgumentNullException.ThrowIfNull(candidates);
 
@@ -91,13 +97,14 @@ public static class ExpectationMatchingService
         var competence = new CompetencePeriod(dueDate.Year, dueDate.Month);
 
         // 1º) a competência do vencimento. Exato, e imune à variação de dias dentro do mês.
-        var byCompetence = Single(watching, c => c.Competence.Equals(competence));
+        var byCompetence = Single(watching, alreadyFulfilledBy, c => c.Competence.Equals(competence));
         if (byCompetence is not null)
             return byCompetence;
 
         // 2º) a virada do mês, e só ela.
         return Single(
             watching,
+            alreadyFulfilledBy,
             c => Math.Abs(c.ExpectedDueDate.DayNumber - dueDate.DayNumber) <= DUE_DATE_TOLERANCE_DAYS);
     }
 
@@ -137,17 +144,31 @@ public static class ExpectationMatchingService
     /// Exatamente um, ou nada. O <c>Take(2)</c> basta porque a partir do segundo o desfecho já é
     /// "ambíguo" — ver a nota sobre ambiguidade no resumo do serviço.
     /// </summary>
+    /// <remarks>
+    /// <strong>O ciclo cumprido por quem pergunta continua casando</strong>, e essa exceção é o
+    /// que torna a verificação 14 estável na revalidação: o cumprimento fecha o ciclo, e um
+    /// segundo passe do <c>BillValidationService</c> — que é rotina, porque a leitura por IA
+    /// chega depois e revalida — encontraria "nenhuma expectativa" sobre o boleto que acabou de
+    /// cumprir a dele, rebaixando o risco de Seguro para Atenção sozinho.
+    /// </remarks>
     private static ExpectationMatch? Single(
         IReadOnlyCollection<BillExpectation> candidates,
+        BillId? alreadyFulfilledBy,
         Func<ExpectationCycle, bool> predicate)
     {
         var matches = candidates
             .SelectMany(
-                e => e.Cycles.Where(c => c.Status.IsOpen && predicate(c)),
+                e => e.Cycles.Where(c => IsReachable(c, alreadyFulfilledBy) && predicate(c)),
                 (e, c) => ExpectationMatch.Of(e.Id, c.Id))
             .Take(2)
             .ToList();
 
         return matches.Count == 1 ? matches[0] : null;
     }
+
+    private static bool IsReachable(ExpectationCycle cycle, BillId? alreadyFulfilledBy)
+        => cycle.Status.IsOpen
+        || (alreadyFulfilledBy is { } billId
+            && cycle.Status == CycleStatus.Fulfilled
+            && cycle.FulfilledByBillId == billId);
 }

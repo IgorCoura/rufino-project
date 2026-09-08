@@ -33,6 +33,9 @@ public sealed class BillsController(
     // (a porta de entrada do endpoint) aprova Verde; cada escopo destes cobre os níveis abaixo.
     private static readonly string[] RiskClearanceScopes = ["approve-extreme", "approve-danger", "approve-attention"];
 
+    /// <summary>A alçada de mandar pagar — conferida à parte no "aprovar e agendar" (ADR-018).</summary>
+    private static readonly string[] SchedulingScopes = ["schedule"];
+
     [HttpGet]
     [ProtectedResource("bill", "view")]
     public async Task<ActionResult<BillPage>> List(
@@ -263,7 +266,14 @@ public sealed class BillsController(
         return OkResponse(result);
     }
 
-    /// <summary>Autoriza o pagamento. Nenhum boleto é pago sem passar por aqui (ADR-007).</summary>
+    /// <summary>
+    /// Autoriza o pagamento. Nenhum boleto é pago sem passar por aqui (ADR-007).
+    /// </summary>
+    /// <remarks>
+    /// Com <c>scheduleFor</c> no corpo, aprova E agenda numa transação só — e aí exige as DUAS
+    /// alçadas: <c>bill:approve</c> pela porta de entrada e <c>bill:schedule</c> conferida
+    /// abaixo. Aprovar não dá o poder de mandar pagar (ADR-018).
+    /// </remarks>
     [HttpPost("{id:guid}/approve")]
     [ProtectedResource("bill", "approve")]
     public async Task<ActionResult<ApproveBillResponse>> Approve(
@@ -273,8 +283,14 @@ public sealed class BillsController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        // "Aprovar e agendar" é a soma de dois poderes, e a porta de entrada só conferiu um.
+        // Sem esta guarda, quem tem apenas bill:approve mandaria pagar pelo corpo da requisição.
+        if (model.ScheduleFor is not null && !await HasSchedulingClearanceAsync(cancellationToken))
+            return Forbid();
+
         var command = model.ToCommand(
-            tenantId, id, ResolveDecidingUserId(), await ResolveRiskClearanceAsync(cancellationToken));
+            tenantId, id, ResolveDecidingUserId(), await ResolveRiskClearanceAsync(cancellationToken),
+            ResolveDecidingUserName());
         var identified = new IdentifiedCommand<ApproveBillCommand, ApproveBillResponse>(
             command, EnsureRequestId(requestId));
 
@@ -295,7 +311,7 @@ public sealed class BillsController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
-        var command = model.ToDenyCommand(tenantId, id, ResolveDecidingUserId());
+        var command = model.ToDenyCommand(tenantId, id, ResolveDecidingUserId(), ResolveDecidingUserName());
         var identified = new IdentifiedCommand<DenyBillCommand, DenyBillResponse>(
             command, EnsureRequestId(requestId));
 
@@ -316,8 +332,66 @@ public sealed class BillsController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
-        var command = model.ToCancelCommand(tenantId, id, ResolveDecidingUserId());
+        var command = model.ToCancelCommand(tenantId, id, ResolveDecidingUserId(), ResolveDecidingUserName());
         var identified = new IdentifiedCommand<CancelBillCommand, CancelBillResponse>(
+            command, EnsureRequestId(requestId));
+
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
+    }
+
+    /// <summary>
+    /// Escolhe a data e manda o boleto aprovado para a fila de pagamento (ADR-018).
+    /// </summary>
+    /// <remarks>
+    /// <strong>É o ato que move dinheiro</strong>, e por isso tem alçada própria
+    /// (<c>bill:schedule</c>), separada da de aprovar. Serve também ao reagendamento: boleto que
+    /// teve o agendamento cancelado volta a <c>Approved</c> sem data e entra por aqui de novo,
+    /// sem precisar de nova aprovação.
+    /// </remarks>
+    [HttpPost("{id:guid}/schedule")]
+    [ProtectedResource("bill", "schedule")]
+    public async Task<ActionResult<ScheduleBillResponse>> Schedule(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromBody] ScheduleBillModel model,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var command = model.ToCommand(tenantId, id, ResolveDecidingUserId(), ResolveDecidingUserName());
+        var identified = new IdentifiedCommand<ScheduleBillCommand, ScheduleBillResponse>(
+            command, EnsureRequestId(requestId));
+
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
+    }
+
+    /// <summary>
+    /// Desfaz uma recusa ou um cancelamento: o boleto volta à fila de decisão e é revalidado
+    /// automaticamente (ADR-018).
+    /// </summary>
+    /// <remarks>
+    /// Alçada PRÓPRIA (<c>bill:undo-decision</c>), deliberadamente fora da permissão de decisão:
+    /// desfazer o que outra pessoa decidiu é um poder maior que decidir, e o ponto de separá-lo
+    /// é que nem todo aprovador possa ressuscitar o que outro enterrou.
+    /// </remarks>
+    [HttpPost("{id:guid}/undo-decision")]
+    [ProtectedResource("bill", "undo-decision")]
+    public async Task<ActionResult<UndoBillDecisionResponse>> UndoDecision(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromBody] BillDecisionModel model,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var command = model.ToUndoCommand(tenantId, id, ResolveDecidingUserId(), ResolveDecidingUserName());
+        var identified = new IdentifiedCommand<UndoBillDecisionCommand, UndoBillDecisionResponse>(
             command, EnsureRequestId(requestId));
 
         SendingCommandLog(id, command, identified.Id);
@@ -362,6 +436,23 @@ public sealed class BillsController(
     /// lista. Retrato indisponível devolve alçada Verde — negar por indisponibilidade é o lado
     /// seguro, e a policy do endpoint já teria respondido 503 antes de chegar aqui.
     /// </remarks>
+    /// <summary>
+    /// Se quem chamou pode mandar pagar. Existe para o "aprovar e agendar" conferir a segunda
+    /// alçada, que o <c>[ProtectedResource]</c> do endpoint (fixo em <c>approve</c>) não alcança.
+    /// </summary>
+    /// <remarks>
+    /// Lê o MESMO retrato de permissões que a policy do endpoint já buscou e cacheou — não custa
+    /// ida extra ao Keycloak. Retrato indisponível nega: com dinheiro em jogo, a indisponibilidade
+    /// não vira permissão.
+    /// </remarks>
+    private async Task<bool> HasSchedulingClearanceAsync(CancellationToken cancellationToken)
+    {
+        var rpt = await rptCache.GetAsync(cancellationToken);
+
+        return rpt.Outcome == RptFetchOutcome.Resolved
+            && rpt.Snapshot.GrantedScopes("bill", SchedulingScopes).Contains("schedule");
+    }
+
     private async Task<string> ResolveRiskClearanceAsync(CancellationToken cancellationToken)
     {
         var rpt = await rptCache.GetAsync(cancellationToken);

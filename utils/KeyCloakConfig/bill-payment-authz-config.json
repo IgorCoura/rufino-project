@@ -33,6 +33,12 @@
         },
         {
           "name": "approve-extreme"
+        },
+        {
+          "name": "schedule"
+        },
+        {
+          "name": "undo-decision"
         }
       ]
     },
@@ -267,13 +273,13 @@
     },
     {
       "name": "Bill Decision Permission",
-      "description": "Aprovar, recusar e cancelar boleto. Separada da operacao de proposito: quem importa nao decide.",
+      "description": "Aprovar e recusar boleto. Separada da operacao de proposito: quem importa nao decide. Agendar e cancelar sairam daqui em 2026-09-08 (ADR-018) para a Bill Scheduling Permission: aprovar autoriza, agendar manda pagar, e nem todo aprovador deve poder mandar pagar.",
       "type": "scope",
       "logic": "POSITIVE",
       "decisionStrategy": "UNANIMOUS",
       "config": {
         "resources": "[\"bill\"]",
-        "scopes": "[\"approve\",\"deny\",\"cancel\"]",
+        "scopes": "[\"approve\", \"deny\"]",
         "applyPolicies": "[\"Bill Approver Policy\"]"
       }
     },
@@ -402,6 +408,48 @@
         "scopes": "[\"approve-extreme\"]",
         "applyPolicies": "[\"Bill Approve Extreme Policy\"]"
       }
+    },
+    {
+      "name": "Bill Scheduling Policy",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\": \"bill-payment-api/bill-admin\", \"required\": false}, {\"id\": \"bill-payment-api/bill-scheduler\", \"required\": false}]"
+      }
+    },
+    {
+      "name": "Bill Scheduling Permission",
+      "description": "Agendar o pagamento e cancelar (agendamento ou boleto). E o ato que MOVE DINHEIRO: aprovar autoriza, agendar executa. Quem nao tiver nao agenda nem cancela.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"bill\"]",
+        "scopes": "[\"schedule\", \"cancel\"]",
+        "applyPolicies": "[\"Bill Scheduling Policy\"]"
+      }
+    },
+    {
+      "name": "Bill Undo Decision Policy",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\": \"bill-payment-api/bill-admin\", \"required\": false}, {\"id\": \"bill-payment-api/bill-approver-undo\", \"required\": false}]"
+      }
+    },
+    {
+      "name": "Bill Undo Decision Permission",
+      "description": "Desfazer recusa ou cancelamento. FORA da permissao de decisao de proposito: desfazer o que outra pessoa decidiu e um poder maior que decidir, e nem todo aprovador deve poder ressuscitar o que outro enterrou.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"bill\"]",
+        "scopes": "[\"undo-decision\"]",
+        "applyPolicies": "[\"Bill Undo Decision Policy\"]"
+      }
     }
   ],
   "scopes": [
@@ -449,6 +497,12 @@
     },
     {
       "name": "approve-extreme"
+    },
+    {
+      "name": "schedule"
+    },
+    {
+      "name": "undo-decision"
     }
   ],
   "decisionStrategy": "UNANIMOUS"

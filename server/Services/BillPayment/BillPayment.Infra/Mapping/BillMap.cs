@@ -1,4 +1,4 @@
-namespace BillPayment.Infra.Mapping;
+﻿namespace BillPayment.Infra.Mapping;
 
 using System.Globalization;
 using System.Text.Json;
@@ -210,6 +210,60 @@ internal sealed class BillMap : IEntityTypeConfiguration<Bill>
             // Uma verificação por tipo, por boleto — é o que RecordChecks garante no domínio e
             // o que a chave torna impossível de furar por outro caminho.
             check.HasKey("bill_id", nameof(BillCheck.Type));
+        });
+
+        // A trilha do boleto. Owned como os checks, mas com uma diferença que importa: aqui NÃO
+        // existe chave natural — a mesma pessoa pode repetir a mesma ação (revalidar duas vezes,
+        // agendar, cancelar, agendar de novo), e o histórico existe justamente para guardar as
+        // repetições. Por isso a chave é sintética (shadow), e não (bill_id, action).
+        builder.OwnsMany(e => e.History, history =>
+        {
+            history.ToTable("bill_history_entries");
+            history.WithOwner().HasForeignKey("bill_id");
+
+            history.Property<long>("id").ValueGeneratedOnAdd();
+            history.HasKey("id");
+
+            history.Property(h => h.Action)
+                .HasColumnName("action")
+                .HasConversion(a => a.Id, id => Enumeration.FromValue<BillAction>(id))
+                .IsRequired();
+
+            history.Property(h => h.Origin)
+                .HasColumnName("origin")
+                .HasConversion(o => o.Id, id => Enumeration.FromValue<BillActionOrigin>(id))
+                .IsRequired();
+
+            history.Property(h => h.OccurredAt).HasColumnName("occurred_at").IsRequired();
+
+            history.Property(h => h.ActorUserId)
+                .HasColumnName("actor_user_id")
+                .HasConversion(id => id!.Value.Value, value => UserId.From(value));
+
+            history.Property(h => h.ActorName)
+                .HasColumnName("actor_name")
+                .HasMaxLength(BillHistoryEntry.ACTOR_NAME_MAX_LENGTH)
+                .IsRequired();
+
+            history.Property(h => h.FromStatus)
+                .HasColumnName("from_status")
+                .HasConversion(s => s!.Id, id => Enumeration.FromValue<BillStatus>(id));
+
+            history.Property(h => h.ToStatus)
+                .HasColumnName("to_status")
+                .HasConversion(s => s.Id, id => Enumeration.FromValue<BillStatus>(id))
+                .IsRequired();
+
+            history.Property(h => h.Note)
+                .HasColumnName("note")
+                .HasMaxLength(BillHistoryEntry.NOTE_MAX_LENGTH);
+
+            // A tela lê a trilha inteira de um boleto em ordem cronológica; sem o índice isso é
+            // varredura da tabela que mais cresce neste BC.
+            // Os nomes aqui são de PROPRIEDADE, não de coluna — "occurred_at" faria o EF tentar
+            // criar uma shadow property sem tipo e derrubar a criação do modelo.
+            history.HasIndex("bill_id", nameof(BillHistoryEntry.OccurredAt))
+                .HasDatabaseName("ix_bill_history_bill_occurred");
         });
 
         builder.Property(e => e.ScheduledFor).HasColumnName("scheduled_for");

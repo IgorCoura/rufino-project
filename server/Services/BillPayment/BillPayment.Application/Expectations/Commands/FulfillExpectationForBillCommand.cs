@@ -71,14 +71,16 @@ public sealed class FulfillExpectationForBillCommandHandler(
         var arrivedOn = DateOnly.FromDateTime(bill.Origin.ReceivedAt);
         var arrivedThrough = SourceOf(bill);
 
-        var match = ExpectationMatchingService.Match(candidates, dueDate, today);
+        // O ciclo que ESTE boleto já cumpriu volta a casar, e é o que torna a reentrega do
+        // outbox inofensiva sem um curto-circuito por competência à parte: a mesma regra serve
+        // aqui e na verificação 14, que é o ponto de os dois chamarem o mesmo serviço.
+        var match = ExpectationMatchingService.Match(
+            candidates, dueDate, today, alreadyFulfilledBy: bill.Id);
 
         if (match is not null)
         {
             var matched = candidates.First(e => e.Id == match.ExpectationId);
 
-            // Reentrega do outbox: um ciclo já cumprido recusa novo cumprimento pela própria
-            // máquina de estados, então basta não insistir.
             if (matched.CycleFor(competence)?.Status == CycleStatus.Fulfilled)
                 return new FulfillExpectationForBillResponse(request.BillId, match.ExpectationId.Value, match.CycleId.Value);
 

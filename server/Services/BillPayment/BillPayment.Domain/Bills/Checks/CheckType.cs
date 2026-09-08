@@ -3,7 +3,7 @@ namespace BillPayment.Domain.Bills.Checks;
 using BillPayment.Domain.SeedWork;
 
 /// <summary>
-/// As doze verificações do catálogo (<c>03-bill-validation.md</c>). Uma por documento, sempre —
+/// As catorze verificações do catálogo (<c>03-bill-validation.md</c>). Uma por documento, sempre —
 /// a que não se aplica é registrada como <c>Skipped</c>, nunca omitida.
 /// </summary>
 /// <remarks>
@@ -48,8 +48,13 @@ public sealed class CheckType : Enumeration
     /// <summary>Veio de origem confiável? Origem confiável nunca compensa beneficiário errado.</summary>
     public static readonly CheckType OriginTrust = new(9, nameof(OriginTrust), CheckSeverity.Advisory);
 
-    /// <summary>Dá tempo de pagar?</summary>
-    public static readonly CheckType DueDateSanity = new(10, nameof(DueDateSanity), CheckSeverity.Advisory);
+    /// <summary>
+    /// Dá tempo de pagar? <strong>Teto de Atenção</strong> (<see cref="CheckSeverity.Notice"/>):
+    /// boleto vencido, fora do corte do provedor ou sem data agendável é problema de calendário,
+    /// não sinal de fraude — e mandá-lo para Perigo faria a conta atrasada exigir o "assumo o
+    /// risco" (decisão do usuário, 2026-09-08).
+    /// </summary>
+    public static readonly CheckType DueDateSanity = new(10, nameof(DueDateSanity), CheckSeverity.Notice);
 
     /// <summary>Por qual degrau da escada este boleto foi atribuído a este tenant?</summary>
     public static readonly CheckType TenantRouting = new(11, nameof(TenantRouting), CheckSeverity.Advisory);
@@ -64,6 +69,25 @@ public sealed class CheckType : Enumeration
     /// documento legítimo (Fase E, 2026-08-27).
     /// </summary>
     public static readonly CheckType DocumentConsistency = new(13, nameof(DocumentConsistency), CheckSeverity.Advisory);
+
+    /// <summary>
+    /// Esta conta era esperada? Cruza o boleto com os ciclos de <c>BillExpectation</c> do
+    /// beneficiário (ADR-020, 2026-09-08).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Teto de Atenção</strong> (<see cref="CheckSeverity.Notice"/>) por natureza: não
+    /// haver expectativa não desmente nada — a maior parte dos boletos legítimos nunca teve uma.
+    /// O que o check acrescenta é o inverso do alerta do ADR-014: lá o sistema avisa que a conta
+    /// esperada não chegou; aqui ele avisa que chegou uma conta que ninguém esperava.
+    /// </para>
+    /// <para>
+    /// Quem apura é o <c>ExpectationMatchingService</c> — o <strong>mesmo</strong> serviço que o
+    /// cumprimento usa, nunca uma cópia da regra: se os dois divergissem, a tela diria "conta
+    /// esperada" sobre um ciclo que segue alertando sozinho.
+    /// </para>
+    /// </remarks>
+    public static readonly CheckType ExpectationMatch = new(14, nameof(ExpectationMatch), CheckSeverity.Notice);
 
     /// <summary>Peso usual da falha deste check. O resultado pode carregar outro.</summary>
     public CheckSeverity DefaultSeverity { get; }

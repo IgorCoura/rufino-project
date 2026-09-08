@@ -193,6 +193,10 @@ class _Body extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               _PaymentSection(viewModel: viewModel, onOpenReceipt: onOpenReceipt),
             ],
+            if (bill.history.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.md),
+              _HistorySection(entries: bill.history),
+            ],
             const SizedBox(height: AppSpacing.md),
             _Actions(viewModel: viewModel),
           ],
@@ -951,8 +955,11 @@ class _PaymentSection extends StatelessWidget {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Cancelar o agendamento?'),
         content: const Text(
-          'O pagamento não será feito. Depois que o provedor começa a '
-          'processar, cancelar pode não ser mais possível.',
+          'O pagamento não será feito e o boleto volta para "Aprovados", '
+          'pronto para ser agendado em outra data. A aprovação continua '
+          'valendo — o boleto NÃO é cancelado. '
+          'Depois que o provedor começa a processar, cancelar pode não ser '
+          'mais possível.',
         ),
         actions: [
           TextButton(
@@ -971,6 +978,186 @@ class _PaymentSection extends StatelessWidget {
   }
 }
 
+/// Pede o motivo de uma decisão e o devolve pelo `pop`.
+///
+/// É um widget com estado próprio — e não um controller criado pelo chamador —
+/// porque o diálogo continua vivo durante a animação de saída: descartar o
+/// [TextEditingController] logo após o `await showDialog` estoura o último
+/// frame do campo, ainda mais quando a ação recarrega a tela por baixo.
+class _ReasonDialog extends StatefulWidget {
+  const _ReasonDialog({required this.title, this.helperText});
+
+  final String title;
+  final String? helperText;
+
+  @override
+  State<_ReasonDialog> createState() => _ReasonDialogState();
+}
+
+class _ReasonDialogState extends State<_ReasonDialog> {
+  final _controller = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.helperText != null) ...[
+              Text(
+                widget.helperText!,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            TextFormField(
+              controller: _controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Motivo (obrigatório)',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) => (value == null || value.trim().isEmpty)
+                  ? 'Informe o motivo.'
+                  : null,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Voltar'),
+        ),
+        FilledButton.tonal(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              Navigator.of(context).pop(_controller.text.trim());
+            }
+          },
+          child: const Text('Confirmar'),
+        ),
+      ],
+    );
+  }
+}
+
+/// A trilha do boleto, recolhida por padrão.
+///
+/// Recolhida porque o caso comum é decidir, não auditar — e porque a lista
+/// cresce com o boleto. Ordem inversa à do servidor: quem abre quer saber o
+/// que aconteceu por último.
+class _HistorySection extends StatelessWidget {
+  const _HistorySection({required this.entries});
+
+  final List<BillHistoryEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final newestFirst = entries.reversed.toList();
+
+    return Card.outlined(
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        key: const ValueKey('bill-history'),
+        leading: const Icon(Symbols.history),
+        title: const Text('Histórico'),
+        subtitle: Text('${entries.length} registro(s)'),
+        childrenPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          0,
+          AppSpacing.md,
+          AppSpacing.md,
+        ),
+        children: [
+          for (final entry in newestFirst)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    _iconFor(entry.action),
+                    size: 20,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // O selo "no provedor" é o que impede a linha de sugerir
+                        // que o ato partiu daqui: um cancelamento feito no
+                        // painel do provedor e um pedido por alguém no app
+                        // liam-se igual antes dele existir.
+                        Wrap(
+                          spacing: AppSpacing.xs,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              '${BillActions.label(entry.action)} por '
+                              '${entry.actorName}',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            if (BillActionOrigins.speaks(entry.origin))
+                              StatusBadge(
+                                label: BillActionOrigins.label(entry.origin)!,
+                                tone: BadgeTone.attention,
+                              ),
+                          ],
+                        ),
+                        Text(
+                          formatDateTime(entry.occurredAt),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        if (entry.note != null && entry.note!.isNotEmpty)
+                          Text(
+                            entry.note!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static IconData _iconFor(String action) => switch (action) {
+        BillActions.approved => Symbols.check_circle,
+        BillActions.scheduled => Symbols.event,
+        BillActions.unscheduled => Symbols.event_busy,
+        BillActions.denied => Symbols.block,
+        BillActions.cancelled => Symbols.cancel,
+        BillActions.reverted => Symbols.undo,
+        BillActions.paid => Symbols.paid,
+        BillActions.paymentFailed => Symbols.error,
+        BillActions.handedToProvider => Symbols.send,
+        BillActions.validated => Symbols.fact_check,
+        BillActions.reopened => Symbols.refresh,
+        _ => Symbols.radio_button_unchecked,
+      };
+}
+
 class _Actions extends StatelessWidget {
   const _Actions({required this.viewModel});
 
@@ -979,7 +1166,10 @@ class _Actions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bill = viewModel.bill!;
-    if (bill.isTerminal) return const SizedBox.shrink();
+
+    // Terminal deixou de esconder a barra inteira (ADR-018): negado e cancelado
+    // aceitam reversão, e o botão dela precisa de algum lugar para existir.
+    if (bill.isTerminal && !bill.acceptsUndo) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1000,6 +1190,26 @@ class _Actions extends StatelessWidget {
           runSpacing: AppSpacing.sm,
           alignment: WrapAlignment.center,
           children: [
+            // Desfazer o que outra pessoa decidiu é poder maior que decidir —
+            // alçada própria, deliberadamente fora da de decisão.
+            if (bill.acceptsUndo)
+              BillPaymentPermissionGuard(
+                resource: BillPaymentResources.bill,
+                scope: BillPaymentScopes.undoDecision,
+                child: FilledButton.tonal(
+                  onPressed: viewModel.isMutating
+                      ? null
+                      : () => _askReason(
+                            context,
+                            title: 'Reverter a decisão',
+                            helperText:
+                                'O boleto volta para "Aguardando aprovação" e as '
+                                'verificações rodam de novo automaticamente.',
+                            action: viewModel.undoDecision,
+                          ),
+                  child: const Text('Reverter'),
+                ),
+              ),
             if (bill.acceptsValidation)
               BillPaymentPermissionGuard(
                 resource: BillPaymentResources.bill,
@@ -1025,6 +1235,9 @@ class _Actions extends StatelessWidget {
                   child: const Text('Negar'),
                 ),
               ),
+            // Cancelar mudou de alçada no ADR-018: tirar o boleto do fluxo e
+            // parar um pagamento são o mesmo tipo de poder, e nenhum dos dois
+            // decorre de poder aprovar.
             if (bill.acceptsCancellation)
               BillPaymentPermissionGuard(
                 resource: BillPaymentResources.bill,
@@ -1069,16 +1282,45 @@ class _Actions extends StatelessWidget {
                         ? ''
                         : 'Boleto em ${RiskLevels.label(viewModel.bill?.riskLevel)} '
                             '— acima da sua alçada de aprovação.',
-                    child: FilledButton(
-                      onPressed: viewModel.isMutating ||
-                              !viewModel.canApprove ||
-                              !hasClearance
-                          ? null
-                          : () => _approveSheet(context),
-                      child: const Text('Aprovar…'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Aprovar SEM data: autoriza e para. O boleto fica na
+                        // aba de aprovados esperando alguém mandar pagar.
+                        OutlinedButton(
+                          onPressed: viewModel.isMutating ||
+                                  !viewModel.canApprove ||
+                                  !hasClearance
+                              ? null
+                              : () => _approveOnly(context),
+                          child: const Text('Aprovar'),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        FilledButton(
+                          onPressed: viewModel.isMutating ||
+                                  !viewModel.canApprove ||
+                                  !hasClearance
+                              ? null
+                              : () => _approveSheet(context),
+                          child: const Text('Aprovar e agendar…'),
+                        ),
+                      ],
                     ),
                   );
                 }),
+              ),
+            // Aprovado e sem data: o que falta é mandar pagar, e quem manda
+            // precisa da alçada de agendamento.
+            if (bill.acceptsScheduling)
+              BillPaymentPermissionGuard(
+                resource: BillPaymentResources.bill,
+                scope: BillPaymentScopes.schedule,
+                child: FilledButton(
+                  onPressed: viewModel.isMutating
+                      ? null
+                      : () => _approveSheet(context, scheduleOnly: true),
+                  child: const Text('Agendar…'),
+                ),
               ),
           ],
         ),
@@ -1117,27 +1359,36 @@ class _Actions extends StatelessWidget {
     BuildContext context, {
     required String title,
     required Future<bool> Function(String reason) action,
+    String? helperText,
   }) async {
-    final controller = TextEditingController();
-    final formKey = GlobalKey<FormState>();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => _ReasonDialog(
+        title: title,
+        helperText: helperText,
+      ),
+    );
+
+    if (reason != null) await action(reason);
+  }
+
+  /// Aprova SEM data — o boleto fica na aba de aprovados esperando agendamento.
+  ///
+  /// Perigo/Extremo continuam exigindo o aceite de risco, então esse caminho
+  /// também passa pela folha; sem risco a aprovar, é um clique só.
+  Future<void> _approveOnly(BuildContext context) async {
+    if (viewModel.bill?.requiresRiskAcknowledgement ?? false) {
+      await _approveSheet(context, approveOnly: true);
+      return;
+    }
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'Motivo (obrigatório)',
-              border: OutlineInputBorder(),
-            ),
-            validator: (value) => (value == null || value.trim().isEmpty)
-                ? 'Informe o motivo.'
-                : null,
-          ),
+        title: const Text('Aprovar o boleto?'),
+        content: const Text(
+          'A autorização fica registrada e o boleto vai para "Aprovados". '
+          'Nada é pago até alguém agendar.',
         ),
         actions: [
           TextButton(
@@ -1145,22 +1396,21 @@ class _Actions extends StatelessWidget {
             child: const Text('Voltar'),
           ),
           FilledButton.tonal(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.of(dialogContext).pop(true);
-              }
-            },
-            child: const Text('Confirmar'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Aprovar'),
           ),
         ],
       ),
     );
 
-    if (confirmed == true) await action(controller.text.trim());
-    controller.dispose();
+    if (confirmed == true) await viewModel.approve();
   }
 
-  Future<void> _approveSheet(BuildContext context) {
+  Future<void> _approveSheet(
+    BuildContext context, {
+    bool scheduleOnly = false,
+    bool approveOnly = false,
+  }) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1172,7 +1422,11 @@ class _Actions extends StatelessWidget {
           bottom:
               MediaQuery.of(sheetContext).viewInsets.bottom + AppSpacing.md,
         ),
-        child: _ApproveSheet(viewModel: viewModel),
+        child: _ApproveSheet(
+          viewModel: viewModel,
+          scheduleOnly: scheduleOnly,
+          approveOnly: approveOnly,
+        ),
       ),
     );
   }
@@ -1186,9 +1440,19 @@ class _Actions extends StatelessWidget {
 /// terminar; descartá-lo no `await` do `showModalBottomSheet` quebra o
 /// último frame do `TextField`.
 class _ApproveSheet extends StatefulWidget {
-  const _ApproveSheet({required this.viewModel});
+  const _ApproveSheet({
+    required this.viewModel,
+    this.scheduleOnly = false,
+    this.approveOnly = false,
+  });
 
   final BillDetailViewModel viewModel;
+
+  /// O boleto já está aprovado e o que falta é a data (ADR-018).
+  final bool scheduleOnly;
+
+  /// Aprovar sem agendar — a folha existe só para colher o aceite de risco.
+  final bool approveOnly;
 
   @override
   State<_ApproveSheet> createState() => _ApproveSheetState();
@@ -1248,12 +1512,20 @@ class _ApproveSheetState extends State<_ApproveSheet> {
   Future<void> _authorize() async {
     setState(() => _submitting = true);
     final note = _noteController.text.trim();
-    final approved = await widget.viewModel.approve(
-      scheduleFor: _scheduleFor,
-      note: note.isEmpty ? null : note,
-      acknowledgeRisk: _riskAcknowledged,
-      acknowledgeImmediateExecution: _immediateAcknowledged,
-    );
+
+    // Três caminhos, uma folha: agendar um já aprovado, aprovar sem data, ou
+    // as duas coisas numa transação só.
+    final approved = widget.scheduleOnly
+        ? await widget.viewModel.schedule(
+            scheduleFor: _scheduleFor,
+            acknowledgeImmediateExecution: _immediateAcknowledged,
+          )
+        : await widget.viewModel.approve(
+            scheduleFor: widget.approveOnly ? null : _scheduleFor,
+            note: note.isEmpty ? null : note,
+            acknowledgeRisk: _riskAcknowledged,
+            acknowledgeImmediateExecution: _immediateAcknowledged,
+          );
     if (!mounted) return;
     if (!approved && widget.viewModel.lastErrorCode == 'BLP.BIL35') {
       // O cinto extra do descompasso de relógio: a recusa vira a caixa de
@@ -1291,16 +1563,23 @@ class _ApproveSheetState extends State<_ApproveSheet> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Autorizar pagamento',
+          switch ((widget.scheduleOnly, widget.approveOnly)) {
+            (true, _) => 'Agendar pagamento',
+            (_, true) => 'Aprovar boleto',
+            _ => 'Autorizar e agendar pagamento',
+          },
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: AppSpacing.md),
-        OutlinedButton.icon(
-          icon: const Icon(Symbols.event),
-          label: Text('Pagar em ${formatDate(_scheduleFor)}'),
-          onPressed: _pickDate,
-        ),
-        if (preview != null) ...[
+        // Aprovar sem agendar não escolhe data, e mostrar o seletor sugeriria
+        // que a escolha ali importa.
+        if (!widget.approveOnly)
+          OutlinedButton.icon(
+            icon: const Icon(Symbols.event),
+            label: Text('Pagar em ${formatDate(_scheduleFor)}'),
+            onPressed: _pickDate,
+          ),
+        if (preview != null && !widget.approveOnly) ...[
           const SizedBox(height: AppSpacing.sm),
           Text(
             preview.immediate
@@ -1314,17 +1593,18 @@ class _ApproveSheetState extends State<_ApproveSheet> {
           ),
         ],
         const SizedBox(height: AppSpacing.md),
-        TextField(
-          controller: _noteController,
-          decoration: const InputDecoration(
-            labelText: 'Observação (opcional)',
-            border: OutlineInputBorder(),
+        if (!widget.scheduleOnly)
+          TextField(
+            controller: _noteController,
+            decoration: const InputDecoration(
+              labelText: 'Observação (opcional)',
+              border: OutlineInputBorder(),
+            ),
           ),
-        ),
         // ADR-015: boleto em Perigo ou Extremo Perigo só autoriza com o
         // aceite marcado — e o servidor recusa sem ele, então o botão nem
         // habilita.
-        if (needsAcknowledgement) ...[
+        if (needsAcknowledgement && !widget.scheduleOnly) ...[
           const SizedBox(height: AppSpacing.md),
           CheckboxListTile(
             value: _riskAcknowledged,
@@ -1349,7 +1629,7 @@ class _ApproveSheetState extends State<_ApproveSheet> {
                 ),
           ),
         ],
-        if (needsImmediateAck) ...[
+        if (needsImmediateAck && !widget.approveOnly) ...[
           const SizedBox(height: AppSpacing.md),
           CheckboxListTile(
             value: _immediateAcknowledged,
@@ -1368,10 +1648,18 @@ class _ApproveSheetState extends State<_ApproveSheet> {
         FilledButton(
           onPressed: _submitting ||
                   (needsAcknowledgement && !_riskAcknowledged) ||
-                  (needsImmediateAck && !_immediateAcknowledged)
+                  (needsImmediateAck &&
+                      !_immediateAcknowledged &&
+                      !widget.approveOnly)
               ? null
               : _authorize,
-          child: const Text('Autorizar'),
+          child: Text(
+            switch ((widget.scheduleOnly, widget.approveOnly)) {
+              (true, _) => 'Agendar',
+              (_, true) => 'Aprovar',
+              _ => 'Autorizar e agendar',
+            },
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
       ],

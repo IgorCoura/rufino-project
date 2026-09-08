@@ -1,4 +1,4 @@
-namespace BillPayment.Domain.Bills;
+﻿namespace BillPayment.Domain.Bills;
 
 using BillPayment.Domain.Bills.Checks;
 using BillPayment.Domain.Instruments;
@@ -33,6 +33,7 @@ public sealed class Bill : AggregateRoot<BillId>
     private readonly List<PaymentInstrument> _instruments = [];
     private readonly List<BillCheck> _checks = [];
     private readonly List<BillLookupRecord> _lookupHistory = [];
+    private readonly List<BillHistoryEntry> _history = [];
 
     public TenantId TenantId { get; private set; }
     public BillStatus Status { get; private set; } = default!;
@@ -118,8 +119,26 @@ public sealed class Bill : AggregateRoot<BillId>
     /// <summary>Toda tentativa de consulta, em ordem. Só cresce — ver <see cref="BillLookupRecord"/>.</summary>
     public IReadOnlyList<BillLookupRecord> LookupHistory => _lookupHistory.AsReadOnly();
 
-    /// <summary>Quem decidiu, quando e por quê. Nulo enquanto ninguém decidiu.</summary>
+    /// <summary>
+    /// A decisão <strong>vigente</strong> — quem decidiu, quando e por quê. Nulo enquanto ninguém
+    /// decidiu.
+    /// </summary>
+    /// <remarks>
+    /// É o que as guardas consultam, e por isso guarda só a última: a pergunta que elas fazem é
+    /// "esta aprovação vale?", não "o que já houve aqui". A narrativa completa vive em
+    /// <see cref="History"/>, e as duas não competem — uma decide, a outra explica.
+    /// </remarks>
     public ApprovalRecord? Approval { get; private set; }
+
+    /// <summary>
+    /// A trilha do boleto, da captura ao desfecho: o que foi feito, quando e por quem.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Só cresce, e só por dentro.</strong> Cada método rico que muda o estado acrescenta
+    /// a sua linha na mesma transação — nenhum handler escreve aqui. É isso que impede a trilha
+    /// de divergir da máquina de estados: não existe caminho que mude o status sem registrar.
+    /// </remarks>
+    public IReadOnlyList<BillHistoryEntry> History => _history.AsReadOnly();
 
     /// <summary>
     /// Vencimento consolidado do boleto, <strong>materializado</strong> para a listagem ordenar
@@ -242,6 +261,13 @@ public sealed class Bill : AggregateRoot<BillId>
         bill.RecomputeDueDate();
         bill.CreatedAt = occurredAt;
         bill.UpdatedAt = occurredAt;
+
+        // A primeira linha da trilha não tem "antes" — é a única com FromStatus nulo. Autor é o
+        // sistema mesmo quando a origem é importação manual: quem importa não decide nada sobre
+        // o pagamento, e confundir importador com aprovador seria mentira de auditoria.
+        bill._history.Add(BillHistoryEntry.Record(
+            BillAction.Captured, BillActionOrigin.System, null, BillStatus.Captured,
+            null, null, occurredAt, origin.SourceKind.Name));
 
         bill.AddDomainEvent(new BillCapturedDomainEvent(
             bill.Id, tenantId, bill.Kind.Name, bill.Rail.Name, occurredAt));
@@ -457,27 +483,30 @@ public sealed class Bill : AggregateRoot<BillId>
         _checks.AddRange(accepted.Select(r => BillCheck.From(r, occurredAt)));
 
         // ADR-015: a validação CLASSIFICA, nunca rejeita. A flag mede a PIOR evidência
-        // encontrada: declaração explícita do tenant (blacklist, origem bloqueada) é Extremo
-        // Perigo; contradição entre fontes ou conferência central falhando é Perigo;
-        // inconclusivo ou aviso é Atenção; e todo boleto validado aguarda a decisão humana.
+        // encontrada, e cada verificação diz sozinha quanto pesa — a régua vive em
+        // RiskLevel.Of, não aqui. ADR-020 (2026-09-08) endureceu essa régua: falha advisory,
+        // aviso e inconclusivo passaram de Atenção para Perigo, e o teto de Atenção ficou
+        // reservado a quem foi marcado Notice (expectativa, prazo e nome do beneficiário).
         var blocking = accepted.Where(r => r.IsBlockingFailure).ToList();
         var attention = accepted.Count(r => r.Outcome.RequiresAttention);
 
-        if (blocking.Exists(r => r.IsCriticalFailure))
-            Risk = RiskLevel.ExtremeDanger;
-        else if (blocking.Count > 0)
-            Risk = RiskLevel.Danger;
-        else if (attention > 0)
-            Risk = RiskLevel.Attention;
-        else
-            Risk = RiskLevel.Safe;
+        var risk = accepted.Aggregate(RiskLevel.Safe, (worst, r) => worst.Worst(r.RiskContribution));
+        Risk = risk;
+
+        var from = Status;
 
         TransitionTo(BillStatus.AwaitingApproval);
         UpdatedAt = occurredAt;
 
+        // A trilha registra TODA validação, inclusive a que não muda o status: revalidar é um
+        // ato que alguém pediu e cujo resultado explica por que a aprovação anterior caiu.
+        _history.Add(BillHistoryEntry.Record(
+            BillAction.Validated, BillActionOrigin.System, from, Status, null, null, occurredAt,
+            $"Risco {Risk?.Name ?? "não classificado"}; {blocking.Count} bloqueio(s), {attention} atenção"));
+
         AddDomainEvent(new BillValidatedDomainEvent(Id, TenantId, attention, occurredAt));
 
-        return ValidationOutcome.Of(BillStatus.AwaitingApproval, blocking.Count, attention);
+        return ValidationOutcome.Of(BillStatus.AwaitingApproval, risk, blocking.Count, attention);
     }
 
     /// <summary>
@@ -492,14 +521,12 @@ public sealed class Bill : AggregateRoot<BillId>
     /// </remarks>
     public void Approve(
         UserId approvedBy,
-        DateOnly scheduleFor,
         string? note,
         ApprovalPolicy policy,
         RiskLevel clearance,
-        DateOnly today,
         DateTime occurredAt,
         bool acknowledgeRisk = false,
-        bool acknowledgeImmediateExecution = false)
+        string? approverName = null)
     {
         ArgumentNullException.ThrowIfNull(policy);
         EnsureDecidable(ApprovalDecision.Approved, BillStatus.Approved);
@@ -510,13 +537,62 @@ public sealed class Bill : AggregateRoot<BillId>
         EnsureRiskWithinClearance(clearance);
         EnsureRiskIsAcknowledged(acknowledgeRisk);
         EnsureSnapshotIsFresh(policy, occurredAt);
-        EnsureScheduleDateIsAllowed(scheduleFor, today);
-        EnsureImmediateExecutionIsAcknowledged(today, acknowledgeImmediateExecution);
         EnsureWithinApprovalLimit(policy);
 
+        var from = Status;
+
         Approval = ApprovalRecord.Approve(approvedBy, occurredAt, note, Risk);
-        ScheduledFor = scheduleFor;
         Status = BillStatus.Approved;
+        UpdatedAt = occurredAt;
+
+        _history.Add(BillHistoryEntry.Record(
+            BillAction.Approved, BillActionOrigin.User, from, Status, approvedBy, approverName,
+            occurredAt, note));
+
+        AddDomainEvent(new BillApprovedDomainEvent(Id, TenantId, approvedBy, occurredAt));
+    }
+
+    /// <summary>
+    /// Um humano escolhe a data e manda executar. <strong>É o ato que move dinheiro</strong>
+    /// (ADR-018) — a aprovação autoriza, o agendamento executa.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>O frescor do retrato é reconferido aqui</strong>, e não é redundância com a
+    /// aprovação: separar os dois atos abriu uma janela entre eles, e é neste método que o
+    /// dinheiro anda. Aprovar ontem contra um retrato de ontem é legítimo; agendar hoje contra
+    /// aquele mesmo retrato não é.
+    /// </para>
+    /// <para>
+    /// As guardas de data vivem só aqui, porque só aqui existe data: <c>Approve</c> não conhece
+    /// mais o calendário.
+    /// </para>
+    /// </remarks>
+    public void Schedule(
+        UserId requestedBy,
+        DateOnly scheduleFor,
+        ApprovalPolicy policy,
+        DateOnly today,
+        DateTime occurredAt,
+        bool acknowledgeImmediateExecution = false,
+        string? requesterName = null)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+
+        if (Status != BillStatus.Approved)
+            throw BillErrors.SchedulingRequiresApproval(Status.Name);
+
+        // Duas provas de "já está agendado", porque elas cobrem instantes diferentes: a data
+        // aparece assim que alguém agenda, e o vínculo com a ordem só depois que o provedor
+        // aceita. Conferir só o vínculo deixaria passar o duplo clique.
+        if (ScheduledFor is not null || PaymentOrderId is not null)
+            throw BillErrors.AlreadyScheduled();
+
+        EnsureSnapshotIsFresh(policy, occurredAt);
+        EnsureScheduleDateIsAllowed(scheduleFor, today);
+        EnsureImmediateExecutionIsAcknowledged(today, acknowledgeImmediateExecution);
+
+        ScheduledFor = scheduleFor;
         UpdatedAt = occurredAt;
 
         // O evento carrega o aceite COMO FOI DADO: exigido (boleto vencido na tela) e marcado.
@@ -524,21 +600,32 @@ public sealed class Bill : AggregateRoot<BillId>
         var immediateExecutionAcknowledged =
             acknowledgeImmediateExecution && DueDate is { } dueDate && dueDate < today;
 
-        AddDomainEvent(new BillApprovedDomainEvent(
-            Id, TenantId, approvedBy, scheduleFor, immediateExecutionAcknowledged, occurredAt));
+        _history.Add(BillHistoryEntry.Record(
+            BillAction.Scheduled, BillActionOrigin.User, Status, Status, requestedBy, requesterName,
+            occurredAt,
+            $"Pagamento pedido para {scheduleFor:dd/MM/yyyy}"));
+
+        AddDomainEvent(new BillSchedulingRequestedDomainEvent(
+            Id, TenantId, requestedBy, scheduleFor, immediateExecutionAcknowledged, occurredAt));
     }
 
     /// <summary>
     /// O humano recusa o boleto. O motivo é obrigatório — é o desvio, e é dele que alguém vai
     /// querer entender a razão depois.
     /// </summary>
-    public void Deny(UserId deniedBy, string reason, DateTime occurredAt)
+    public void Deny(UserId deniedBy, string reason, DateTime occurredAt, string? denierName = null)
     {
         EnsureDecidable(ApprovalDecision.Denied, BillStatus.Denied);
+
+        var from = Status;
 
         Approval = ApprovalRecord.Deny(deniedBy, occurredAt, reason);
         Status = BillStatus.Denied;
         UpdatedAt = occurredAt;
+
+        _history.Add(BillHistoryEntry.Record(
+            BillAction.Denied, BillActionOrigin.User, from, Status, deniedBy, denierName,
+            occurredAt, reason));
 
         AddDomainEvent(new BillDeniedDomainEvent(Id, TenantId, deniedBy, occurredAt));
     }
@@ -547,15 +634,63 @@ public sealed class Bill : AggregateRoot<BillId>
     /// Tira o boleto do fluxo. Diferente de recusar: alcança documento que nem chegou a ser
     /// verificado, e libera a chave natural para o documento poder ser reimportado.
     /// </summary>
-    public void Cancel(UserId cancelledBy, string reason, DateTime occurredAt)
+    public void Cancel(UserId cancelledBy, string reason, DateTime occurredAt, string? cancellerName = null)
     {
         EnsureDecidable(ApprovalDecision.Cancelled, BillStatus.Cancelled);
+
+        var from = Status;
 
         Approval = ApprovalRecord.Cancel(cancelledBy, occurredAt, reason);
         Status = BillStatus.Cancelled;
         UpdatedAt = occurredAt;
 
+        _history.Add(BillHistoryEntry.Record(
+            BillAction.Cancelled, BillActionOrigin.User, from, Status, cancelledBy, cancellerName,
+            occurredAt, reason));
+
         AddDomainEvent(new BillCancelledDomainEvent(Id, TenantId, cancelledBy, occurredAt));
+    }
+
+    /// <summary>
+    /// Uma pessoa desfaz a própria recusa ou o próprio cancelamento: o boleto volta à fila de
+    /// decisão e as verificações rodam de novo (ADR-018).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>É a única saída de um estado terminal, e ela não passa pela matriz de
+    /// transições</strong> — passar tornaria <c>Denied</c> e <c>Cancelled</c> não-terminais para
+    /// todo mundo, e a terminalidade é o que impede um reflexo de pagamento atrasado de
+    /// ressuscitar um boleto morto. Aqui a exceção é nomeada, tem alçada própria na borda, e
+    /// vale só para decisão de gente: <c>Paid</c> não reverte.
+    /// </para>
+    /// <para>
+    /// <strong>A trilha de aprovação anterior fica</strong>, como em <c>UnschedulePayment</c>:
+    /// é história, e a próxima decisão grava a sua por cima. O que se limpa é o que descreve
+    /// execução — data e vínculo com ordem — porque nenhum dos dois sobrevive à volta.
+    /// </para>
+    /// <para>
+    /// Duas pré-condições que <strong>não</strong> cabem aqui ficam no caso de uso, por
+    /// dependerem de consulta: a chave natural pode ter sido reocupada por uma reimportação, e
+    /// pode haver ordem viva no provedor. Ambas exigem repositório, e o agregado não consulta.
+    /// </para>
+    /// </remarks>
+    public void UndoDecision(UserId undoneBy, string reason, DateTime occurredAt, string? undoerName = null)
+    {
+        if (!Status.CanBeUndone)
+            throw BillErrors.DecisionCannotBeUndone(Status.Name);
+
+        var from = Status;
+
+        PaymentOrderId = null;
+        ScheduledFor = null;
+        Status = BillStatus.AwaitingApproval;
+        UpdatedAt = occurredAt;
+
+        _history.Add(BillHistoryEntry.Record(
+            BillAction.Reverted, BillActionOrigin.User, from, Status, undoneBy, undoerName,
+            occurredAt, reason));
+
+        AddDomainEvent(new BillDecisionUndoneDomainEvent(Id, TenantId, undoneBy, occurredAt));
     }
 
     /// <summary>O retrato da consulta já passou do prazo de validade neste instante?</summary>
@@ -578,10 +713,16 @@ public sealed class Bill : AggregateRoot<BillId>
     {
         EnsurePaymentTransition(BillStatus.Scheduled);
 
+        var from = Status;
+
         PaymentOrderId = paymentOrderId;
         ScheduledFor = effectiveScheduleDate;
         Status = BillStatus.Scheduled;
         UpdatedAt = occurredAt;
+
+        _history.Add(BillHistoryEntry.Record(
+            BillAction.HandedToProvider, BillActionOrigin.Provider, from, Status, null, null, occurredAt,
+            $"Pagamento aceito pelo provedor para {effectiveScheduleDate:dd/MM/yyyy}"));
     }
 
     /// <summary>Reflexo de <c>PaymentOrderPaid</c>: <c>Scheduled → Paid</c>. Terminal.</summary>
@@ -589,8 +730,13 @@ public sealed class Bill : AggregateRoot<BillId>
     {
         EnsurePaymentTransition(BillStatus.Paid);
 
+        var from = Status;
+
         Status = BillStatus.Paid;
         UpdatedAt = occurredAt;
+
+        _history.Add(BillHistoryEntry.Record(
+            BillAction.Paid, BillActionOrigin.Provider, from, Status, null, null, occurredAt));
     }
 
     /// <summary>
@@ -601,27 +747,80 @@ public sealed class Bill : AggregateRoot<BillId>
     {
         EnsurePaymentTransition(BillStatus.Failed);
 
+        var from = Status;
+
         Status = BillStatus.Failed;
         UpdatedAt = occurredAt;
+
+        _history.Add(BillHistoryEntry.Record(
+            BillAction.PaymentFailed, BillActionOrigin.Provider, from, Status, null, null, occurredAt));
     }
 
     /// <summary>
-    /// Reflexo de <c>PaymentOrderCancelled</c> depois de agendado: <c>Scheduled → Cancelled</c>.
-    /// Não toca a trilha de aprovação — quem cancelou e por quê vive na ordem.
+    /// O agendamento morreu e a aprovação sobreviveu: o boleto volta a <c>Approved</c>, sem data
+    /// e sem vínculo com ordem, pronto para ser agendado de novo.
     /// </summary>
-    public void MarkScheduleCancelled(DateTime occurredAt)
+    /// <remarks>
+    /// <para>
+    /// <strong>Substituiu <c>MarkScheduleCancelled</c> em 2026-09-08 (ADR-018).</strong> Até
+    /// então, ordem cancelada levava o boleto a <c>Cancelled</c> — terminal. Quem cancelava um
+    /// agendamento só para trocar a data matava o boleto e a aprovação junto, e precisava
+    /// reimportar o documento. O que o cancelamento desfaz é a execução; a autorização humana
+    /// continua valendo, e é dela que o ADR-007 cuida.
+    /// </para>
+    /// <para>
+    /// Atende os dois instantes em que a ordem pode morrer: em <c>Draft</c>, antes de o boleto
+    /// virar <c>Scheduled</c> (e aí o estado já é <c>Approved</c> — a chamada é no-op de estado,
+    /// mas registra na trilha e limpa a data), e depois de agendado, vindo do provedor. Um só
+    /// método porque o significado é um só.
+    /// </para>
+    /// <para>
+    /// <strong>A trilha de aprovação fica.</strong> É história, e a próxima decisão grava a sua.
+    /// </para>
+    /// </remarks>
+    /// <param name="origin">
+    /// De onde partiu o cancelamento. <strong>É o parâmetro que impede a trilha de mentir</strong>:
+    /// o mesmo caminho de código atende ao cancelamento pedido no nosso app e ao que alguém fez
+    /// no painel do provedor, e sem distingui-los a auditoria não responde "quem cancelou isto?".
+    /// </param>
+    /// <param name="note">
+    /// O detalhe que só quem chamou conhece — o motivo do provedor, por exemplo. Ausente, cada
+    /// origem escreve a sua frase padrão.
+    /// </param>
+    public void UnschedulePayment(
+        BillActionOrigin origin,
+        DateTime occurredAt,
+        UserId? requestedBy = null,
+        string? requesterName = null,
+        string? note = null)
     {
-        EnsurePaymentTransition(BillStatus.Cancelled);
+        ArgumentNullException.ThrowIfNull(origin);
 
-        Status = BillStatus.Cancelled;
+        if (Status != BillStatus.Approved && Status != BillStatus.Scheduled)
+            throw BillErrors.PaymentTransitionNotAllowed(Status.Name, BillStatus.Approved.Name);
+
+        var from = Status;
+
+        PaymentOrderId = null;
+        ScheduledFor = null;
+        Status = BillStatus.Approved;
         UpdatedAt = occurredAt;
+
+        _history.Add(BillHistoryEntry.Record(
+            BillAction.Unscheduled, origin, from, Status, requestedBy, requesterName, occurredAt,
+            note ?? DefaultUnscheduleNote(origin)));
     }
+
+    private static string DefaultUnscheduleNote(BillActionOrigin origin)
+        => origin == BillActionOrigin.Provider
+            ? "Agendamento cancelado NO PROVEDOR; a aprovação continua válida"
+            : "Agendamento cancelado; a aprovação continua válida";
 
     /// <summary>
     /// Devolve um boleto de pagamento falhado à fila de decisão. A nova tentativa é uma nova
     /// aprovação e uma nova ordem (ADR-002) — por isso o vínculo com a ordem anterior é limpo.
     /// </summary>
-    public void ReopenForApproval(DateTime occurredAt)
+    public void ReopenForApproval(DateTime occurredAt, UserId? reopenedBy = null, string? reopenerName = null)
     {
         // Só Failed reabre. A matriz também admite Approved → AwaitingApproval (é a aresta da
         // revalidação), mas reabrir um Approved por aqui descartaria uma aprovação vigente sem
@@ -629,27 +828,17 @@ public sealed class Bill : AggregateRoot<BillId>
         if (Status != BillStatus.Failed)
             throw BillErrors.PaymentTransitionNotAllowed(Status.Name, BillStatus.AwaitingApproval.Name);
 
-        PaymentOrderId = null;
-        ScheduledFor = null;
-        Status = BillStatus.AwaitingApproval;
-        UpdatedAt = occurredAt;
-    }
-
-    /// <summary>
-    /// A ordem morreu ANTES de agendar (rascunho cancelado): o boleto aprovado volta à fila de
-    /// decisão, porque a fila nunca mais criará ordem para esta aprovação — sem isto ele ficaria
-    /// <c>Approved</c> para sempre, sem execução e sem saída (<c>ReopenForApproval</c> só aceita
-    /// <c>Failed</c>). A trilha de aprovação fica: é história, e a próxima decisão grava a sua.
-    /// </summary>
-    public void ReturnToApprovalAfterScheduleCancellation(DateTime occurredAt)
-    {
-        if (Status != BillStatus.Approved)
-            throw BillErrors.PaymentTransitionNotAllowed(Status.Name, BillStatus.AwaitingApproval.Name);
+        var from = Status;
 
         PaymentOrderId = null;
         ScheduledFor = null;
         Status = BillStatus.AwaitingApproval;
         UpdatedAt = occurredAt;
+
+        _history.Add(BillHistoryEntry.Record(
+            BillAction.Reopened, BillActionOrigin.User, from, Status, reopenedBy, reopenerName,
+            occurredAt,
+            "Reaberto para nova tentativa de pagamento"));
     }
 
     private void EnsurePaymentTransition(BillStatus target)

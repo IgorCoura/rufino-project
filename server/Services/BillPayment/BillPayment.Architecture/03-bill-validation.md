@@ -1,23 +1,31 @@
 # 03 — Verificação do boleto
 
-> **Revisado em 2026-08-31 — quatro níveis de risco e alçada de aprovação.** A classificação do
-> ADR-015 ganhou um 4º nível e uma régua única: **a flag mede a pior evidência encontrada**.
+> **Revisado em 2026-09-08 — a expectativa entra na régua, e o que era Atenção virou Perigo**
+> ([`adr/ADR-020`](adr/ADR-020-expectativa-na-validacao-e-a-regua-endurecida.md)). A flag continua
+> medindo **a pior evidência encontrada**, e o catálogo passou a ter **catorze** verificações.
 >
 > - 🟢 **Seguro** — tudo conferido e batendo: consulta oficial responde e confere; beneficiário
 >   cadastrado, ativo e casado **por documento fiscal** (por qualquer trilho — a conta híbrida
->   casa pelo CNPJ do decode Pix); origem confiável ou importação manual.
-> - 🟡 **Atenção** — nada contradiz, mas falta conferência: beneficiário não cadastrado,
->   remetente desconhecido, casamento **só por nome**, política de valor inconclusiva ou valor
->   fora dela, vencimento estranho, divergências leves do documento impresso.
-> - 🔴 **Perigo** — contradição entre fontes ou conferência central falhando: consulta diverge
->   do boleto, QR × código de barras, pagador contradiz o cadastro, sósia, duplicata,
->   beneficiário inativo, **consulta indisponível ou boleto não registrado**.
+>   casa pelo CNPJ do decode Pix); origem confiável ou importação manual; **e a conta era
+>   esperada**.
+> - 🟡 **Atenção** — três gatilhos, e só eles (`CheckSeverity.Notice`): **ninguém esperava esta
+>   conta** (check 14), **problema de prazo** (vencido, fora do corte, sem data agendável) e
+>   **nome do beneficiário** — grafia divergente com o CNPJ conferindo, ou casamento só por nome.
+> - 🔴 **Perigo** — contradição entre fontes, conferência central falhando **e toda conferência
+>   incompleta que não seja de nome**: consulta diverge do boleto, QR × código de barras, pagador
+>   contradiz o cadastro, sósia, duplicata, beneficiário inativo ou **não cadastrado**, remetente
+>   desconhecido, valor fora da política, roteamento inferido, consulta indisponível.
 > - ⛔ **Extremo Perigo** — declaração explícita do tenant: beneficiário na **blacklist** ou
 >   origem **bloqueada** (`CheckSeverity.Critical`).
 >
 > Aprovação por alçada: `bill:approve` (Verde) < `approve-attention` < `approve-danger` <
 > `approve-extreme`, hierárquica, conferida pelo domínio contra o risco atual (`BLP.BIL32`,
 > 403). Perigo e Extremo continuam exigindo o aceite explícito (`BLP.BIL27`).
+>
+> ⚠️ **A distribuição mudou muito.** Boleto de fornecedor novo ou de remetente nunca visto passa a
+> nascer 🔴 — quem tinha só `bill-approver-attention` deixa de aprová-lo. Reveja a atribuição de
+> `bill-approver-danger` **antes** do deploy, e rode a varredura de revalidação: um `CheckType`
+> novo invalida as aprovações pendentes (`BLP.BIL03`) até cada boleto ser reverificado.
 
 Este é o coração do BC: provar que o boleto é legítimo **antes** de qualquer autorização. Cada verificação é um `BillCheck` materializado no Aggregate — com resultado, severidade, código de motivo e evidência — e não um booleano volátil. Racional em [`adr/ADR-003-checks-materializados.md`](adr/ADR-003-checks-materializados.md).
 
@@ -38,7 +46,9 @@ Este é o coração do BC: provar que o boleto é legítimo **antes** de qualque
 
 ## Catálogo de checks
 
-Severidade: **`Blocking`** = a falha classifica o boleto como **Perigo** — aprovável somente com o risco explicitamente assumido (`acknowledgeRisk`), gravado na trilha ([`adr/ADR-015`](adr/ADR-015-risco-classificado-humano-decide.md)). **`Advisory`** = falha destacada como **Atenção**; o aprovador autoriza normalmente, com o motivo gravado. Desde 2026-08-27 **a validação não rejeita boleto nenhum**: ela classifica (Seguro/Atenção/Perigo) e quem decide é sempre o humano.
+Severidade (quatro degraus desde 2026-09-08): **`Critical`** = declaração explícita do tenant, leva a **Extremo Perigo**. **`Blocking`** e **`Advisory`** = a falha classifica como **Perigo**, aprovável somente com o risco explicitamente assumido (`acknowledgeRisk`), gravado na trilha ([`adr/ADR-015`](adr/ADR-015-risco-classificado-humano-decide.md)); o que os separa hoje é só a intenção documental — `Advisory` marca o check cuja falha é interpretável. **`Notice`** = degrau **abaixo** de Advisory, com **teto de Atenção**: qualquer que seja o desfecho, não passa de amarelo ([`adr/ADR-020`](adr/ADR-020-expectativa-na-validacao-e-a-regua-endurecida.md)). A validação continua **não rejeitando boleto nenhum**: ela classifica e quem decide é sempre o humano.
+
+> ⚠️ **`IsBlockingFailure` é afirmativo — `Blocking` OU `Critical` —, nunca "diferente de Advisory".** Escrita pela negativa, a regra contou `Notice` junto no dia em que ele nasceu, e um boleto **vencido** (teto de Atenção) passou a ser falha bloqueante. Pego pela suíte de integração no mesmo dia.
 
 | # | `CheckType` | Pergunta | Fonte × expectativa | Severidade |
 |---|---|---|---|---|
@@ -46,15 +56,16 @@ Severidade: **`Blocking`** = a falha classifica o boleto como **Perigo** — apr
 | 2 | `Duplicate` | Já pagamos (ou já vamos pagar) esse mesmo boleto? | `DigitableLine` × Bills ativas — **de todos os tenants** | **Blocking** |
 | 3 | `LookupAvailability` | A consulta oficial respondeu? | porta `IBillLookupService` | **Blocking** |
 | 4 | `LookupConsistency` | O que está impresso bate com o que o sistema bancário diz? | valor/vencimento/banco do parse offline × `LookupSnapshot` | **Blocking** |
-| 5 | `PayeeMatch` | **O beneficiário condiz?** | `Lookup.BeneficiaryTaxId` × `Payee.TaxId` | **Blocking** |
+| 5 | `PayeeMatch` | **O beneficiário condiz?** | `Lookup.BeneficiaryTaxId` × `Payee.TaxId` | **Blocking** · **Notice** nos dois desfechos de **nome** · Critical se blacklist |
 | 6 | `ReceivingBankMatch` | **O banco recebedor condiz?** | `DigitableLine.BankCode` (posições 1–3) × `Payee.AcceptedBanks`, com `Lookup.BankCode` como conferência cruzada | Advisory (Blocking se as duas fontes divergirem) |
 | 7 | `AmountMatch` | **O valor condiz?** | `Lookup.Amount` × `Payee.AmountPolicy` | Advisory |
 | 8 | `PayerMatch` | **O pagador condiz?** | `Bill.ExtractedPayer.TaxId` × `PayerProfile` do tenant | Advisory (extraído e divergente → **Blocking**) |
 | 9 | `OriginTrust` | **Veio de e-mail/site confiável?** | `Origin.SenderAddress` × `TrustedOrigin` | Advisory (`Blocked` → **Blocking**) |
-| 10 | `DueDateSanity` | Dá tempo de pagar? | `Lookup.DueDate`, `IsOverdue`, `MinimumScheduleDate` × hoje | Advisory |
+| 10 | `DueDateSanity` | Dá tempo de pagar? | `Lookup.DueDate`, `IsOverdue`, `MinimumScheduleDate` × hoje | **Notice** (teto de Atenção) |
 | 11 | `TenantRouting` | Por qual caminho este boleto foi atribuído a este tenant? | degrau da escada de roteamento | Advisory |
 | 12 | `PixBarcodeConsistency` | O QR Pix e o código de barras contam a mesma história? | `PixLookupSnapshot` × `LookupSnapshot` | **Blocking** |
 | 13 | `DocumentConsistency` | **O que está impresso no documento bate com a consulta oficial?** | `DocumentReading` (leitura por IA) × `LookupSnapshot`/`PixLookupSnapshot` | Advisory (identidade do beneficiário divergente → **Blocking**) |
+| 14 | `ExpectationMatch` | **Alguém estava esperando esta conta?** | `Bill` × ciclos das `BillExpectation` do beneficiário, pelo `ExpectationMatchingService` | **Notice** (teto de Atenção) |
 
 ### Os checks valem nos dois trilhos
 
@@ -276,17 +287,44 @@ O `LookupSnapshot` envelhece: valor de boleto vencido muda todo dia. Regras:
 
 Reescrita em 2026-08-27 ([`adr/ADR-015`](adr/ADR-015-risco-classificado-humano-decide.md)) — **não existe mais rejeição automática**:
 
+Reescrita de novo em 2026-09-08 ([`adr/ADR-020`](adr/ADR-020-expectativa-na-validacao-e-a-regua-endurecida.md)). A régua deixou de ser uma cadeia de `if` dentro do agregado: **cada verificação diz sozinha quanto pesa** (`RiskLevel.Of(outcome, severity)`) e `RecordChecks` agrega pelo pior.
+
 | Situação | Status | `RiskLevel` | Aprovação |
 |---|---|---|---|
-| Algum `Blocking` = `Failed` | `AwaitingApproval` | **Perigo** (banner vermelho) | exige `acknowledgeRisk: true`; sem ele, `BLP.BIL27` (409) |
-| Algum `Advisory` falhou, `Warning` ou `Inconclusive` | `AwaitingApproval` | **Atenção** (banner âmbar) | normal |
+| Alguma falha `Critical` | `AwaitingApproval` | **Extremo Perigo** | exige `acknowledgeRisk: true` **e** `approve-extreme` |
+| Algum `Blocking`/`Advisory` = `Failed`, `Warning` ou `Inconclusive` | `AwaitingApproval` | **Perigo** (banner vermelho) | exige `acknowledgeRisk: true`; sem ele, `BLP.BIL27` (409) |
+| Só desfechos `Notice` — expectativa, prazo ou nome | `AwaitingApproval` | **Atenção** (banner âmbar) | normal |
 | Todos `Passed` ou `Skipped` | `AwaitingApproval` | **Seguro** (banner verde) | normal |
+
+Desfechos da verificação 14, todos com teto de Atenção:
+
+| Situação | Outcome | `ReasonCode` | Risco |
+|---|---|---|---|
+| Ciclo aberto casado pela competência do vencimento | `Passed` | — | 🟢 |
+| Ciclo já cumprido **por este boleto** (revalidação) | `Passed` | — | 🟢 |
+| Única expectativa vigiando sem ciclo — nasce na chegada | `Passed` | `expectation_cycle_opens_on_arrival` | 🟢 |
+| Beneficiário sem expectativa cadastrada | `Inconclusive` | `expectation_not_registered` | 🟡 |
+| Duas ou mais candidatas (as quatro instalações da EDP) | `Inconclusive` | `expectation_ambiguous` | 🟡 |
+| Expectativas pausadas ou desativadas | `Inconclusive` | `expectation_paused` | 🟡 |
+| Beneficiário não resolvido | `Inconclusive` | `expectation_payee_unresolved` | 🟡 |
+| Vencimento ilegível | `Inconclusive` | `expectation_due_date_unavailable` | 🟡 |
 
 O `ApprovalRecord` grava `RiskAtDecision` — o nível que o aprovador viu no instante da decisão. `Rejected` permanece no Smart Enum **sem produtor automático** (ids persistidos não se renumeram). O que continua fora do alcance da classificação: DV inválido não vira `Bill`, e a deduplicação da captura não cria segundo boleto.
 
 Não existe transição automática para `Approved` nesta fase. Auto-aprovação por política é decisão adiada, com condições já escritas em [`adr/ADR-007-aprovacao-humana-obrigatoria.md`](adr/ADR-007-aprovacao-humana-obrigatoria.md).
 
 ## Cobertura de teste exigida
+
+> ⚠️ **A normalização de nome é UMA só, e vive em `SharedKernel/PartyName`** (2026-09-08). Até
+> então `Payee.MatchesName` comparava com `Trim()` e nada mais, enquanto o `PayeeResolutionService`
+> — dez linhas adiante, na detecção de sósia — já derrubava acento e pontuação: **a regra frouxa
+> estava no caminho que só levanta suspeita, e a estrita no caminho que decide**. Era a causa raiz
+> do alarme falso de nome relatado pelo usuário. A tolerância é de **grafia, não de semelhança**:
+> depois de normalizar, a comparação continua sendo igualdade exata, então dois nomes diferentes
+> nunca passam a casar e o cotejo de sósia vale exatamente o que valia. No mesmo passo, a
+> divergência passou a ser conferida contra **razão social E nome fantasia** (o `NameMatches` do
+> serviço, agora público) — antes só o `DisplayName` era comparado, e quem cadastrava o
+> beneficiário pelo nome fantasia via divergência em todo boleto.
 
 **Unitários (Domain):** cada DV de linha digitável (cobrança e arrecadação, válidos e corrompidos em cada posição), rollover do fator de vencimento em 22/02/2025, fator `0000`, cada `AmountPolicy` no limite da tolerância, cada transição de `BillStatus` (inclusive as proibidas), `RecordChecks` decidindo status para as três linhas da matriz acima, imutabilidade do Bill `Paid`.
 

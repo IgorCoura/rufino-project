@@ -482,6 +482,70 @@ public static class BillErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
 
+    /// <summary>
+    /// ADR-018: agendar exige uma aprovação vigente. Sem ela não há autorização humana para o
+    /// pagamento, e é ela — não o agendamento — que o ADR-007 protege.
+    /// </summary>
+    public static DomainException SchedulingRequiresApproval(
+        string status,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}36",
+            messageTemplate: "Boleto em situação {0} não pode ser agendado: só um boleto aprovado aceita agendamento.",
+            parameters: new object[] { status },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    /// <summary>
+    /// O boleto já tem agendamento em curso. Agendar de novo criaria uma segunda ordem para o
+    /// mesmo compromisso — o pagamento em dobro que o índice de ordem ativa única existe para
+    /// impedir, dito aqui com a mensagem certa em vez de estourar no banco.
+    /// </summary>
+    public static DomainException AlreadyScheduled(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}37",
+            messageTemplate: "Este boleto já está agendado. Cancele o agendamento antes de escolher outra data.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    /// <summary>
+    /// ADR-018: só recusa e cancelamento se desfazem. Pago não volta, e os estados de fluxo têm
+    /// os próprios caminhos de saída.
+    /// </summary>
+    public static DomainException DecisionCannotBeUndone(
+        string status,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}38",
+            messageTemplate: "Boleto em situação {0} não pode ser revertido: só boleto negado ou cancelado aceita reversão.",
+            parameters: new object[] { status },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    /// <summary>
+    /// A reversão encontrou uma ordem de pagamento viva para o boleto. Devolver o documento à
+    /// fila de decisão com dinheiro ainda em movimento no provedor é a receita do pagamento
+    /// duplicado — acontece quando o provedor recusou cancelar a ordem do boleto cancelado.
+    /// </summary>
+    public static DomainException UndoBlockedByLivePaymentOrder(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}39",
+            messageTemplate: "Este boleto ainda tem um pagamento em andamento no provedor. Aguarde o desfecho antes de reverter.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

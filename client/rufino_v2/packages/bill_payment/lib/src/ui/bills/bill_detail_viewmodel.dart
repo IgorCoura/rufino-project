@@ -90,6 +90,12 @@ class BillDetailViewModel extends ChangeNotifier {
   /// antes de aprovar" instead of a click that bounces on a 409.
   bool get canApprove => _bill?.canApproveAt(_clock()) ?? false;
 
+  /// Whether the bill is approved and still waiting for someone to pick a date.
+  bool get canSchedule => _bill?.acceptsScheduling ?? false;
+
+  /// Whether a denial or cancellation can be undone.
+  bool get canUndoDecision => _bill?.acceptsUndo ?? false;
+
   /// The earliest schedule date selectable today.
   DateTime get earliestScheduleDate =>
       _bill?.earliestScheduleDate(_clock()) ?? _clock();
@@ -203,8 +209,10 @@ class BillDetailViewModel extends ChangeNotifier {
   ///
   /// [acknowledgeRisk] carries the explicit acceptance a Danger bill
   /// requires (ADR-015).
+  /// Approving alone leaves [scheduleFor] null; passing it is "aprovar e
+  /// agendar", which the server does in one transaction.
   Future<bool> approve({
-    required DateTime scheduleFor,
+    DateTime? scheduleFor,
     String? note,
     bool acknowledgeRisk = false,
     bool acknowledgeImmediateExecution = false,
@@ -218,7 +226,32 @@ class BillDetailViewModel extends ChangeNotifier {
           acknowledgeImmediateExecution: acknowledgeImmediateExecution,
         ),
         fallback: 'Não foi possível aprovar.',
-        info: 'Pagamento autorizado.',
+        info: scheduleFor == null
+            ? 'Boleto aprovado. Agende para enviar ao pagamento.'
+            : 'Pagamento autorizado e agendado.',
+      );
+
+  /// Sends the approved bill to the payment queue on [scheduleFor].
+  Future<bool> schedule({
+    required DateTime scheduleFor,
+    bool acknowledgeImmediateExecution = false,
+  }) =>
+      _act(
+        () => _repository.scheduleBill(
+          billId,
+          scheduleFor: scheduleFor,
+          acknowledgeImmediateExecution: acknowledgeImmediateExecution,
+        ),
+        fallback: 'Não foi possível agendar.',
+        info: 'Pagamento agendado.',
+      );
+
+  /// Undoes a denial or a cancellation; the server revalidates the bill.
+  Future<bool> undoDecision(String reason) => _act(
+        () => _repository.undoBillDecision(billId, reason),
+        fallback: 'Não foi possível reverter.',
+        info: 'Decisão revertida — o boleto voltou para aprovação e está sendo '
+            'reverificado.',
       );
 
   /// Returns the FAILED bill to the decision queue (new approval, new order).
@@ -237,7 +270,7 @@ class BillDetailViewModel extends ChangeNotifier {
     return _act(
       () => repository.cancel(orderId),
       fallback: 'Não foi possível cancelar o agendamento.',
-      info: 'Agendamento cancelado.',
+      info: 'Agendamento cancelado — o boleto voltou para Aprovados.',
     );
   }
 

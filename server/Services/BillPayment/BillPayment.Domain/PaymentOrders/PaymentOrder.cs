@@ -1,4 +1,4 @@
-namespace BillPayment.Domain.PaymentOrders;
+﻿namespace BillPayment.Domain.PaymentOrders;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Instruments;
@@ -29,6 +29,9 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
     public const int LAST_ERROR_MAX_LENGTH = 500;
     public const int FAIL_REASON_MAX_LENGTH = 500;
     public const int RECEIPT_STORAGE_KEY_MAX_LENGTH = 200;
+
+    /// <summary>Teto do status cru do provedor. Diagnóstico — truncar aqui não quebra chave nenhuma.</summary>
+    public const int PROVIDER_RAW_STATUS_MAX_LENGTH = 100;
 
     /// <summary>Teto da espera entre tentativas de submissão. A espera dobra e para aqui.</summary>
     private static readonly TimeSpan MAX_SUBMISSION_RETRY_DELAY = TimeSpan.FromMinutes(30);
@@ -105,6 +108,41 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
     /// <summary>O último erro visto pela fila. Diagnóstico, nunca decisão.</summary>
     public string? LastError { get; private set; }
 
+    /// <summary>
+    /// Quem pediu o agendamento. Desde o ADR-018 pode não ser quem aprovou — aprovar e agendar
+    /// são alçadas diferentes, e a trilha do dinheiro precisa do nome de quem mandou executar.
+    /// </summary>
+    public UserId? RequestedBy { get; private set; }
+
+    /// <summary>
+    /// O nome do status <strong>como o provedor o escreveu</strong>, sem tradução.
+    /// </summary>
+    /// <remarks>
+    /// O catálogo dele é maior que o nosso: <c>AWAITING_CRITICAL_ACTION_AUTHORIZATION</c>,
+    /// <c>AWAITING_BALANCE_VALIDATION</c> e a análise de risco caem todos em <c>Pending</c>.
+    /// Até 2026-09-08 esse nome viajava no retrato e era descartado, e a tela dizia "aceito pelo
+    /// provedor" para uma ordem travada esperando alguém digitar um código no celular. Guardar o
+    /// cru é o que permite explicar; o mapeado é o que decide.
+    /// </remarks>
+    public string? ProviderRawStatus { get; private set; }
+
+    /// <summary>
+    /// Se o provedor considera a operação autorizada. <c>false</c> é a ordem parada esperando a
+    /// autorização de ação crítica; nulo é provedor que não se pronunciou.
+    /// </summary>
+    public bool? ProviderAuthorized { get; private set; }
+
+    /// <summary>
+    /// O id do <c>transfer</c> que espelha esta ordem no provedor, no trilho Pix.
+    /// </summary>
+    /// <remarks>
+    /// MEDIDO EM SANDBOX (2026-09-08): pagar um QR Pix cria a transação Pix — cujo id é o nosso
+    /// <see cref="ProviderOrderId"/> — <strong>e</strong> um <c>transfer</c> ligado a ela. Os
+    /// webhooks de Pix são da família <c>TRANSFER_*</c> e carregam o id do transfer, não o da
+    /// transação: sem esta coluna, um evento de Pix é irresolvível. Nulo no trilho boleto.
+    /// </remarks>
+    public string? ProviderTransferId { get; private set; }
+
     /// <summary>Quem confirmou a execução imediata (ADR-017). Nulo quando nunca foi preciso.</summary>
     public UserId? ConfirmedBy { get; private set; }
 
@@ -130,7 +168,8 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
         PaymentRail rail,
         DateOnly requestedScheduleDate,
         Money? amount,
-        DateTime occurredAt)
+        DateTime occurredAt,
+        UserId? requestedBy = null)
     {
         if (rail is null)
             throw PaymentOrderErrors.RailRequired();
@@ -144,6 +183,7 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
             Hold = PaymentOrderHold.None,
             RequestedScheduleDate = requestedScheduleDate,
             Amount = amount,
+            RequestedBy = requestedBy,
         };
 
         order.CreatedAt = occurredAt;
@@ -231,6 +271,66 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
     {
         if ((resolvedAmount ?? Amount) is null)
             throw PaymentOrderErrors.AmountRequired();
+    }
+
+    /// <summary>
+    /// Guarda o que o provedor <em>disse sobre si</em> — status cru, autorização e o id do
+    /// transfer do Pix. Descrição, não transição: não move a máquina e não emite evento.
+    /// </summary>
+    /// <remarks>
+    /// Chamado por todo caminho que fala com o provedor (submissão, conciliação, webhook), e é
+    /// o que sustenta a tela dizer "aguardando autorização" em vez de "aceito pelo provedor".
+    /// Valor nulo <strong>não apaga</strong> o que já se sabia: um retrato que não trouxe o
+    /// campo é silêncio do provedor, não desmentido.
+    /// </remarks>
+    public void RecordProviderDiagnostics(
+        string? rawStatus,
+        bool? authorized,
+        string? transferId,
+        DateTime occurredAt)
+    {
+        if (!string.IsNullOrWhiteSpace(rawStatus))
+            ProviderRawStatus = Clamp(rawStatus.Trim(), PROVIDER_RAW_STATUS_MAX_LENGTH);
+
+        if (authorized is not null)
+            ProviderAuthorized = authorized;
+
+        // Mesma recusa do ProviderOrderId (PMO23): id truncado é chave que consulta o vazio.
+        if (!string.IsNullOrWhiteSpace(transferId))
+        {
+            var trimmed = transferId.Trim();
+            if (trimmed.Length > PROVIDER_ORDER_ID_MAX_LENGTH)
+                throw PaymentOrderErrors.ProviderOrderIdTooLong(PROVIDER_ORDER_ID_MAX_LENGTH);
+
+            ProviderTransferId = trimmed;
+        }
+
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>
+    /// Retém a ordem porque o desfecho da submissão anterior é desconhecido e não há como
+    /// prová-lo no provedor. Só gente tira daqui.
+    /// </summary>
+    /// <remarks>
+    /// O trilho Pix não tem busca por referência confiável (achado de sandbox de 2026-09-08:
+    /// o provedor descarta o <c>externalReference</c> e ignora o filtro por ele). Sem prova de
+    /// que a primeira tentativa não pagou, reenviar é apostar o dinheiro do tenant.
+    /// </remarks>
+    public void HoldForManualReconciliation(string reason, DateTime occurredAt)
+    {
+        if (Status != PaymentOrderStatus.Draft)
+            throw PaymentOrderErrors.HoldRequiresDraft(Status.Name);
+
+        var alreadyHeld = Hold == PaymentOrderHold.AwaitingManualReconciliation;
+
+        Hold = PaymentOrderHold.AwaitingManualReconciliation;
+        LastError = Clamp(reason, LAST_ERROR_MAX_LENGTH);
+        SubmissionLeaseExpiresAt = null;
+        UpdatedAt = occurredAt;
+
+        if (!alreadyHeld)
+            AddDomainEvent(new PaymentOrderHeldForConfirmationDomainEvent(Id, TenantId, BillId, occurredAt));
     }
 
     /// <summary>
@@ -332,24 +432,39 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
         decimal? feeAmount,
         IReadOnlyCollection<string>? failReasons,
         DateTimeOffset syncedAt,
-        DateTime occurredAt)
+        DateTime occurredAt,
+        BillActionOrigin? origin = null,
+        UserId? requestedBy = null)
         => ApplyProviderStatus(
             target,
             paidAt,
             feeAmount is { } fee ? new Money(fee, Currency.BRL) : null,
             failReasons,
             syncedAt,
-            occurredAt);
+            occurredAt,
+            origin,
+            requestedBy);
 
+    /// <param name="origin">
+    /// De onde partiu a mudança. O DEFAULT é <c>Provider</c>, e é o certo: este método existe
+    /// para refletir o que o provedor afirma, e a esmagadora maioria dos chamadores é webhook ou
+    /// conciliação. Só o cancelamento pedido pela NOSSA API passa <c>User</c> — e é justamente
+    /// essa distinção que a trilha do boleto precisa para não chamar de "Sistema" um ato que uma
+    /// pessoa praticou no painel do provedor.
+    /// </param>
     public bool ApplyProviderStatus(
         PaymentOrderStatus target,
         DateOnly? paidAt,
         Money? fee,
         IReadOnlyCollection<string>? failReasons,
         DateTimeOffset syncedAt,
-        DateTime occurredAt)
+        DateTime occurredAt,
+        BillActionOrigin? origin = null,
+        UserId? requestedBy = null)
     {
         ArgumentNullException.ThrowIfNull(target);
+
+        var changeOrigin = origin ?? BillActionOrigin.Provider;
 
         if (Status == PaymentOrderStatus.Draft || target == Status || !Status.CanTransitionTo(target))
         {
@@ -383,7 +498,8 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
         }
         else if (target == PaymentOrderStatus.Cancelled)
         {
-            AddDomainEvent(new PaymentOrderCancelledDomainEvent(Id, TenantId, BillId, occurredAt));
+            AddDomainEvent(new PaymentOrderCancelledDomainEvent(
+                Id, TenantId, BillId, changeOrigin, requestedBy, occurredAt));
         }
         else if (target == PaymentOrderStatus.Refunded)
         {
@@ -397,7 +513,10 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
     /// Cancela uma ordem que o provedor ainda não conhece. O caminho pós-submissão é outro:
     /// pedir ao provedor e refletir por <see cref="ApplyProviderStatus"/>.
     /// </summary>
-    public void CancelDraft(DateTime occurredAt)
+    public void CancelDraft(
+        DateTime occurredAt,
+        BillActionOrigin? origin = null,
+        UserId? requestedBy = null)
     {
         if (Status != PaymentOrderStatus.Draft)
             throw PaymentOrderErrors.CancellationNotAllowed(Status.Name);
@@ -412,7 +531,8 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
         SubmissionLeaseExpiresAt = null;
         UpdatedAt = occurredAt;
 
-        AddDomainEvent(new PaymentOrderCancelledDomainEvent(Id, TenantId, BillId, occurredAt));
+        AddDomainEvent(new PaymentOrderCancelledDomainEvent(
+            Id, TenantId, BillId, origin ?? BillActionOrigin.System, requestedBy, occurredAt));
     }
 
     /// <summary>Guarda a chave do comprovante baixado e cifrado no balde.</summary>

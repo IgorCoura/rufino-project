@@ -61,6 +61,26 @@ abstract final class BillStatuses {
   /// Whether the reopen action applies — only a failed payment reopens.
   static bool acceptsReopen(String status) => status == failed;
 
+  /// Whether the bill can be scheduled right now.
+  ///
+  /// Approved WITHOUT a date is the state the ADR-018 split created: the human
+  /// authorization is in place and nobody has picked a day yet. Approved WITH
+  /// a date already has an order on its way, so scheduling again would create
+  /// a second payment for the same commitment.
+  static bool acceptsScheduling(String status, DateTime? scheduledFor) =>
+      status == approved && scheduledFor == null;
+
+  /// Whether the bill is approved and already on its way to the provider.
+  static bool isAwaitingSubmission(String status, DateTime? scheduledFor) =>
+      status == approved && scheduledFor != null;
+
+  /// Whether a terminal human decision can be undone (ADR-018).
+  ///
+  /// Only denial and cancellation. `Paid` is terminal for real — money that
+  /// left does not come back by a decision of ours.
+  static bool acceptsUndo(String status) =>
+      status == denied || status == cancelled;
+
   /// The label to show for [status].
   static String label(String status) => switch (status) {
         captured => 'Capturado',
@@ -74,6 +94,96 @@ abstract final class BillStatuses {
         cancelled => 'Cancelado',
         _ => status,
       };
+}
+
+/// Wire values of the backend's `BillAction` smart enum — the bill's trail.
+///
+/// Not the same set as [BillStatuses], on purpose: status says where the bill
+/// IS, action says what was DONE. Revalidating does not always change the
+/// status and is still an event someone needs to see.
+abstract final class BillActions {
+  /// The document came in.
+  static const String captured = 'Captured';
+
+  /// The twelve checks ran.
+  static const String validated = 'Validated';
+
+  /// A human authorized the payment.
+  static const String approved = 'Approved';
+
+  /// A human picked a date and sent it to the payment queue.
+  static const String scheduled = 'Scheduled';
+
+  /// The schedule was undone; the approval still stands.
+  static const String unscheduled = 'Unscheduled';
+
+  /// A human refused the document.
+  static const String denied = 'Denied';
+
+  /// A human took the bill out of the flow.
+  static const String cancelled = 'Cancelled';
+
+  /// A human undid a denial or a cancellation.
+  static const String reverted = 'Reverted';
+
+  /// The provider accepted the order.
+  static const String handedToProvider = 'HandedToProvider';
+
+  /// The money left.
+  static const String paid = 'Paid';
+
+  /// The payment did not go through.
+  static const String paymentFailed = 'PaymentFailed';
+
+  /// A failed payment went back to the decision queue.
+  static const String reopened = 'Reopened';
+
+  /// The label to show for [action].
+  ///
+  /// An unknown action echoes the wire name — a newer server must never be
+  /// painted as an outcome this app recognises.
+  static String label(String action) => switch (action) {
+        captured => 'Capturado',
+        validated => 'Verificado',
+        approved => 'Aprovado',
+        scheduled => 'Agendado',
+        unscheduled => 'Agendamento cancelado',
+        denied => 'Negado',
+        cancelled => 'Cancelado',
+        reverted => 'Revertido',
+        handedToProvider => 'Enviado ao provedor',
+        paid => 'Pago',
+        paymentFailed => 'Pagamento falhou',
+        reopened => 'Reaberto',
+        _ => action,
+      };
+}
+
+/// Wire values of the backend's `BillActionOrigin` smart enum — WHERE an action
+/// came from.
+///
+/// Exists because "who" is not enough: a cancellation made in the provider's own
+/// dashboard and one requested here used to look identical in the trail.
+abstract final class BillActionOrigins {
+  /// A person, through our app. The entry carries the user id and name.
+  static const String user = 'User';
+
+  /// The payment provider — its dashboard, or a decision of its own. The API
+  /// gives us no way to tell those two apart, so neither does this.
+  static const String provider = 'Provider';
+
+  /// Our own automation: outbox, submission queue, reconciliation.
+  static const String system = 'System';
+
+  /// Whether [origin] deserves calling out in the UI.
+  ///
+  /// Only the provider does: a person is already named, and our own automation
+  /// is the unremarkable default.
+  static bool speaks(String origin) => origin == provider;
+
+  /// The badge to show beside the entry, or null when it says nothing new.
+  static String? label(String origin) =>
+      origin == provider ? 'no provedor' : null;
 }
 
 /// Wire values of the backend's `PaymentOrderStatus` smart enum (phase 3).
@@ -298,6 +408,15 @@ abstract final class CheckSeverities {
   /// A failure by the tenant's own declaration (blacklist, blocked origin)
   /// — one step above [blocking]: it turns the bill extreme danger.
   static const String critical = 'Critical';
+
+  /// One step *below* [advisory]: the outcome is highlighted, but its ceiling
+  /// is attention — it never turns the bill dangerous, whatever the result.
+  ///
+  /// Only three things sit here: the expectation (a bill nobody was waiting
+  /// for), the due date (overdue, past the cutoff — a calendar problem, not a
+  /// fraud signal) and the payee's *name* (divergent spelling or a name-only
+  /// match, with the identity partly confirmed).
+  static const String notice = 'Notice';
 }
 
 /// Wire values of the backend's `RiskLevel` smart enum — the bill's flag.

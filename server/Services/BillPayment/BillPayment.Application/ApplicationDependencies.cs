@@ -5,7 +5,9 @@ using BillPayment.Application.Bills.Commands;
 using BillPayment.Application.CaptureItems.Commands;
 using BillPayment.Application.Bills.EventHandlers;
 using BillPayment.Application.Mediator;
+using BillPayment.Application.PayerProfiles.Commands;
 using BillPayment.Domain.Bills;
+using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Application.Bills;
 using BillPayment.Application.Queries;
@@ -82,7 +84,9 @@ public static class ApplicationDependencies
 
         // Fase 3 — o lado do pagamento (ADR-002): a aprovação cria a ordem, a ordem reflete no
         // boleto, e a retenção por vencido avisa. Todos pelo outbox, todos idempotentes.
-        services.AddScoped<IDomainEventHandler<BillApprovedDomainEvent>, CreatePaymentOrderOnBillApprovedHandler>();
+        services.AddScoped<IDomainEventHandler<BillSchedulingRequestedDomainEvent>, CreatePaymentOrderOnBillSchedulingRequestedHandler>();
+        services.AddScoped<IDomainEventHandler<BillDecisionUndoneDomainEvent>, RevalidateOnBillDecisionUndoneHandler>();
+        services.AddScoped<IDomainEventHandler<AsaasAccountLinkedDomainEvent>, ProvisionWebhookOnAsaasAccountLinkedHandler>();
         services.AddScoped<IDomainEventHandler<BillCancelledDomainEvent>, CancelPaymentOrderOnBillCancelledHandler>();
         services.AddScoped<IDomainEventHandler<PaymentOrderScheduledDomainEvent>, LinkBillOnPaymentOrderScheduledHandler>();
         services.AddScoped<IDomainEventHandler<PaymentOrderPaidDomainEvent>, ReflectPaymentPaidOnBillHandler>();

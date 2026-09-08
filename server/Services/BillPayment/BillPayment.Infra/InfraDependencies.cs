@@ -1,4 +1,4 @@
-namespace BillPayment.Infra;
+﻿namespace BillPayment.Infra;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureItems;
@@ -432,6 +432,7 @@ public static class InfraDependencies
         services.AddScoped<IPaymentAccountVerifier, AsaasAccountVerifier>();
         services.AddScoped<IBillPaymentGateway, AsaasBillPaymentGateway>();
         services.AddScoped<IPixPaymentGateway, AsaasPixPaymentGateway>();
+        services.AddScoped<IPaymentWebhookProvisioner, AsaasWebhookProvisioner>();
     }
 
     private static Action<HttpClient> ConfigureAsaasClient(AsaasOptions options)

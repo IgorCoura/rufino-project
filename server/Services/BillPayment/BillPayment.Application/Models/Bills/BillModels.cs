@@ -99,30 +99,50 @@ public sealed record ImportBillFormModel(
 }
 
 /// <summary>
-/// A data de pagamento é escolha do aprovador, e por isso vem no corpo. Quem decide é resolvido
-/// do token (ou, nesta fase, do header) — nunca do body, para não ser possível aprovar em nome
-/// de outra pessoa.
+/// Quem decide é resolvido do token — nunca do body, para não ser possível aprovar em nome de
+/// outra pessoa.
 /// </summary>
+/// <param name="ScheduleFor">
+/// <strong>Opcional desde o ADR-018.</strong> Ausente, o boleto só é aprovado e fica esperando
+/// alguém agendar; presente, aprova e agenda na mesma transação — é o "Aprovar e agendar" da
+/// tela, e exige também a alçada de agendamento.
+/// </param>
 /// <param name="AcknowledgeRisk">
 /// ADR-015: <c>true</c> declara que o aprovador viu a classificação Perigo e decide mesmo assim.
 /// </param>
 public sealed record ApproveBillModel(
-    [property: JsonRequired] DateOnly ScheduleFor,
+    DateOnly? ScheduleFor,
     string? Note,
     bool AcknowledgeRisk = false,
     bool AcknowledgeImmediateExecution = false)
 {
-    // A alçada NÃO vem do body — é resolvida pelo controller a partir dos escopos UMA, pelo
-    // mesmo motivo que o UserId vem do token: quem chega à API não escolhe a própria alçada.
-    public ApproveBillCommand ToCommand(Guid tenantId, Guid billId, Guid decidedBy, string riskClearance)
-        => new(tenantId, billId, decidedBy, ScheduleFor, Note, riskClearance, AcknowledgeRisk, AcknowledgeImmediateExecution);
+    // Nem a alçada nem o nome vêm do body — os dois são resolvidos pelo controller (escopos UMA
+    // e claims do token), pelo mesmo motivo que o UserId: quem chega à API não escolhe a própria
+    // alçada nem assina a trilha com o nome de outro.
+    public ApproveBillCommand ToCommand(
+        Guid tenantId, Guid billId, Guid decidedBy, string riskClearance, string? actorName)
+        => new(
+            tenantId, billId, decidedBy, ScheduleFor, Note, riskClearance, actorName,
+            AcknowledgeRisk, AcknowledgeImmediateExecution);
+}
+
+/// <summary>A data de pagamento é escolha de quem agenda, e por isso vem no corpo.</summary>
+public sealed record ScheduleBillModel(
+    [property: JsonRequired] DateOnly ScheduleFor,
+    bool AcknowledgeImmediateExecution = false)
+{
+    public ScheduleBillCommand ToCommand(Guid tenantId, Guid billId, Guid decidedBy, string? actorName)
+        => new(tenantId, billId, decidedBy, ScheduleFor, actorName, AcknowledgeImmediateExecution);
 }
 
 public sealed record BillDecisionModel([property: JsonRequired] string Reason)
 {
-    public DenyBillCommand ToDenyCommand(Guid tenantId, Guid billId, Guid decidedBy)
-        => new(tenantId, billId, decidedBy, Reason);
+    public DenyBillCommand ToDenyCommand(Guid tenantId, Guid billId, Guid decidedBy, string? actorName)
+        => new(tenantId, billId, decidedBy, Reason, actorName);
 
-    public CancelBillCommand ToCancelCommand(Guid tenantId, Guid billId, Guid decidedBy)
-        => new(tenantId, billId, decidedBy, Reason);
+    public CancelBillCommand ToCancelCommand(Guid tenantId, Guid billId, Guid decidedBy, string? actorName)
+        => new(tenantId, billId, decidedBy, Reason, actorName);
+
+    public UndoBillDecisionCommand ToUndoCommand(Guid tenantId, Guid billId, Guid decidedBy, string? actorName)
+        => new(tenantId, billId, decidedBy, Reason, actorName);
 }

@@ -260,8 +260,8 @@ void main() {
       );
 
       await pumpDetail(tester);
-      await tester.ensureVisible(find.text('Aprovar…'));
-      await tester.tap(find.text('Aprovar…'));
+      await tester.ensureVisible(find.text('Aprovar e agendar…'));
+      await tester.tap(find.text('Aprovar e agendar…'));
       await tester.pumpAndSettle();
 
       expect(
@@ -269,7 +269,7 @@ void main() {
         findsOneWidget,
       );
       final authorize = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Autorizar'),
+        find.widgetWithText(FilledButton, 'Autorizar e agendar'),
       );
       expect(authorize.onPressed, isNull);
 
@@ -277,7 +277,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final armed = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Autorizar'),
+        find.widgetWithText(FilledButton, 'Autorizar e agendar'),
       );
       expect(armed.onPressed, isNotNull);
     });
@@ -291,13 +291,13 @@ void main() {
       );
 
       await pumpDetail(tester);
-      await tester.ensureVisible(find.text('Aprovar…'));
-      await tester.tap(find.text('Aprovar…'));
+      await tester.ensureVisible(find.text('Aprovar e agendar…'));
+      await tester.tap(find.text('Aprovar e agendar…'));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Este boleto está vencido'), findsNothing);
       final authorize = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Autorizar'),
+        find.widgetWithText(FilledButton, 'Autorizar e agendar'),
       );
       expect(authorize.onPressed, isNotNull);
     });
@@ -321,11 +321,11 @@ void main() {
       );
 
       await pumpDetail(tester);
-      await tester.ensureVisible(find.text('Aprovar…'));
-      await tester.tap(find.text('Aprovar…'));
+      await tester.ensureVisible(find.text('Aprovar e agendar…'));
+      await tester.tap(find.text('Aprovar e agendar…'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Autorizar'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Autorizar e agendar'));
       await tester.pumpAndSettle();
 
       // A folha continua aberta, com o aviso do servidor e a caixa.
@@ -338,21 +338,23 @@ void main() {
         findsOneWidget,
       );
       final disarmed = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Autorizar'),
+        find.widgetWithText(FilledButton, 'Autorizar e agendar'),
       );
       expect(disarmed.onPressed, isNull);
 
       await tester.tap(find.textContaining('Este boleto está vencido'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Autorizar'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Autorizar e agendar'));
       await tester.pumpAndSettle();
 
       expect(
-        repository.calls.where((c) => c == 'approveBill:bill-1').length,
+        repository.calls
+            .where((c) => c == 'approveAndSchedule:bill-1')
+            .length,
         2,
       );
       expect(repository.lastApproveImmediateAck, isTrue);
-      expect(find.text('Autorizar pagamento'), findsNothing);
+      expect(find.text('Autorizar e agendar pagamento'), findsNothing);
     });
   });
 
@@ -372,8 +374,8 @@ void main() {
       );
 
       await pumpDetail(tester);
-      await tester.ensureVisible(find.text('Aprovar…'));
-      await tester.tap(find.text('Aprovar…'));
+      await tester.ensureVisible(find.text('Aprovar e agendar…'));
+      await tester.tap(find.text('Aprovar e agendar…'));
       await tester.pumpAndSettle();
 
       expect(
@@ -400,8 +402,8 @@ void main() {
       );
 
       await pumpDetail(tester);
-      await tester.ensureVisible(find.text('Aprovar…'));
-      await tester.tap(find.text('Aprovar…'));
+      await tester.ensureVisible(find.text('Aprovar e agendar…'));
+      await tester.tap(find.text('Aprovar e agendar…'));
       await tester.pumpAndSettle();
 
       expect(
@@ -423,20 +425,20 @@ void main() {
       repository.previewShouldFail = true;
 
       await pumpDetail(tester);
-      await tester.ensureVisible(find.text('Aprovar…'));
-      await tester.tap(find.text('Aprovar…'));
+      await tester.ensureVisible(find.text('Aprovar e agendar…'));
+      await tester.tap(find.text('Aprovar e agendar…'));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Pagamento será executado'), findsNothing);
       final authorize = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Autorizar'),
+        find.widgetWithText(FilledButton, 'Autorizar e agendar'),
       );
       expect(authorize.onPressed, isNotNull);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Autorizar'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Autorizar e agendar'));
       await tester.pumpAndSettle();
 
-      expect(repository.calls, contains('approveBill:bill-1'));
+      expect(repository.calls, contains('approveAndSchedule:bill-1'));
     });
 
     // Quando o servidor calcula execução imediata (o relógio dele manda), a
@@ -457,8 +459,8 @@ void main() {
       );
 
       await pumpDetail(tester);
-      await tester.ensureVisible(find.text('Aprovar…'));
-      await tester.tap(find.text('Aprovar…'));
+      await tester.ensureVisible(find.text('Aprovar e agendar…'));
+      await tester.tap(find.text('Aprovar e agendar…'));
       await tester.pumpAndSettle();
 
       expect(
@@ -470,7 +472,7 @@ void main() {
         findsOneWidget,
       );
       final authorize = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Autorizar'),
+        find.widgetWithText(FilledButton, 'Autorizar e agendar'),
       );
       expect(authorize.onPressed, isNull);
     });

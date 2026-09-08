@@ -108,7 +108,7 @@ class BillRepositoryImpl implements BillRepository {
   @override
   Future<Result<void>> approveBill(
     String id, {
-    required DateTime scheduleFor,
+    DateTime? scheduleFor,
     String? note,
     bool acknowledgeRisk = false,
     bool acknowledgeImmediateExecution = false,
@@ -122,6 +122,21 @@ class BillRepositoryImpl implements BillRepository {
           acknowledgeImmediateExecution: acknowledgeImmediateExecution,
         ),
         context: {'op': 'approveBill', 'billId': id},
+      );
+
+  @override
+  Future<Result<void>> scheduleBill(
+    String id, {
+    required DateTime scheduleFor,
+    bool acknowledgeImmediateExecution = false,
+  }) =>
+      _guard(
+        () => apiService.scheduleBill(
+          id,
+          scheduleFor: scheduleFor,
+          acknowledgeImmediateExecution: acknowledgeImmediateExecution,
+        ),
+        context: {'op': 'scheduleBill', 'billId': id},
       );
 
   @override
@@ -147,6 +162,12 @@ class BillRepositoryImpl implements BillRepository {
   Future<Result<void>> cancelBill(String id, String reason) => _guard(
         () => apiService.cancelBill(id, reason),
         context: {'op': 'cancelBill', 'billId': id},
+      );
+
+  @override
+  Future<Result<void>> undoBillDecision(String id, String reason) => _guard(
+        () => apiService.undoBillDecision(id, reason),
+        context: {'op': 'undoBillDecision', 'billId': id},
       );
 
   @override

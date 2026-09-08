@@ -1,4 +1,4 @@
-namespace BillPayment.UnitTests.Secrets;
+﻿namespace BillPayment.UnitTests.Secrets;
 
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.Secrets;
@@ -19,8 +19,9 @@ public class SecretKindTests
 
     // O catálogo é o do ADR-009: acrescentar é barato, renumerar não.
     [Fact]
-    public void GetAll_ShouldDeclareTheFourKindsFromTheAdr()
+    public void GetAll_ShouldDeclareTheKindsFromTheAdr()
     {
-        Assert.Equal(4, Enumeration.GetAll<SecretKind>().Count());
+        // Quatro do ADR-009 mais o token de webhook por tenant (ADR-019, 2026-09-08).
+        Assert.Equal(5, Enumeration.GetAll<SecretKind>().Count());
     }
 }

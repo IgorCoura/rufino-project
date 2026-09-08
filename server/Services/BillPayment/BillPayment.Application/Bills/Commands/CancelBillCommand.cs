@@ -1,4 +1,4 @@
-namespace BillPayment.Application.Bills.Commands;
+﻿namespace BillPayment.Application.Bills.Commands;
 
 using BillPayment.Application.Mediator;
 using BillPayment.Domain.Bills;
@@ -14,7 +14,8 @@ public sealed record CancelBillCommand(
     Guid TenantId,
     Guid BillId,
     Guid UserId,
-    string Reason) : ITenantScopedCommand, IRequest<CancelBillResponse>;
+    string Reason,
+    string? ActorName = null) : ITenantScopedCommand, IRequest<CancelBillResponse>;
 
 public sealed record CancelBillResponse(Guid Id, string Status);
 
@@ -30,7 +31,8 @@ public sealed class CancelBillCommandHandler(
             TenantId.From(request.TenantId), BillId.From(request.BillId), cancellationToken)
             ?? throw BillErrors.NotFound(request.BillId);
 
-        bill.Cancel(UserId.From(request.UserId), request.Reason, clock.GetUtcNow().UtcDateTime);
+        bill.Cancel(
+            UserId.From(request.UserId), request.Reason, clock.GetUtcNow().UtcDateTime, request.ActorName);
 
         await unitOfWork.SaveEntitiesAsync(cancellationToken);
 

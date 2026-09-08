@@ -1,6 +1,7 @@
-namespace BillPayment.Application.PaymentOrders.Commands;
+﻿namespace BillPayment.Application.PaymentOrders.Commands;
 
 using BillPayment.Application.Mediator;
+using BillPayment.Domain.Bills;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.PaymentOrders;
@@ -47,9 +48,13 @@ public sealed class CancelPaymentOrderCommandHandler(
         var nowUtc = clock.GetUtcNow();
         var now = nowUtc.UtcDateTime;
 
+        var requestedBy = UserId.From(request.RequestedBy);
+
         if (order.Status == PaymentOrderStatus.Draft)
         {
-            order.CancelDraft(now);
+            // Origem User: foi uma pessoa, pelo nosso app. Sem isto a trilha do boleto gravaria
+            // "Sistema" e ficaria indistinguível de um cancelamento feito no painel do provedor.
+            order.CancelDraft(now, BillActionOrigin.User, requestedBy);
             await unitOfWork.SaveEntitiesAsync(cancellationToken);
             return new CancelPaymentOrderResponse(order.Id.Value, order.Status.Name);
         }
@@ -71,7 +76,8 @@ public sealed class CancelPaymentOrderCommandHandler(
         }
 
         order.ApplyProviderStatus(
-            PaymentOrderStatus.Cancelled, paidAt: null, fee: null, failReasons: null, nowUtc, now);
+            PaymentOrderStatus.Cancelled, paidAt: null, fee: null, failReasons: null, nowUtc, now,
+            BillActionOrigin.User, requestedBy);
 
         await unitOfWork.SaveEntitiesAsync(cancellationToken);
 

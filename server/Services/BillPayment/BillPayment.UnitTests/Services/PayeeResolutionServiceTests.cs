@@ -120,4 +120,35 @@ public class PayeeResolutionServiceTests
 
         Assert.Equal(PayeeMatchKind.Lookalike, resolution.Kind);
     }
+
+    // CONTRAPROVA da normalização de nome unificada em 2026-09-08: a tolerância é de grafia,
+    // não de semelhança. Nome conhecido com CNPJ de outra pessoa continua sendo sósia — e não
+    // vira casamento — mesmo escrito exatamente como o cadastro.
+    [Fact]
+    public void Resolve_WithTheExactRegisteredNameButAnotherTaxId_ShouldStillBeLookalike()
+    {
+        var payee = ValidationMother.RegisteredPayee(legalName: "EDP SÃO PAULO S.A.");
+
+        var resolution = PayeeResolutionService.Resolve(
+            LookupParty.From("EDP SAO PAULO S/A", null, OtherCnpj),
+            [payee]);
+
+        Assert.Equal(PayeeMatchKind.Lookalike, resolution.Kind);
+    }
+
+    // A outra metade da mesma regra: sem documento na consulta, a grafia diferente passou a
+    // CASAR. É o ganho direto da normalização única — antes disto um ponto a mais na razão
+    // social mandava a conta de arrecadação para "beneficiário não cadastrado".
+    [Fact]
+    public void Resolve_WithoutATaxId_AndADifferentSpelling_ShouldMatchByName()
+    {
+        var payee = ValidationMother.RegisteredPayee(legalName: "EDP SÃO PAULO S.A.");
+
+        var resolution = PayeeResolutionService.Resolve(
+            LookupParty.From("EDP SAO PAULO S/A", null, null),
+            [payee]);
+
+        Assert.Equal(PayeeMatchKind.ByName, resolution.Kind);
+        Assert.Same(payee, resolution.Payee);
+    }
 }

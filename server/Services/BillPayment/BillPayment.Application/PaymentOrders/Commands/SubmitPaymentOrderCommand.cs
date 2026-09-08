@@ -92,14 +92,32 @@ public sealed class SubmitPaymentOrderCommandHandler(
             var fetch = await order.FindByExternalReferenceAsync(
                 billGateway, pixGateway, credential, cancellationToken);
 
-            if (fetch.IsUnavailable)
-                throw PaymentOrderErrors.SubmissionUnavailable(fetch.ReasonCode);
-
             if (fetch.IsFound)
             {
                 Adopt(order, fetch.Snapshot!, nowUtc, now);
                 await unitOfWork.SaveEntitiesAsync(cancellationToken);
                 return new SubmitPaymentOrderResponse(request.PaymentOrderId, OUTCOME_SUBMITTED);
+            }
+
+            if (fetch.IsUnavailable)
+            {
+                // O trilho Pix não tem busca confiável: o provedor descarta o externalReference
+                // e ignora o filtro por ele (medido em 2026-09-08), então o adapter varre uma
+                // janela e pode legitimamente terminar sem saber. Insistir com backoff nunca
+                // produziria uma resposta melhor, e a tentativa seguinte reenviaria o pagamento.
+                // Retenção visível é a única saída honesta: gente confere no provedor e decide.
+                if (order.Rail == PaymentRail.Pix && IsScanExhausted(fetch.ReasonCode))
+                {
+                    order.HoldForManualReconciliation(
+                        $"Não foi possível confirmar no provedor se a tentativa anterior pagou ({fetch.ReasonCode}). "
+                        + "Confira a transação no Asaas antes de liberar.",
+                        now);
+
+                    await unitOfWork.SaveEntitiesAsync(cancellationToken);
+                    return new SubmitPaymentOrderResponse(request.PaymentOrderId, OUTCOME_HELD);
+                }
+
+                throw PaymentOrderErrors.SubmissionUnavailable(fetch.ReasonCode);
             }
         }
 
@@ -212,12 +230,25 @@ public sealed class SubmitPaymentOrderCommandHandler(
         // provedor — sem ele, uma ordem paga apareceria sem valor no relatório.
         order.MarkSubmitted(snapshot.ProviderOrderId, effective, amount ?? snapshot.Amount, snapshot.Fee, now);
 
+        // O que o provedor disse sobre si: status cru, autorização de ação crítica e o id do
+        // transfer do Pix — sem eles a tela não consegue explicar uma ordem travada, e o webhook
+        // de Pix não tem por onde resolver a ordem.
+        order.RecordProviderDiagnostics(
+            snapshot.RawStatus, snapshot.Authorized, snapshot.TransferId, now);
+
         if (snapshot.Status != PaymentOrderStatus.Pending)
         {
             order.ApplyProviderStatus(
                 snapshot.Status, snapshot.PaidAt, snapshot.Fee, snapshot.FailReasons, syncedAt, now);
         }
     }
+
+    /// <summary>
+    /// A busca por referência terminou sem poder afirmar ausência — não é indisponibilidade
+    /// passageira, é limite do contrato do provedor, e retentar não melhora.
+    /// </summary>
+    private static bool IsScanExhausted(string? reasonCode)
+        => string.Equals(reasonCode, "reference_scan_exhausted", StringComparison.Ordinal);
 
     /// <summary>Recusa permanente: desistir É o desfecho, e persistir é o que tira a ordem da fila.</summary>
     private async Task<SubmitPaymentOrderResponse> RefuseAsync(

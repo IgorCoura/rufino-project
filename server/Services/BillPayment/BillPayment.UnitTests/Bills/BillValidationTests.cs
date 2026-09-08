@@ -68,9 +68,11 @@ public class BillValidationTests
         Assert.Same(RiskLevel.ExtremeDanger, bill.Risk);
     }
 
-    // Linha 2 da matriz: falha apenas Advisory não reprova, mas conta como ponto de atenção.
+    // Linha 2 da matriz, reescrita pelo ADR-020 (2026-09-08): falha apenas Advisory continua
+    // sem reprovar, mas passou a classificar como PERIGO. Antes disso era Atenção — a mudança
+    // é o coração do endurecimento, e é aqui que ela fica afirmada.
     [Fact]
-    public void RecordChecks_WithOnlyAnAdvisoryFailure_ShouldStillAwaitApproval()
+    public void RecordChecks_WithOnlyAnAdvisoryFailure_ShouldClassifyAsDanger()
     {
         var bill = CapturedAndDrained();
 
@@ -79,14 +81,30 @@ public class BillValidationTests
             EvaluatedAt);
 
         Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
+        Assert.Same(RiskLevel.Danger, bill.Risk);
+        Assert.Same(RiskLevel.Danger, outcome.Risk);
         Assert.Equal(0, outcome.BlockingFailures);
         Assert.Equal(1, outcome.AttentionItems);
     }
 
-    // Warning nunca bloqueia, mesmo num check cuja severidade é Blocking — é exatamente para
-    // isso que ele existe (divergência de grafia em arrecadação).
+    // Inconclusivo também pesa como Perigo desde o ADR-020 — é o desfecho mais comum do
+    // catálogo, e promovê-lo foi decisão explícita do usuário.
     [Fact]
-    public void RecordChecks_WithAWarningOnABlockingCheck_ShouldNotReject()
+    public void RecordChecks_WithAnInconclusiveOutcome_ShouldClassifyAsDanger()
+    {
+        var bill = CapturedAndDrained();
+
+        bill.RecordChecks(
+            AllPassing(CheckResult.Inconclusive(CheckType.OriginTrust, CheckReasons.ORIGIN_UNKNOWN)),
+            EvaluatedAt);
+
+        Assert.Same(RiskLevel.Danger, bill.Risk);
+    }
+
+    // Warning nunca bloqueia, mesmo num check cuja severidade é Blocking — é exatamente para
+    // isso que ele existe. Mas ele CLASSIFICA como Perigo, salvo o teto do Notice.
+    [Fact]
+    public void RecordChecks_WithAWarningOnABlockingCheck_ShouldNotRejectButShouldClassifyAsDanger()
     {
         var bill = CapturedAndDrained();
 
@@ -95,8 +113,53 @@ public class BillValidationTests
             EvaluatedAt);
 
         Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
+        Assert.Same(RiskLevel.Danger, bill.Risk);
         Assert.Equal(0, outcome.BlockingFailures);
         Assert.Equal(1, outcome.AttentionItems);
+    }
+
+    // O TETO DO NOTICE, que é o carve-out do ADR-020: os três assuntos marcados Notice —
+    // expectativa, prazo e nome do beneficiário — param em Atenção, qualquer que seja o
+    // resultado. Sem isto, a promoção acima levaria tudo junto.
+    [Theory]
+    [InlineData(nameof(CheckOutcome.Warning))]
+    [InlineData(nameof(CheckOutcome.Inconclusive))]
+    [InlineData(nameof(CheckOutcome.Failed))]
+    public void RecordChecks_WithOnlyANoticeOutcome_ShouldStopAtAttention(string outcomeName)
+    {
+        var bill = CapturedAndDrained();
+        var outcome = Enumeration.FromDisplayName<CheckOutcome>(outcomeName);
+
+        var noticed = outcome == CheckOutcome.Failed
+            ? CheckResult.Failed(
+                CheckType.DueDateSanity, CheckReasons.OVERDUE, severity: CheckSeverity.Notice)
+            : outcome == CheckOutcome.Warning
+                ? CheckResult.Warning(
+                    CheckType.PayeeMatch, CheckReasons.PAYEE_NAME_DIVERGENCE, severity: CheckSeverity.Notice)
+                : CheckResult.Inconclusive(
+                    CheckType.ExpectationMatch, CheckReasons.EXPECTATION_NOT_REGISTERED);
+
+        var result = bill.RecordChecks(AllPassing(noticed), EvaluatedAt);
+
+        Assert.Same(RiskLevel.Attention, bill.Risk);
+        Assert.Same(RiskLevel.Attention, result.Risk);
+    }
+
+    // O pior vence: o Notice não rebaixa nada — um boleto com prazo ruim E conferência
+    // incompleta continua sendo Perigo.
+    [Fact]
+    public void RecordChecks_WithANoticeAndADangerTogether_ShouldTakeTheWorst()
+    {
+        var bill = CapturedAndDrained();
+
+        bill.RecordChecks(
+            AllPassing(
+                CheckResult.Failed(
+                    CheckType.DueDateSanity, CheckReasons.OVERDUE, severity: CheckSeverity.Notice),
+                CheckResult.Inconclusive(CheckType.OriginTrust, CheckReasons.ORIGIN_UNKNOWN)),
+            EvaluatedAt);
+
+        Assert.Same(RiskLevel.Danger, bill.Risk);
     }
 
     // Conjunto parcial é recusado: gravar meia validação deixaria pergunta sem resposta
