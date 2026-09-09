@@ -1,4 +1,4 @@
-namespace BillPayment.IntegrationTests.CapturedMessages;
+﻿namespace BillPayment.IntegrationTests.CapturedMessages;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -327,12 +327,11 @@ public sealed class RecaptureMessageTests : BaseIntegrationTest, IDisposable
 
             if (approve)
             {
-                // O boleto sintético está vencido: o ADR-017 exige o aceite de execução
-                // imediata para aprovar vencido (BLP.BIL35).
+                // O que trava a recaptura é o COMPROMETIMENTO com o pagamento, e desde o
+                // ADR-018 quem o cria é a aprovação — o agendamento é passo separado. O aceite
+                // de execução imediata (BLP.BIL35) migrou junto, para Schedule.
                 bill.Approve(
-                    Requester, Today.AddDays(3), null, ApprovalPolicy.Default(null),
-                    RiskLevel.ExtremeDanger, Today, OccurredAt,
-                    acknowledgeRisk: false, acknowledgeImmediateExecution: true);
+                    Requester, null, ApprovalPolicy.Default(null), RiskLevel.ExtremeDanger, OccurredAt);
             }
             else if (deny)
                 bill.Deny(Requester, "duplicado", OccurredAt);

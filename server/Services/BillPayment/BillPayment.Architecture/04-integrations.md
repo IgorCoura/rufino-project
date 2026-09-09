@@ -90,7 +90,27 @@ Resposta → `PixLookupSnapshot`:
 
 **`POST /v3/pix/qrCodes/pay`** — entrada: `qrCode: { payload, changeValue? }`, `value` (obrigatório), `description`, e **`scheduleDate`**. A resposta traz `endToEndIdentifier`, `scheduledDate`, `conciliationIdentifier`, `externalReference`, `chargedFeeValue`, status, `canBeCanceled` e `canBeRefunded`.
 
-> ⚠️ **O endpoint de pagamento Pix não documenta mecanismo de idempotência.** `externalReference` é descrito como "campo livre para busca", não como chave de deduplicação — diferente do que o `POST /v3/bill` oferece. **Uma retentativa de rede pode pagar duas vezes.** Mitigação obrigatória na sprint 3.x: antes de qualquer retentativa, consultar por `externalReference` (= nosso `PaymentOrderId`) e só reenviar se nada voltar. Isso é dever do adapter, e sem ele o trilho Pix é mais arriscado que o de boleto apesar de ADR-010 preferi-lo.
+> 🔴 **MEDIDO EM SANDBOX (2026-09-08) — pior que o alerta anterior.** O aviso abaixo dizia que o
+> `externalReference` era "campo livre para busca, não chave de deduplicação". A sonda mostrou duas
+> coisas piores:
+>
+> 1. **O provedor DESCARTA o `externalReference` deste endpoint.** Enviado no corpo, a resposta
+>    volta com `"externalReference": null` — na transação e no `transfer` espelho. Ele não é nem
+>    campo de busca, porque não é gravado.
+> 2. **O filtro `?externalReference=` é IGNORADO pelo servidor.** `GET /v3/pix/transactions?externalReference=<guid-inexistente>`
+>    devolveu a lista inteira (`totalCount=3`). O adapter pegava `data[0]` e adotava **a transação
+>    de outro pagamento** como sendo a nossa, na retentativa de submissão.
+>
+> **Correção (ADR-019):** o marcador `RUF:{orderId}` viaja no `description` — o único campo que o
+> provedor comprovadamente grava e devolve — e o casamento é **local**, varrendo a janela recente.
+> Não achando com certeza, a ordem entra em `AwaitingManualReconciliation` em vez de ser reenviada:
+> "não sei" nunca autoriza reenviar dinheiro.
+
+> ⚠️ **O pagamento Pix nasce em `AWAITING_CRITICAL_ACTION_AUTHORIZATION`** (medido), com
+> `authorized: false` no `transfer`. É o provedor esperando alguém liberar a ação crítica pelo
+> celular. **Não há API pública para autorizar** (`/criticalActions` e
+> `/myAccount/criticalActionConfigs` respondem 404): a saída é a **whitelist de IP** do ADR-001, e
+> ela é **por conta** — cada tenant cadastra o IP de saída da nossa instalação na conta dele.
 
 Status: `AWAITING_BALANCE_VALIDATION`, `SCHEDULED`, `REQUESTED`, `DONE`, `REFUSED`, `CANCELLED`, entre outros (11 no total) — mapeados para `PaymentOrderStatus` no adapter.
 
@@ -108,11 +128,48 @@ Estado medido em 2026-07-31: **357 instituições, 347 com código de três díg
 
 Contrato no domínio: `IBankDirectory` (`Domain/Ports/`) — `IsKnown`, `ParticipatesInCompe`, `NameOf`, `FromIspb`. Síncrono e sem `CancellationToken` de propósito: não é I/O.
 
-### Webhooks (fase 3)
+### Webhooks (fase 3) — contrato MEDIDO em 2026-09-08
 
-Eventos: `BILL_CREATED`, `BILL_PENDING`, `BILL_BANK_PROCESSING`, `BILL_PAID`, `BILL_CANCELLED`, `BILL_FAILED`, `BILL_REFUNDED`.
+**Eventos válidos, verificados um a um contra o provedor** (ele recusa o inválido com
+`"O evento [X] é inválido."`):
 
-**Um webhook por conta de tenant** ([`adr/ADR-016`](adr/ADR-016-conta-asaas-trazida-pelo-tenant.md)): não há mais conta-plataforma, então cada conta precisa do seu, provisionado **programaticamente com a chave do tenant** (`POST /v3/webhooks`) no vínculo da chave e conferido pela conciliação. O token de autenticação é gerado por nós, por tenant, e guardado no cofre.
+| Família | Eventos | Objeto no payload |
+|---|---|---|
+| Pague-contas | `BILL_CREATED`, `BILL_PENDING`, `BILL_BANK_PROCESSING`, `BILL_PAID`, `BILL_CANCELLED`, `BILL_FAILED`, `BILL_REFUNDED` | `bill` |
+| Transferência | `TRANSFER_CREATED`, `TRANSFER_PENDING`, `TRANSFER_BLOCKED`, `TRANSFER_CANCELLED`, `TRANSFER_DONE`, `TRANSFER_FAILED` | `transfer` |
+
+> 🔴 **NÃO existe evento de transação Pix.** `PIX_TRANSACTION_*` é recusado como inválido; toda
+> saída de Pix é notificada como **transferência**. E o objeto do evento é o `transfer` espelho,
+> cujo id **não** é o que guardamos em `ProviderOrderId` (esse é o da transação Pix). O elo é o
+> campo `transferId` da transação — daí a coluna `provider_transfer_id` e a busca por ela.
+> Era esta a lacuna que fazia cancelar um Pix no painel não chegar ao app.
+>
+> ⚠️ **Os dois vocabulários divergem para o mesmo fato**: a transação diz
+> `AWAITING_CRITICAL_ACTION_AUTHORIZATION` enquanto o transfer diz `PENDING`; `REFUSED` de um lado
+> é `FAILED` do outro. `ProviderStatusCatalog.FromTransfer` existe por isso.
+> `TRANSFER_IN_BANK_ACCOUNT` **não** é aceito, apesar de plausível.
+
+**Contrato de `POST /v3/webhooks`** (medido):
+
+```jsonc
+{ "id": "dacf24fe-…", "name": "…", "url": "…", "email": "…",
+  "enabled": false, "interrupted": false, "apiVersion": 3,
+  "hasAuthToken": true, "sendType": "SEQUENTIALLY",
+  "penalizedRequestsCount": 0, "events": [...], "authToken": "…" }
+```
+
+- o `authToken` exige **≥ 32 caracteres** (`400 "O token deve ter pelo menos 32 caracteres."`) e
+  recusa sequência numérica ou letra repetida quatro vezes;
+- **`GET /v3/webhooks/{id}` devolve `hasAuthToken: true` e OMITE o valor** — o token só existe na
+  resposta da criação, e perdê-lo obriga a recriar o webhook;
+- `interrupted` e `penalizedRequestsCount` são o sinal de saúde da fila sequencial da conta.
+
+**Um webhook por conta de tenant** ([`adr/ADR-016`](adr/ADR-016-conta-asaas-trazida-pelo-tenant.md), implementado em 2026-09-08 pelo [`ADR-019`](adr/ADR-019-webhook-por-tenant-e-o-payload-como-aviso.md)): cada conta recebe o seu, provisionado **programaticamente com a chave do tenant** no vínculo da chave. O token é gerado por nós, por tenant, e guardado cifrado no cofre (`SecretKind.AsaasWebhookToken`) — o token único da instalação **foi removido**.
+
+> 🔑 **O payload é tratado como AVISO, não como verdade.** O provedor não assina o corpo (só
+> oferece o token no header, sem HMAC), então quem obtivesse o token forjaria qualquer conteúdo.
+> O handler usa o payload apenas para **descobrir de qual ordem se trata** e em seguida **relê a
+> ordem no provedor** com a chave do tenant, aplicando o que a leitura afirmar.
 
 Endpoint próprio, **fora de `api/v1`** — o Asaas não conhece nosso `tenantId`, e toda rota sob `api/v1` exige `{tenantId}` + `[ProtectedResource]` por teste de erosão (`EndpointProtectionTests`): resolve o tenant pela `externalReference`. Requisitos:
 

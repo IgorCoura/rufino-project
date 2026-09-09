@@ -23,12 +23,41 @@ public static class ProviderStatusCatalog
     public static PaymentOrderStatus FromBillPayment(string? raw)
         => raw?.ToUpperInvariant() switch
         {
-            "PENDING" or "AWAITING_CHECKOUT_RISK_ANALYSIS_REQUEST" or "SCHEDULED" => PaymentOrderStatus.Pending,
+            // AWAITING_CRITICAL_ACTION_AUTHORIZATION entrou aqui em 2026-09-08: estava mapeado
+            // só no trilho Pix e caía no default do lado do boleto. O destino é o mesmo
+            // (Pending), mas explicitá-lo é o que impede a próxima leitura de supor que o
+            // provedor nunca usa esse status no pague-contas.
+            "PENDING" or "AWAITING_CHECKOUT_RISK_ANALYSIS_REQUEST" or "SCHEDULED"
+                or "AWAITING_CRITICAL_ACTION_AUTHORIZATION" or "AWAITING_BALANCE_VALIDATION"
+                    => PaymentOrderStatus.Pending,
             "BANK_PROCESSING" => PaymentOrderStatus.BankProcessing,
             "PAID" => PaymentOrderStatus.Paid,
             "FAILED" => PaymentOrderStatus.Failed,
             "CANCELLED" => PaymentOrderStatus.Cancelled,
             "REFUNDED" => PaymentOrderStatus.Refunded,
+            _ => PaymentOrderStatus.Pending,
+        };
+
+    /// <summary>
+    /// A tradução do vocabulário de <c>transfer</c> — o objeto que os webhooks
+    /// <c>TRANSFER_*</c> carregam, e que é o espelho de toda saída de Pix.
+    /// </summary>
+    /// <remarks>
+    /// MEDIDO EM SANDBOX (2026-09-08): <strong>transfer e transação Pix falam vocabulários
+    /// diferentes para o mesmo fato</strong> — a transação diz
+    /// <c>AWAITING_CRITICAL_ACTION_AUTHORIZATION</c> enquanto o transfer diz <c>PENDING</c>;
+    /// <c>REFUSED</c> de um lado é <c>FAILED</c> do outro. Traduzir o transfer com o mapa da
+    /// transação erraria, e por isso este mapa existe separado em vez de reusar
+    /// <see cref="FromPixPayment"/>.
+    /// </remarks>
+    public static PaymentOrderStatus FromTransfer(string? raw)
+        => raw?.ToUpperInvariant() switch
+        {
+            "PENDING" or "SCHEDULED" or "AWAITING_CRITICAL_ACTION_AUTHORIZATION" => PaymentOrderStatus.Pending,
+            "BANK_PROCESSING" or "IN_BANK_ACCOUNT" => PaymentOrderStatus.BankProcessing,
+            "DONE" => PaymentOrderStatus.Paid,
+            "FAILED" or "BLOCKED" or "REFUSED" => PaymentOrderStatus.Failed,
+            "CANCELLED" => PaymentOrderStatus.Cancelled,
             _ => PaymentOrderStatus.Pending,
         };
 

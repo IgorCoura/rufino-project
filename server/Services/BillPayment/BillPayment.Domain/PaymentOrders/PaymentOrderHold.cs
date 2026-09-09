@@ -26,5 +26,18 @@ public sealed class PaymentOrderHold : Enumeration
     /// </summary>
     public static readonly PaymentOrderHold AwaitingConfirmation = new(3, "AwaitingConfirmation");
 
+    /// <summary>
+    /// A submissão anterior teve desfecho desconhecido e <strong>não dá para provar</strong> se
+    /// ela pagou. Só sai por gente, depois de conferir no provedor.
+    /// </summary>
+    /// <remarks>
+    /// Nasceu do achado de sandbox de 2026-09-08: no trilho Pix o provedor <em>descarta</em> o
+    /// <c>externalReference</c> que enviamos e <em>ignora</em> o filtro de busca por ele — ou
+    /// seja, a consulta que autorizaria um reenvio seguro pode simplesmente não existir. Entre
+    /// reenviar às cegas (pagar duas vezes) e parar pedindo ajuda, este BC para. É a única
+    /// retenção que nasce de ignorância nossa, não de regra de negócio.
+    /// </remarks>
+    public static readonly PaymentOrderHold AwaitingManualReconciliation = new(4, "AwaitingManualReconciliation");
+
     private PaymentOrderHold(int id, string name) : base(id, name) { }
 }

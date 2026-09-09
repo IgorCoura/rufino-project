@@ -1,4 +1,4 @@
-namespace BillPayment.UnitTests.Bills;
+﻿namespace BillPayment.UnitTests.Bills;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Bills.Checks;
@@ -14,6 +14,25 @@ using BillPayment.UnitTests.Services.Mothers;
 /// </summary>
 public class BillPaymentMirrorTests
 {
+    /// <summary>Aprovar e agendar num passo, como era antes do ADR-018 — ver BillApprovalTests.</summary>
+    private static void ApproveAndSchedule(
+        Bill bill,
+        UserId approvedBy,
+        DateOnly scheduleFor,
+        string? note,
+        ApprovalPolicy policy,
+        RiskLevel clearance,
+        DateOnly today,
+        DateTime occurredAt,
+        bool acknowledgeRisk = false,
+        bool acknowledgeImmediateExecution = false)
+    {
+        bill.Approve(approvedBy, note, policy, clearance, occurredAt, acknowledgeRisk);
+        bill.Schedule(
+            approvedBy, scheduleFor, policy, today, SameDayScheduling.Allow(), occurredAt,
+            acknowledgeImmediateExecution);
+    }
+
     private static readonly UserId Approver = UserId.From(new Guid("0195a1f0-0000-7000-8000-00000000000a"));
     private static readonly DateTime DecidedAt = new(2026, 6, 20, 10, 0, 0, DateTimeKind.Utc);
     private static readonly DateOnly Today = new(2026, 6, 20);
@@ -84,18 +103,44 @@ public class BillPaymentMirrorTests
         Assert.Equal(BillStatus.Failed, bill.Status);
     }
 
-    // Cancelamento pós-agendamento reflete sem tocar a trilha de aprovação — quem cancelou e
-    // por quê vive na ordem.
+    // ADR-018 — A REGRESSÃO QUE ORIGINOU A MUDANÇA. Cancelar o agendamento de um boleto já
+    // agendado devolvia o boleto a Cancelled (terminal): quem só queria trocar a data perdia o
+    // boleto e a aprovação junto, e precisava reimportar o documento. O que o cancelamento
+    // desfaz é a EXECUÇÃO; a autorização humana continua de pé.
     [Fact]
-    public void MarkScheduleCancelled_ShouldCancelWithoutTouchingTheApprovalRecord()
+    public void UnschedulePayment_OnAScheduledBill_ShouldReturnToApprovedKeepingTheApproval()
     {
         var bill = Scheduled();
         var approval = bill.Approval;
 
-        bill.MarkScheduleCancelled(DecidedAt);
+        bill.UnschedulePayment(BillActionOrigin.Provider, DecidedAt);
 
-        Assert.Equal(BillStatus.Cancelled, bill.Status);
+        Assert.Equal(BillStatus.Approved, bill.Status);
+        Assert.Null(bill.PaymentOrderId);
+        Assert.Null(bill.ScheduledFor);
         Assert.Same(approval, bill.Approval);
+
+        // A trilha registra o desfazimento — sem isso o boleto voltaria à aba de aprovados sem
+        // nada explicando por que a data sumiu.
+        var entry = bill.History[^1];
+        Assert.Equal(BillAction.Unscheduled, entry.Action);
+        Assert.Equal(BillStatus.Scheduled, entry.FromStatus);
+        Assert.Equal(BillStatus.Approved, entry.ToStatus);
+    }
+
+    // E o boleto volta a ser agendável, para outra data, sem passar por nova aprovação.
+    [Fact]
+    public void UnschedulePayment_ThenSchedulingAgain_ShouldBeAccepted()
+    {
+        var bill = Scheduled();
+        bill.UnschedulePayment(BillActionOrigin.Provider, DecidedAt);
+
+        bill.Schedule(
+            Approver, ScheduleFor.AddDays(1), ApprovalPolicy.Default(null), Today,
+            SameDayScheduling.Allow(), DecidedAt);
+
+        Assert.Equal(ScheduleFor.AddDays(1), bill.ScheduledFor);
+        Assert.Single(bill.PullDomainEvents().OfType<BillSchedulingRequestedDomainEvent>());
     }
 
     // A nova tentativa é uma nova aprovação e uma nova ordem (ADR-002): reabrir limpa o vínculo
@@ -133,12 +178,17 @@ public class BillPaymentMirrorTests
         var bill = ReadyForApproval();
         var overdueToday = new DateOnly(2026, 7, 5);
 
-        var ex = Assert.Throws<DomainException>(() => bill.Approve(
+        var ex = Assert.Throws<DomainException>(() => ApproveAndSchedule(
+            bill,
             Approver, new DateOnly(2026, 7, 6), null, ApprovalPolicy.Default(null),
             RiskLevel.ExtremeDanger, overdueToday, DecidedAt));
 
         Assert.Equal("BLP.BIL35", ex.Id);
-        Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
+
+        // Approved, e não AwaitingApproval: desde o ADR-018 a guarda do vencido é do AGENDAMENTO,
+        // e a aprovação — que não tem nada de errado — já aconteceu. Numa chamada de
+        // "aprovar e agendar" as duas vivem na mesma transação, então a recusa desfaz as duas.
+        Assert.Equal(BillStatus.Approved, bill.Status);
     }
 
     // Com o aceite, o vencido é aprovável — e é esse consentimento que a ordem herda para não
@@ -149,7 +199,8 @@ public class BillPaymentMirrorTests
         var bill = ReadyForApproval();
         var overdueToday = new DateOnly(2026, 7, 5);
 
-        bill.Approve(
+        ApproveAndSchedule(
+            bill,
             Approver, new DateOnly(2026, 7, 6), null, ApprovalPolicy.Default(null),
             RiskLevel.ExtremeDanger, overdueToday, DecidedAt,
             acknowledgeRisk: false, acknowledgeImmediateExecution: true);
@@ -163,7 +214,8 @@ public class BillPaymentMirrorTests
     {
         var bill = ReadyForApproval();
 
-        bill.Approve(
+        ApproveAndSchedule(
+            bill,
             Approver, ScheduleFor, null, ApprovalPolicy.Default(null),
             RiskLevel.ExtremeDanger, Today, DecidedAt);
 
@@ -179,13 +231,14 @@ public class BillPaymentMirrorTests
         var bill = ReadyForApproval();
         var overdueToday = new DateOnly(2026, 7, 5);
 
-        bill.Approve(
+        ApproveAndSchedule(
+            bill,
             Approver, new DateOnly(2026, 7, 6), null, ApprovalPolicy.Default(null),
             RiskLevel.ExtremeDanger, overdueToday, DecidedAt,
             acknowledgeRisk: false, acknowledgeImmediateExecution: true);
 
-        var approved = Assert.Single(bill.PullDomainEvents().OfType<BillApprovedDomainEvent>());
-        Assert.True(approved.AcknowledgedImmediateExecution);
+        var scheduled = Assert.Single(bill.PullDomainEvents().OfType<BillSchedulingRequestedDomainEvent>());
+        Assert.True(scheduled.AcknowledgedImmediateExecution);
     }
 
     // Um "true" solto num boleto NÃO vencido não é consentimento — a caixa nem apareceu na
@@ -196,40 +249,41 @@ public class BillPaymentMirrorTests
     {
         var bill = ReadyForApproval();
 
-        bill.Approve(
+        ApproveAndSchedule(
+            bill,
             Approver, ScheduleFor, null, ApprovalPolicy.Default(null),
             RiskLevel.ExtremeDanger, Today, DecidedAt,
             acknowledgeRisk: false, acknowledgeImmediateExecution: true);
 
-        var approved = Assert.Single(bill.PullDomainEvents().OfType<BillApprovedDomainEvent>());
-        Assert.False(approved.AcknowledgedImmediateExecution);
+        var scheduled = Assert.Single(bill.PullDomainEvents().OfType<BillSchedulingRequestedDomainEvent>());
+        Assert.False(scheduled.AcknowledgedImmediateExecution);
     }
 
-    // A ordem morreu em RASCUNHO (cancelada antes de agendar): o boleto aprovado volta à fila
-    // de decisão preservando a trilha — sem isto ficaria Approved para sempre, sem execução e
-    // sem saída (ReopenForApproval só aceita Failed).
+    // A ordem morreu em RASCUNHO (cancelada antes de agendar): a data some e o boleto fica
+    // agendável de novo. Antes do ADR-018 ele voltava a AwaitingApproval, o que descartava uma
+    // aprovação que ninguém desfez — os dois instantes de morte da ordem passaram a ter o mesmo
+    // significado, que é o único que o negócio tem.
     [Fact]
-    public void ReturnToApprovalAfterScheduleCancellation_OnAnApprovedBill_ShouldReopenTheDecision()
+    public void UnschedulePayment_OnAnApprovedBill_ShouldClearTheDateKeepingTheApproval()
     {
         var bill = Approved();
         var approval = bill.Approval;
 
-        bill.ReturnToApprovalAfterScheduleCancellation(DecidedAt);
+        bill.UnschedulePayment(BillActionOrigin.Provider, DecidedAt);
 
-        Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
+        Assert.Equal(BillStatus.Approved, bill.Status);
         Assert.Null(bill.PaymentOrderId);
         Assert.Null(bill.ScheduledFor);
         Assert.Same(approval, bill.Approval);
     }
 
-    // Fora de Approved, o reflexo do rascunho cancelado é reentrega ou rodada antiga — conflito.
+    // Fora de Approved/Scheduled não há agendamento a desfazer — reentrega ou rodada antiga.
     [Fact]
-    public void ReturnToApprovalAfterScheduleCancellation_OnAScheduledBill_ShouldThrow_BLP_BIL34()
+    public void UnschedulePayment_OnABillThatWasNeverApproved_ShouldThrow_BLP_BIL34()
     {
-        var bill = Scheduled();
+        var bill = ReadyForApproval();
 
-        var ex = Assert.Throws<DomainException>(
-            () => bill.ReturnToApprovalAfterScheduleCancellation(DecidedAt));
+        var ex = Assert.Throws<DomainException>(() => bill.UnschedulePayment(BillActionOrigin.Provider, DecidedAt));
 
         Assert.Equal("BLP.BIL34", ex.Id);
     }
@@ -245,7 +299,8 @@ public class BillPaymentMirrorTests
     private static Bill Approved()
     {
         var bill = ReadyForApproval();
-        bill.Approve(
+        ApproveAndSchedule(
+            bill,
             Approver, ScheduleFor, null, ApprovalPolicy.Default(null),
             RiskLevel.ExtremeDanger, Today, DecidedAt);
         bill.PullDomainEvents();

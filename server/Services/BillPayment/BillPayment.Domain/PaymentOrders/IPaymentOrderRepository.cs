@@ -1,4 +1,4 @@
-namespace BillPayment.Domain.PaymentOrders;
+﻿namespace BillPayment.Domain.PaymentOrders;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.SharedKernel;
@@ -31,4 +31,15 @@ public interface IPaymentOrderRepository
     /// conciliação — processos de instalação, nunca resposta a usuário (ver remarks da interface).
     /// </summary>
     Task<PaymentOrder?> GetByExternalReferenceAsync(string externalReference, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A mesma travessia, pela chave que os webhooks de Pix trazem.
+    /// </summary>
+    /// <remarks>
+    /// MEDIDO EM SANDBOX (2026-09-08): o provedor não emite evento de transação Pix — a saída de
+    /// Pix é notificada pela família <c>TRANSFER_*</c>, cujo payload carrega o id do
+    /// <c>transfer</c>, e não o da transação que guardamos em <c>ProviderOrderId</c>. Sem esta
+    /// busca, todo webhook de Pix seria descartado como "referência desconhecida".
+    /// </remarks>
+    Task<PaymentOrder?> GetByProviderTransferIdAsync(string transferId, CancellationToken cancellationToken = default);
 }

@@ -1,4 +1,4 @@
-namespace BillPayment.Application.Queries.Bills;
+﻿namespace BillPayment.Application.Queries.Bills;
 
 /// <summary>
 /// Detalhe para decidir. <strong>Continua sem a linha digitável e sem o payload Pix</strong> —
@@ -42,7 +42,34 @@ public sealed record BillDetailDto(
     BillApprovalDto? Approval,
     DateTime? ScheduledFor,
     BillOriginDto Origin,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+
+    /// <summary>
+    /// A trilha completa, do mais antigo para o mais recente: o que foi feito, quando e por quem.
+    /// </summary>
+    /// <remarks>
+    /// Vem inteira porque é o que a tela expande de uma vez, e porque a decisão vigente
+    /// (<see cref="Approval"/>) responde "vale?" enquanto esta responde "o que houve?" — as duas
+    /// perguntas convivem no mesmo detalhe.
+    /// </remarks>
+    IReadOnlyList<BillHistoryEntryDto> History);
+
+/// <param name="ActorName">
+/// O nome de quem agiu, congelado no instante da ação. "Sistema" quando não partiu de uma pessoa.
+/// </param>
+/// <param name="Origin">
+/// De ONDE partiu — <c>User</c>, <c>Provider</c> ou <c>System</c>. É o que permite a tela dizer
+/// "cancelado NO PROVEDOR" em vez de atribuir a ação ao sistema.
+/// </param>
+public sealed record BillHistoryEntryDto(
+    string Action,
+    string Origin,
+    DateTime OccurredAt,
+    Guid? ActorUserId,
+    string ActorName,
+    string? FromStatus,
+    string ToStatus,
+    string? Note);
 
 public sealed record BillPartyDto(string? Name, string? TradingName, string? TaxId);
 

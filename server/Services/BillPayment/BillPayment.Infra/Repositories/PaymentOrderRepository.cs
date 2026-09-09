@@ -1,4 +1,4 @@
-namespace BillPayment.Infra.Repositories;
+﻿namespace BillPayment.Infra.Repositories;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.PaymentOrders;
@@ -43,5 +43,19 @@ internal sealed class PaymentOrderRepository : IPaymentOrderRepository
 
         var id = PaymentOrderId.From(value);
         return _context.PaymentOrders.FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
+    }
+
+    public Task<PaymentOrder?> GetByProviderTransferIdAsync(
+        string transferId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(transferId))
+            return Task.FromResult<PaymentOrder?>(null);
+
+        // Sem filtro de tenant, pela mesma razão do GetByExternalReferenceAsync: o provedor não
+        // conhece nosso tenant, e é a ordem encontrada que o resolve. O índice parcial
+        // ix_payment_orders_provider_transfer atende esta consulta.
+        return _context.PaymentOrders
+            .FirstOrDefaultAsync(o => o.ProviderTransferId == transferId, cancellationToken);
     }
 }

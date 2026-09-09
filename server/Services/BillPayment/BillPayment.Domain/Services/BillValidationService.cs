@@ -3,13 +3,14 @@
 using System.Globalization;
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Bills.Checks;
+using BillPayment.Domain.Expectations;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Lookups;
 using BillPayment.Domain.Payees;
 using BillPayment.Domain.SharedKernel;
 
 /// <summary>
-/// Apura as doze verificações do catálogo (<c>03-bill-validation.md</c>) cruzando o boleto com
+/// Apura as catorze verificações do catálogo (<c>03-bill-validation.md</c>) cruzando o boleto com
 /// os cadastros do tenant e com o que a consulta oficial devolveu.
 /// </summary>
 /// <remarks>
@@ -25,7 +26,7 @@ using BillPayment.Domain.SharedKernel;
 /// que decide se um pagamento pode acontecer.
 /// </para>
 /// <para>
-/// Sempre devolve <strong>as doze</strong>. Verificação que não se aplica sai <c>Skipped</c>
+/// Sempre devolve <strong>as catorze</strong>. Verificação que não se aplica sai <c>Skipped</c>
 /// com motivo; omitir deixaria pergunta sem resposta parecendo respondida, e
 /// <c>RecordChecks</c> recusa conjunto parcial.
 /// </para>
@@ -60,7 +61,81 @@ public static class BillValidationService
             EvaluateTenantRouting(context),
             EvaluatePixBarcodeConsistency(context),
             EvaluateDocumentConsistency(context),
+            EvaluateExpectationMatch(context),
         ];
+    }
+
+    /// <summary>
+    /// 14. O inverso do alerta do ADR-014: o sistema já avisa quando a conta esperada não chega;
+    /// aqui ele diz que chegou uma conta que ninguém esperava.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Todo desfecho tem teto de Atenção (<see cref="CheckSeverity.Notice"/> no
+    /// <see cref="CheckType.ExpectationMatch"/>): não haver expectativa não desmente nada — a
+    /// maior parte dos boletos legítimos nunca teve uma.
+    /// </para>
+    /// <para>
+    /// Quem apura é o <c>ExpectationMatchingService</c>, o <strong>mesmo</strong> serviço que o
+    /// cumprimento usa. Uma segunda implementação da regra faria a tela dizer "conta esperada"
+    /// sobre um ciclo que segue alertando sozinho.
+    /// </para>
+    /// </remarks>
+    private static CheckResult EvaluateExpectationMatch(BillValidationContext context)
+    {
+        var bill = context.Bill;
+
+        if (bill.PayeeId is null)
+            return CheckResult.Inconclusive(
+                CheckType.ExpectationMatch,
+                CheckReasons.EXPECTATION_PAYEE_UNRESOLVED,
+                "Sem beneficiário resolvido não há expectativa contra a qual perguntar.");
+
+        if (context.Expectations.Count == 0)
+            return CheckResult.Inconclusive(
+                CheckType.ExpectationMatch,
+                CheckReasons.EXPECTATION_NOT_REGISTERED,
+                "Nenhuma conta esperada está cadastrada para este beneficiário.");
+
+        if (bill.DueDate is not { } dueDate)
+            return CheckResult.Inconclusive(
+                CheckType.ExpectationMatch,
+                CheckReasons.EXPECTATION_DUE_DATE_UNAVAILABLE,
+                "Sem vencimento legível não há competência para casar com a conta esperada.");
+
+        // O próprio boleto pode já ter cumprido o ciclo numa passagem anterior — revalidar é
+        // rotina, e sem isto o segundo passe encontraria "nenhuma expectativa" sobre ele.
+        var match = ExpectationMatchingService.Match(
+            context.Expectations, dueDate, context.Today, alreadyFulfilledBy: bill.Id);
+
+        if (match is not null)
+            return CheckResult.Passed(
+                CheckType.ExpectationMatch,
+                evidence: $"Casou com a conta esperada, competência {new CompetencePeriod(dueDate.Year, dueDate.Month)}.");
+
+        if (!context.Expectations.Any(e => e.IsWatchingOn(context.Today)))
+            return CheckResult.Inconclusive(
+                CheckType.ExpectationMatch,
+                CheckReasons.EXPECTATION_PAUSED,
+                "A conta esperada deste beneficiário está pausada ou desativada — ninguém a vigia hoje.");
+
+        // Sem ciclo para a competência, mas com uma única expectativa vigiando: o cumprimento
+        // abre o ciclo na chegada. É a mesma rede de segurança que o handler usa, e por isso a
+        // pergunta é feita ao mesmo serviço.
+        var competence = new CompetencePeriod(dueDate.Year, dueDate.Month);
+        if (ExpectationMatchingService.SoleWatchingWithoutCycleFor(
+                context.Expectations, competence, context.Today) is not null)
+        {
+            return CheckResult.Passed(
+                CheckType.ExpectationMatch,
+                CheckReasons.EXPECTATION_CYCLE_OPENS_ON_ARRIVAL,
+                $"A conta era esperada; o ciclo de {competence} nasce nesta chegada.");
+        }
+
+        return CheckResult.Inconclusive(
+            CheckType.ExpectationMatch,
+            CheckReasons.EXPECTATION_AMBIGUOUS,
+            "Mais de uma conta deste beneficiário poderia ser esta — não é possível dizer qual.");
     }
 
     // 1. A integridade estrutural é provada pela construção: DigitableLine e PixPayload não
@@ -245,23 +320,30 @@ public static class BillValidationService
         // Casou só por nome: sem documento fiscal não há como GARANTIR o beneficiário, então
         // não é Verde — é Atenção (decisão do usuário, 2026-08-31). A conta de concessionária
         // híbrida escapa disto pelo trilho Pix, cujo decode devolve o CNPJ que o código de
-        // barras de arrecadação não carrega.
+        // barras de arrecadação não carrega. A severidade Notice é o que MANTÉM isto em
+        // Atenção depois do endurecimento de 2026-09-08 (ADR-020): 100% da arrecadação chega
+        // por aqui, e mandá-la para Perigo faria a conta de luz exigir "assumo o risco" todo
+        // mês — pelo nome ter batido, que é o desfecho bom deste ramo.
         if (resolution.Kind == PayeeMatchKind.ByName)
             return CheckResult.Inconclusive(
                 CheckType.PayeeMatch,
                 CheckReasons.MATCHED_BY_NAME_ONLY,
                 $"Casou por nome com \"{payee.LegalName}\"; a consulta não devolveu documento fiscal. "
-                + "Verificação parcial.");
+                + "Verificação parcial.",
+                CheckSeverity.Notice);
 
         // Casou por documento. Nome diferente do cadastro é rotina — razão social muda, CNPJ
         // não —, mas em arrecadação é a única evidência que existe e não pode ser silenciada.
-        var consultedName = beneficiary.DisplayName;
-        if (consultedName is not null && !payee.MatchesName(consultedName))
+        // Compara os DOIS nomes que a consulta devolve, pelo mesmo critério da resolução: até
+        // 2026-09-08 só o DisplayName era conferido, e quem cadastrava o beneficiário pelo nome
+        // fantasia via divergência em todo boleto, mesmo com o TradingName batendo exatamente.
+        if (!PayeeResolutionService.NameMatches(payee, beneficiary))
             return CheckResult.Warning(
                 CheckType.PayeeMatch,
                 CheckReasons.PAYEE_NAME_DIVERGENCE,
-                $"Documento fiscal confere, mas a consulta devolveu \"{consultedName}\" "
-                + $"e o cadastro diz \"{payee.LegalName}\".");
+                $"Documento fiscal confere, mas a consulta devolveu \"{beneficiary.DisplayName}\" "
+                + $"e o cadastro diz \"{payee.LegalName}\".",
+                CheckSeverity.Notice);
 
         return CheckResult.Passed(CheckType.PayeeMatch);
     }

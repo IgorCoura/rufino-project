@@ -697,6 +697,16 @@ namespace BillPayment.Infra.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("asaas_account_ref");
 
+                    b.Property<string>("AsaasWebhookId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("asaas_webhook_id");
+
+                    b.Property<string>("AsaasWebhookRef")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("asaas_webhook_ref");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -704,6 +714,10 @@ namespace BillPayment.Infra.Migrations
                     b.Property<int>("Kind")
                         .HasColumnType("integer")
                         .HasColumnName("kind");
+
+                    b.Property<DateTime?>("LastWebhookEventAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_webhook_event_at");
 
                     b.Property<string>("LegalName")
                         .IsRequired()
@@ -786,10 +800,24 @@ namespace BillPayment.Infra.Migrations
                         .HasColumnType("date")
                         .HasColumnName("paid_at");
 
+                    b.Property<bool?>("ProviderAuthorized")
+                        .HasColumnType("boolean")
+                        .HasColumnName("provider_authorized");
+
                     b.Property<string>("ProviderOrderId")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("provider_order_id");
+
+                    b.Property<string>("ProviderRawStatus")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("provider_raw_status");
+
+                    b.Property<string>("ProviderTransferId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("provider_transfer_id");
 
                     b.Property<int>("Rail")
                         .HasColumnType("integer")
@@ -805,6 +833,10 @@ namespace BillPayment.Infra.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("receipt_unavailable");
+
+                    b.Property<Guid?>("RequestedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requested_by");
 
                     b.Property<DateOnly>("RequestedScheduleDate")
                         .HasColumnType("date")
@@ -846,6 +878,10 @@ namespace BillPayment.Infra.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_payment_orders_bill_active")
                         .HasFilter("\"status\" NOT IN (5, 6, 7)");
+
+                    b.HasIndex("ProviderTransferId")
+                        .HasDatabaseName("ix_payment_orders_provider_transfer")
+                        .HasFilter("provider_transfer_id IS NOT NULL");
 
                     b.HasIndex("TenantId", "CreatedAt")
                         .HasDatabaseName("ix_payment_orders_tenant_created");
@@ -1290,6 +1326,63 @@ namespace BillPayment.Infra.Migrations
                                 .HasForeignKey("BillId");
                         });
 
+                    b.OwnsMany("BillPayment.Domain.Bills.BillHistoryEntry", "History", b1 =>
+                        {
+                            b1.Property<long>("id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("bigint");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<long>("id"));
+
+                            b1.Property<int>("Action")
+                                .HasColumnType("integer")
+                                .HasColumnName("action");
+
+                            b1.Property<string>("ActorName")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("actor_name");
+
+                            b1.Property<Guid?>("ActorUserId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("actor_user_id");
+
+                            b1.Property<int?>("FromStatus")
+                                .HasColumnType("integer")
+                                .HasColumnName("from_status");
+
+                            b1.Property<string>("Note")
+                                .HasMaxLength(500)
+                                .HasColumnType("character varying(500)")
+                                .HasColumnName("note");
+
+                            b1.Property<DateTime>("OccurredAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("occurred_at");
+
+                            b1.Property<int>("Origin")
+                                .HasColumnType("integer")
+                                .HasColumnName("origin");
+
+                            b1.Property<int>("ToStatus")
+                                .HasColumnType("integer")
+                                .HasColumnName("to_status");
+
+                            b1.Property<Guid>("bill_id")
+                                .HasColumnType("uuid");
+
+                            b1.HasKey("id");
+
+                            b1.HasIndex("bill_id", "OccurredAt")
+                                .HasDatabaseName("ix_bill_history_bill_occurred");
+
+                            b1.ToTable("bill_history_entries", "bill_payment");
+
+                            b1.WithOwner()
+                                .HasForeignKey("bill_id");
+                        });
+
                     b.OwnsMany("BillPayment.Domain.Bills.Checks.BillCheck", "Checks", b1 =>
                         {
                             b1.Property<Guid>("bill_id")
@@ -1334,6 +1427,8 @@ namespace BillPayment.Infra.Migrations
                     b.Navigation("Checks");
 
                     b.Navigation("ExtractedPayer");
+
+                    b.Navigation("History");
 
                     b.Navigation("Origin")
                         .IsRequired();

@@ -42,6 +42,7 @@ void main() {
             viewModel: viewModel,
             backFallback: '/bill-payment/pending',
             onOpenBill: (_) {},
+            onScheduleBill: (_) {},
             onImportBill: () {},
           ),
         ),

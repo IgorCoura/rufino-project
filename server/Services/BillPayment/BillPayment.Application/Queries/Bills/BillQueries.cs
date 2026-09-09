@@ -83,6 +83,7 @@ internal sealed class BillQueries(BillPaymentDbContext context, UnlockedArtifact
         var bill = await context.Bills
             .AsNoTracking()
             .Include(b => b.Checks)
+            .Include(b => b.History)
             .FirstOrDefaultAsync(b => b.TenantId == tenant && b.Id == id, cancellationToken);
 
         if (bill is null)
@@ -143,7 +144,21 @@ internal sealed class BillQueries(BillPaymentDbContext context, UnlockedArtifact
                 bill.Origin.SenderAddress,
                 bill.Origin.ReceivedAt,
                 !string.IsNullOrEmpty(bill.Origin.StorageKey)),
-            bill.CreatedAt);
+            bill.CreatedAt,
+
+            // Cronológica, do mais antigo para o mais recente: é como a tela conta a história, e
+            // a coleção owned não garante ordem por si.
+            [.. bill.History
+                .OrderBy(h => h.OccurredAt)
+                .Select(h => new BillHistoryEntryDto(
+                    h.Action.Name,
+                    h.Origin.Name,
+                    h.OccurredAt,
+                    h.ActorUserId?.Value,
+                    h.ActorName,
+                    h.FromStatus?.Name,
+                    h.ToStatus.Name,
+                    h.Note))]);
     }
 
     public async Task<ArtifactDownload?> GetArtifactAsync(

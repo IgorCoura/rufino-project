@@ -44,7 +44,11 @@ Design rationale do Bounded Context **BillPayment**: captura de boletos (e-mail 
 | [`ADR-014`](adr/ADR-014-expectativa-e-lembretes.md) | O sistema sabe o que espera receber e avisa quando não recebeu — rede de segurança obrigatória sem DDA |
 | [`ADR-015`](adr/ADR-015-risco-classificado-humano-decide.md) | Fim da rejeição automática: a validação classifica Seguro/Atenção/Perigo, e quem decide é sempre o humano — Perigo exige aceite explícito gravado na trilha |
 | [`ADR-016`](adr/ADR-016-conta-asaas-trazida-pelo-tenant.md) | A conta Asaas é do tenant, trazida e provada por ele; sem chave-plataforma, sem fallback — webhook, saldo e whitelist passam a ser por conta |
-| [`ADR-017`](adr/ADR-017-politica-inicial-de-agendamento.md) | Política inicial de agendamento: 24h de antecedência, submissão só das 9h às 17h, e boleto vencido exige confirmação explícita gravada na trilha |
+| [`ADR-017`](adr/ADR-017-politica-inicial-de-agendamento.md) | Política inicial de agendamento — **parcialmente superado pelo ADR-021**; sobrevive a regra de que boleto vencido exige confirmação explícita gravada na trilha |
+| [`ADR-018`](adr/ADR-018-aprovar-e-agendar-sao-dois-atos.md) | Aprovar e agendar são dois atos com alçadas diferentes; cancelar agendamento devolve a `Approved`; recusa e cancelamento se desfazem com revalidação automática |
+| [`ADR-019`](adr/ADR-019-webhook-por-tenant-e-o-payload-como-aviso.md) | Webhook por tenant, com token próprio no cofre; o payload é aviso e a ordem é RELIDA no provedor antes de qualquer efeito |
+| [`ADR-020`](adr/ADR-020-expectativa-na-validacao-e-a-regua-endurecida.md) | A expectativa vira a 14ª verificação e o que era Atenção vira Perigo — só expectativa, prazo e nome do beneficiário mantêm teto de Atenção (`CheckSeverity.Notice`) |
+| [`ADR-021`](adr/ADR-021-quatro-opcoes-de-agendamento.md) | A antecedência de 24h sai e a janela vira 9h–18h: ela é sobre a hora da SUBMISSÃO, então só bloqueia "pagar hoje" (`BLP.BIL40`); a tela oferece quatro datas prontas e o servidor as resolve |
 
 ## Como ler
 

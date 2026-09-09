@@ -85,28 +85,48 @@ abstract class BillRepository {
   /// Re-runs the official lookup and the twelve checks.
   Future<Result<ValidationRunOutcome>> revalidateBill(String id);
 
-  /// Authorizes the payment for [scheduleFor], with an optional [note].
+  /// Authorizes the payment, with an optional [note].
+  ///
+  /// Approving and scheduling are two acts (ADR-018): without [scheduleFor]
+  /// the bill only becomes approved and waits for someone to pick a date.
+  /// With it, the server does both in one transaction — and requires the
+  /// scheduling clearance too.
   ///
   /// [acknowledgeRisk] must be `true` for a bill classified as Danger — the
   /// explicit acceptance the audit trail records (ADR-015).
   /// [acknowledgeImmediateExecution] must be `true` for an OVERDUE bill: the
   /// provider processes it at once, with no reaction window, and the server
-  /// refuses the approval without the explicit consent (ADR-017).
+  /// refuses the SCHEDULING without the explicit consent (ADR-017).
   Future<Result<void>> approveBill(
     String id, {
-    required DateTime scheduleFor,
+    DateTime? scheduleFor,
     String? note,
     bool acknowledgeRisk = false,
     bool acknowledgeImmediateExecution = false,
   });
 
+  /// Sends an already-approved bill to the payment queue on [scheduleFor].
+  ///
+  /// Also the re-scheduling path: a bill whose schedule was cancelled goes
+  /// back to `Approved` without a date and comes through here again, with no
+  /// new approval.
+  Future<Result<void>> scheduleBill(
+    String id, {
+    required DateTime scheduleFor,
+    bool acknowledgeImmediateExecution = false,
+  });
+
   /// Asks the server when a payment authorized for [date] would actually
-  /// execute — the ADR-017 policy (lead time, banking calendar) computed
-  /// where it lives.
+  /// execute — the ADR-017 policy (banking calendar, provider floor) computed
+  /// where it lives. Serves the free date picker.
   ///
   /// Purely informative: callers must keep working when this fails — the
   /// approval never waits on it.
   Future<Result<SchedulePreview>> previewSchedule(String id, DateTime date);
+
+  /// The four ready-made dates the scheduling sheet offers (ADR-021), already
+  /// resolved: which are available, on what date, and why the others are not.
+  Future<Result<List<ScheduleOptionPreview>>> getScheduleOptions(String id);
 
   /// Returns a FAILED bill to the decision queue — the new try is a new
   /// approval and a new payment order.
@@ -118,6 +138,10 @@ abstract class BillRepository {
 
   /// Removes the bill from the flow.
   Future<Result<void>> cancelBill(String id, String reason);
+
+  /// Undoes a denial or a cancellation. The bill returns to the decision
+  /// queue and the server revalidates it automatically.
+  Future<Result<void>> undoBillDecision(String id, String reason);
 
   /// Downloads the original document the bill came from.
   ///

@@ -25,6 +25,10 @@ internal sealed class FakeAuthorizationServerClient(IHttpContextAccessor httpCon
     [
         "view", "import", "validate", "approve", "deny", "cancel",
         "approve-attention", "approve-danger", "approve-extreme",
+        // O ADR-018 partiu aprovar de agendar e criou estes dois; o dublê ficou para trás e
+        // TODA aprovação com data passou a tomar 403 na suíte, porque a guarda de alçada de
+        // agendamento consulta este mesmo retrato.
+        "schedule", "undo-decision",
     ];
 
     public Task<RptFetchResult> FetchAllPermissionsAsync(CancellationToken cancellationToken = default)

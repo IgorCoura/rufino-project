@@ -1,4 +1,4 @@
-namespace BillPayment.Application.Queries.PaymentOrders;
+﻿namespace BillPayment.Application.Queries.PaymentOrders;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.PaymentOrders;
@@ -137,7 +137,9 @@ internal sealed class PaymentQueries(
             HasReceipt: !string.IsNullOrEmpty(order.ReceiptStorageKey),
             order.LastProviderSyncAt,
             order.CreatedAt,
-            order.UpdatedAt);
+            order.UpdatedAt,
+            order.ProviderRawStatus,
+            order.ProviderAuthorized);
 
     private static bool TryParseStatus(string? status, out PaymentOrderStatus parsed)
     {

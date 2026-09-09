@@ -1,4 +1,4 @@
-namespace BillPayment.Application.PaymentOrders.EventHandlers;
+﻿namespace BillPayment.Application.PaymentOrders.EventHandlers;
 
 using BillPayment.Application.Bills.Commands;
 using BillPayment.Application.Mediator;
@@ -16,11 +16,20 @@ using Microsoft.Extensions.Logging;
 // BillCapturedDomainEventHandler: precisam do mediator, e Infra → Application seria ciclo.
 // Todos idempotentes — o outbox entrega ao menos uma vez.
 
-/// <summary>Aprovação → ordem em rascunho. O dinheiro só anda pela fila de submissão.</summary>
-public sealed class CreatePaymentOrderOnBillApprovedHandler(IMediator mediator)
-    : IDomainEventHandler<BillApprovedDomainEvent>
+/// <summary>
+/// Agendamento pedido → ordem em rascunho. O dinheiro só anda pela fila de submissão.
+/// </summary>
+/// <remarks>
+/// <strong>Reage ao agendamento, não à aprovação</strong> (ADR-018). Aprovar deixou de criar
+/// ordem em 2026-09-08: aprovar autoriza, agendar executa, e são alçadas diferentes. Um boleto
+/// aprovado e nunca agendado não tem ordem nenhuma, e é isso que o mantém disponível na aba de
+/// aprovados até alguém escolher a data.
+/// </remarks>
+public sealed class CreatePaymentOrderOnBillSchedulingRequestedHandler(IMediator mediator)
+    : IDomainEventHandler<BillSchedulingRequestedDomainEvent>
 {
-    public async Task HandleAsync(BillApprovedDomainEvent domainEvent, CancellationToken cancellationToken = default)
+    public async Task HandleAsync(
+        BillSchedulingRequestedDomainEvent domainEvent, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(domainEvent);
 
@@ -28,10 +37,40 @@ public sealed class CreatePaymentOrderOnBillApprovedHandler(IMediator mediator)
             new CreatePaymentOrderForBillCommand(
                 domainEvent.TenantId.Value,
                 domainEvent.BillId.Value,
-                domainEvent.ApprovedBy.Value,
+                domainEvent.RequestedBy.Value,
                 domainEvent.ScheduleFor,
                 domainEvent.AcknowledgedImmediateExecution),
             cancellationToken);
+    }
+}
+
+/// <summary>
+/// Reversão de recusa/cancelamento → revalidação. As doze verificações rodam de novo, sozinhas.
+/// </summary>
+/// <remarks>
+/// Idempotente por construção, como o handler da captura: <c>RecordChecks</c> substitui o
+/// conjunto inteiro em vez de acumular, então a reentrega do outbox reexecuta sem sujar nada.
+/// </remarks>
+public sealed class RevalidateOnBillDecisionUndoneHandler(
+    IMediator mediator,
+    ILogger<RevalidateOnBillDecisionUndoneHandler> logger)
+    : IDomainEventHandler<BillDecisionUndoneDomainEvent>
+{
+    public async Task HandleAsync(
+        BillDecisionUndoneDomainEvent domainEvent, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(domainEvent);
+
+        var response = await mediator.Send(
+            new ValidateBillCommand(domainEvent.TenantId.Value, domainEvent.BillId.Value),
+            cancellationToken);
+
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Boleto {BillId} revertido e revalidado: {Status} ({Blocking} bloqueio(s), {Attention} atenção)",
+                domainEvent.BillId.Value, response.Status, response.BlockingFailures, response.AttentionItems);
+        }
     }
 }
 
@@ -69,7 +108,9 @@ public sealed class CancelPaymentOrderOnBillCancelledHandler(
 
         if (order.Status == PaymentOrderStatus.Draft)
         {
-            order.CancelDraft(now);
+            // A ordem morre porque uma PESSOA cancelou o boleto — a origem é dela, não do
+            // provedor, mesmo que o pedido de cancelamento lá também aconteça.
+            order.CancelDraft(now, BillActionOrigin.User, domainEvent.CancelledBy);
             await unitOfWork.SaveEntitiesAsync(cancellationToken);
             return;
         }
@@ -86,7 +127,8 @@ public sealed class CancelPaymentOrderOnBillCancelledHandler(
         if (result.IsCancelled)
         {
             order.ApplyProviderStatus(
-                PaymentOrderStatus.Cancelled, paidAt: null, fee: null, failReasons: null, nowUtc, now);
+                PaymentOrderStatus.Cancelled, paidAt: null, fee: null, failReasons: null, nowUtc, now,
+                BillActionOrigin.User, domainEvent.CancelledBy);
             await unitOfWork.SaveEntitiesAsync(cancellationToken);
             return;
         }
@@ -193,7 +235,11 @@ public sealed class ReflectPaymentCancelledOnBillHandler(IMediator mediator)
 
         await mediator.Send(
             new MarkBillScheduleCancelledCommand(
-                domainEvent.TenantId.Value, domainEvent.BillId.Value, domainEvent.PaymentOrderId.Value),
+                domainEvent.TenantId.Value,
+                domainEvent.BillId.Value,
+                domainEvent.PaymentOrderId.Value,
+                domainEvent.Origin.Name,
+                domainEvent.RequestedBy?.Value),
             cancellationToken);
     }
 }

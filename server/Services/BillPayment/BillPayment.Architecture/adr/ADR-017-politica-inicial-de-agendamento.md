@@ -1,6 +1,10 @@
 # ADR-017 — Política inicial de agendamento: 24h de antecedência, janela 9h–17h, vencido exige confirmação
 
-**Status:** Aceito · **Data:** 2026-09-02 (decisão do usuário)
+**Status:** Parcialmente superado pelo [ADR-021](ADR-021-quatro-opcoes-de-agendamento.md) · **Data:** 2026-09-02 (decisão do usuário)
+
+> **Leia o ADR-021 antes de agir sobre este.** A regra 1 (24h de antecedência) foi **removida**
+> em 2026-09-08 e a regra 2 virou **9h–18h**, valendo só para o pagamento de hoje. A regra 3
+> (vencido exige confirmação gravada na trilha) continua inteira, e é o que resta de vivo aqui.
 
 ## Contexto
 
@@ -44,6 +48,14 @@ reescrita:
   `PaymentSchedulingService` por parâmetro, como o relógio: o serviço continua puro e testável.
 
 ## Decisões posteriores
+
+- **2026-09-08 — As 24h saíram e a janela virou 9h–18h ([ADR-021](ADR-021-quatro-opcoes-de-agendamento.md)).**
+  A antecedência empurrava a *data* e impedia pagar no dia em que se decidia pagar, sem proteger
+  o caso que importa (vencido processa na hora). E a medição desfez a premissa por trás dela:
+  **não controlamos a hora em que o Asaas efetiva** — ele recebe data, não horário. A janela
+  ficou, com o alcance certo: ela é sobre a hora da SUBMISSÃO, então só consegue limitar
+  "pagar hoje", que é bloqueado fora dela (`BLP.BIL40`). `MinimumLead` e
+  `EarliestDateHonoringLead` foram **removidos do código**, não zerados.
 
 - **2026-09-03 — Corte das 14h do provedor: NÃO implementado, de propósito.** O
   `PaymentSchedulingService` não modela o corte same-day do provedor. Sob a política das 24h,

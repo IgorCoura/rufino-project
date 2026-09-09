@@ -2,6 +2,7 @@ namespace BillPayment.Application.Bills.Commands;
 
 using BillPayment.Application.Mediator;
 using BillPayment.Domain.Bills;
+using BillPayment.Domain.Expectations;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Lookups;
 using BillPayment.Domain.Payees;
@@ -15,8 +16,8 @@ using BillPayment.Domain.TrustedOrigins;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
-/// Consulta o documento nas fontes oficiais, apura as doze verificações e deixa o boleto
-/// aguardando aprovação ou reprovado.
+/// Consulta o documento nas fontes oficiais, apura as catorze verificações e deixa o boleto
+/// aguardando aprovação, com o risco classificado.
 /// </summary>
 /// <remarks>
 /// Disparado pelo outbox a partir de <c>BillCapturedDomainEvent</c>, e também pela revalidação
@@ -24,7 +25,13 @@ using Microsoft.Extensions.Logging;
 /// </remarks>
 public sealed record ValidateBillCommand(Guid TenantId, Guid BillId) : ITenantScopedCommand, IRequest<ValidateBillResponse>;
 
-public sealed record ValidateBillResponse(Guid Id, string Status, int BlockingFailures, int AttentionItems);
+/// <param name="Risk">
+/// Como o boleto ficou classificado. Entrou em 2026-09-08 (ADR-020) porque as duas contagens
+/// deixaram de descrever o desfecho: com falha advisory, aviso e inconclusivo valendo Perigo,
+/// "zero bloqueios" passou a conviver com <c>Danger</c>.
+/// </param>
+public sealed record ValidateBillResponse(
+    Guid Id, string Status, string Risk, int BlockingFailures, int AttentionItems);
 
 /// <summary>
 /// O handler faz <strong>orquestração</strong> e nada mais: consulta as portas, carrega os
@@ -44,6 +51,7 @@ public sealed record ValidateBillResponse(Guid Id, string Status, int BlockingFa
 public sealed class ValidateBillCommandHandler(
     IBillRepository bills,
     IPayeeRepository payees,
+    IBillExpectationRepository expectations,
     ITrustedOriginRepository origins,
     IPayerProfileRepository payerProfiles,
     IBillLookupService billLookup,
@@ -87,6 +95,7 @@ public sealed class ValidateBillCommandHandler(
             Origin = await ResolveOriginAsync(bill, tenantId, cancellationToken),
             PayerProfile = payerProfile,
             BankDirectory = bankDirectory,
+            Expectations = await ListExpectationsAsync(bill, tenantId, cancellationToken),
             Duplicate = DuplicateFinding.From(probe),
             DuplicateOf = probe.OriginalBillId,
             Today = DateOnly.FromDateTime(now.UtcDateTime),
@@ -98,7 +107,8 @@ public sealed class ValidateBillCommandHandler(
         await unitOfWork.SaveEntitiesAsync(cancellationToken);
 
         return new ValidateBillResponse(
-            bill.Id.Value, outcome.Status.Name, outcome.BlockingFailures, outcome.AttentionItems);
+            bill.Id.Value, outcome.Status.Name, outcome.Risk.Name,
+            outcome.BlockingFailures, outcome.AttentionItems);
     }
 
     /// <summary>
@@ -135,6 +145,19 @@ public sealed class ValidateBillCommandHandler(
         return (bankSlip, pix);
     }
 
+    /// <summary>
+    /// As contas esperadas do beneficiário que a resolução acabou de escolher.
+    /// </summary>
+    /// <remarks>
+    /// Depois de <c>ResolvePayee</c>, de propósito: sem beneficiário não há contra o quê
+    /// perguntar, e a verificação 14 já sabe dizer isso sozinha. Quem casa é o Domain Service.
+    /// </remarks>
+    private async Task<IReadOnlyCollection<BillExpectation>> ListExpectationsAsync(
+        Bill bill, TenantId tenantId, CancellationToken cancellationToken)
+        => bill.PayeeId is { } payeeId
+            ? await expectations.ListByPayeeAsync(tenantId, payeeId, cancellationToken)
+            : [];
+
     private Task<TrustedOrigin?> ResolveOriginAsync(Bill bill, TenantId tenantId, CancellationToken cancellationToken)
         => string.IsNullOrWhiteSpace(bill.Origin.SenderAddress)
             ? Task.FromResult<TrustedOrigin?>(null)
@@ -156,5 +179,5 @@ public sealed class ValidateBillIdentifiedCommandHandler(
     : IdentifiedCommandHandler<ValidateBillCommand, ValidateBillResponse>(mediator, requestManager, logger)
 {
     protected override ValidateBillResponse CreateResultForDuplicateRequest()
-        => new(Guid.Empty, string.Empty, 0, 0);
+        => new(Guid.Empty, string.Empty, string.Empty, 0, 0);
 }

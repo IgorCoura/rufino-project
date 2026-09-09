@@ -103,6 +103,7 @@ void main() {
           effectiveDate: DateTime(2026, 9, 11),
           slid: true,
           immediate: false,
+          afterDueDate: false,
         ),
       );
 
@@ -113,6 +114,36 @@ void main() {
         onSuccess: (preview) {
           expect(preview.effectiveDate, DateTime(2026, 9, 11));
           expect(preview.slid, isTrue);
+        },
+        onError: (error, _) => fail('should have succeeded: $error'),
+      );
+      expect(reporter.capturedErrors, isEmpty);
+    });
+
+    test('the schedule options flow through as entities', () async {
+      when(() => apiService.getScheduleOptions(any())).thenAnswer(
+        (_) async => [
+          ScheduleOptionPreview(
+            kind: ScheduleOptionKind.onDueDate,
+            available: true,
+            date: DateTime(2026, 9, 30),
+            preview: SchedulePreview(
+              requestedDate: DateTime(2026, 9, 30),
+              effectiveDate: DateTime(2026, 9, 30),
+              slid: false,
+              immediate: false,
+              afterDueDate: false,
+            ),
+          ),
+        ],
+      );
+
+      final result = await repository.getScheduleOptions('bill-1');
+
+      result.fold(
+        onSuccess: (options) {
+          expect(options.single.kind, ScheduleOptionKind.onDueDate);
+          expect(options.single.date, DateTime(2026, 9, 30));
         },
         onError: (error, _) => fail('should have succeeded: $error'),
       );

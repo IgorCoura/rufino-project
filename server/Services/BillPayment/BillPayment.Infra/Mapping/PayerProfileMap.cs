@@ -1,4 +1,4 @@
-namespace BillPayment.Infra.Mapping;
+﻿namespace BillPayment.Infra.Mapping;
 
 using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.SeedWork;
@@ -9,6 +9,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 internal sealed class PayerProfileMap : IEntityTypeConfiguration<PayerProfile>
 {
+    /// <summary>Teto do id de webhook do provedor — GUID textual, com folga.</summary>
+    private const int PROVIDER_WEBHOOK_ID_MAX_LENGTH = 100;
+
     public void Configure(EntityTypeBuilder<PayerProfile> builder)
     {
         builder.ToTable("payer_profiles");
@@ -58,6 +61,19 @@ internal sealed class PayerProfileMap : IEntityTypeConfiguration<PayerProfile>
             .HasColumnName("asaas_account_ref")
             .HasMaxLength(CredentialRefConversions.MAX_LENGTH)
             .HasConversion(CredentialRefConversions.Single, CredentialRefConversions.SingleComparer);
+
+        // O token do webhook — mesma forma do ponteiro da chave, tipo diferente no cofre. Os
+        // dois lado a lado deixam explícito que são credenciais de DIREÇÕES opostas.
+        builder.Property(e => e.AsaasWebhookRef)
+            .HasColumnName("asaas_webhook_ref")
+            .HasMaxLength(CredentialRefConversions.MAX_LENGTH)
+            .HasConversion(CredentialRefConversions.Single, CredentialRefConversions.SingleComparer);
+
+        builder.Property(e => e.AsaasWebhookId)
+            .HasColumnName("asaas_webhook_id")
+            .HasMaxLength(PROVIDER_WEBHOOK_ID_MAX_LENGTH);
+
+        builder.Property(e => e.LastWebhookEventAt).HasColumnName("last_webhook_event_at");
 
         builder.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();

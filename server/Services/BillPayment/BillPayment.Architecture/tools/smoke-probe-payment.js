@@ -171,7 +171,11 @@ async function main() {
   const pixCharge = log('Cobrança PIX (POST /payments)', await call(apiKey, 'POST', '/payments', {
     customer: customer.body.id,
     billingType: 'PIX',
-    value: 4.44,
+    // MEDIDO 2026-09-08: o provedor recusa cobrança Pix abaixo de R$ 5,00
+    // ("O valor da cobrança menos o desconto não pode ser menor que R$ 5,00"),
+    // então os R$ 4,44 originais faziam esta etapa falhar SEMPRE e o trilho Pix
+    // nunca era medido de ponta a ponta.
+    value: 10.0,
     dueDate: iso(plusDays(7)),
     description: 'sonda fase 3 — pix',
   }));
@@ -186,7 +190,7 @@ async function main() {
 
       const pay = log('Pagamento Pix agendado (POST /pix/qrCodes/pay)', await call(apiKey, 'POST', '/pix/qrCodes/pay', {
         qrCode: { payload },
-        value: decode.body?.value ?? 4.44,
+        value: decode.body?.value ?? 10.0,
         description: 'sonda fase 3 — pix agendado',
         scheduleDate: iso(plusDays(2)),
         externalReference: runTag,
@@ -203,6 +207,37 @@ async function main() {
   // 8. O contrato real de webhooks — a 3.3 provisiona por conta do tenant.
   const hooks = log('Webhooks configurados (GET /webhooks)', await call(apiKey, 'GET', '/webhooks'));
   if (hooks.ok) console.log('  ', JSON.stringify(hooks.body).slice(0, 400));
+
+  // 8b. O ciclo COMPLETO: criar, ler de volta e apagar. É o que fixa o contrato
+  // contra o qual o AsaasWebhookProvisioner foi escrito (ADR-019). O webhook
+  // nasce `enabled: false` e apontando para um host inválido de propósito —
+  // nada do que a sonda cria deve receber evento de verdade.
+  const probeToken = require('crypto').randomBytes(32).toString('base64url');
+  const created = log('Criar webhook (POST /webhooks)', await call(apiKey, 'POST', '/webhooks', {
+    name: 'rufino-probe-delete-me',
+    url: 'https://example.invalid/webhooks/asaas/probe',
+    email: 'probe@example.invalid',
+    enabled: false,
+    interrupted: false,
+    authToken: probeToken,
+    sendType: 'SEQUENTIALLY',
+    events: ['BILL_PAID', 'BILL_CANCELLED', 'TRANSFER_DONE', 'TRANSFER_CANCELLED'],
+  }));
+
+  if (created.ok && created.body?.id) {
+    // O achado que o adapter depende: o GET NÃO devolve o authToken, só
+    // `hasAuthToken`. Perder o token na criação obriga a recriar o webhook.
+    const readBack = log('Ler o webhook (GET /webhooks/{id})',
+      await call(apiKey, 'GET', `/webhooks/${created.body.id}`));
+    if (readBack.ok) {
+      console.log('   authToken volta no GET?', readBack.body?.authToken !== undefined);
+      console.log('   ', JSON.stringify(pick(readBack.body,
+        ['enabled', 'interrupted', 'hasAuthToken', 'sendType', 'penalizedRequestsCount'])));
+    }
+
+    log('Apagar o webhook da sonda (DELETE /webhooks/{id})',
+      await call(apiKey, 'DELETE', `/webhooks/${created.body.id}`));
+  }
 
   console.log('\nFim. Nada do que a sonda criou é real: sandbox.');
 }

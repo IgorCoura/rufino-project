@@ -1,4 +1,4 @@
-namespace BillPayment.Application.Queries.PaymentOrders;
+﻿namespace BillPayment.Application.Queries.PaymentOrders;
 
 /// <summary>
 /// A ordem de pagamento como a tela a vê. Sem instrumento, sem URL de provedor — o que
@@ -23,6 +23,19 @@ public sealed record PaymentOrderDto(
     bool HasReceipt,
     DateTimeOffset? LastProviderSyncAt,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+
+    /// <summary>
+    /// O status <strong>como o provedor o escreveu</strong>. O catálogo dele é maior que o
+    /// nosso, e sem isto a tela dizia "aceito pelo provedor" para uma ordem parada esperando
+    /// alguém liberar a autorização de ação crítica.
+    /// </summary>
+    string? ProviderRawStatus = null,
+
+    /// <summary>
+    /// <c>false</c> = travado esperando a autorização de ação crítica do provedor (o código no
+    /// celular). Nulo = o provedor não se pronunciou.
+    /// </summary>
+    bool? ProviderAuthorized = null);
 
 public sealed record PaymentOrderPage(IReadOnlyList<PaymentOrderDto> Items, string? NextCursor);

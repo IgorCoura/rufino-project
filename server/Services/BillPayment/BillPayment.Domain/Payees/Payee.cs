@@ -214,15 +214,25 @@ public sealed class Payee : AggregateRoot<PayeeId>
         return bankCode is not null && _acceptedBanks.Contains(bankCode);
     }
 
-    /// <summary>Compara contra a razão social e todos os apelidos aprendidos, sem distinção de caixa.</summary>
+    /// <summary>
+    /// Compara contra a razão social e todos os apelidos aprendidos, ignorando acento,
+    /// pontuação, espaço e caixa (<see cref="PartyName"/>).
+    /// </summary>
+    /// <remarks>
+    /// <strong>A tolerância entrou em 2026-09-08 e é de grafia, não de semelhança.</strong> Até
+    /// então isto comparava com <c>Trim()</c> e mais nada, e um ponto a mais na razão social que
+    /// a consulta oficial devolve bastava para o cotejo falhar — era a causa raiz do alarme
+    /// falso de nome. Nomes de fato diferentes continuam não casando, que é o que preserva a
+    /// defesa contra sósia.
+    /// </remarks>
     public bool MatchesName(string candidate)
     {
-        var normalized = NormalizeName(candidate);
+        var normalized = PartyName.Normalize(candidate);
         if (normalized.Length == 0)
             return false;
 
-        return string.Equals(LegalName, normalized, StringComparison.OrdinalIgnoreCase)
-            || _aliases.Exists(a => string.Equals(a, normalized, StringComparison.OrdinalIgnoreCase));
+        return string.Equals(PartyName.Normalize(LegalName), normalized, StringComparison.Ordinal)
+            || _aliases.Exists(a => string.Equals(PartyName.Normalize(a), normalized, StringComparison.Ordinal));
     }
 
     private void EnsureActive()

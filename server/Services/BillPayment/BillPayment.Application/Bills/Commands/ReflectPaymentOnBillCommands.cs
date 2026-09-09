@@ -1,4 +1,4 @@
-namespace BillPayment.Application.Bills.Commands;
+﻿namespace BillPayment.Application.Bills.Commands;
 
 using BillPayment.Application.Mediator;
 using BillPayment.Domain.Bills;
@@ -31,11 +31,19 @@ public sealed record MarkBillPaymentFailedCommand(
     Guid BillId,
     Guid PaymentOrderId) : ITenantScopedCommand, IRequest<ReflectPaymentOnBillResponse>;
 
-/// <summary>A ordem foi cancelada depois de agendada: <c>Scheduled → Cancelled</c>.</summary>
+/// <summary>O agendamento morreu: o boleto volta a <c>Approved</c>, sem data.</summary>
+/// <param name="Origin">
+/// De ONDE partiu o cancelamento, no vocabulário de <c>BillActionOrigin</c>. Viaja do evento
+/// da ordem até a trilha do boleto — é o que permite a auditoria distinguir "cancelado por
+/// Fulano no app" de "cancelado no painel do provedor".
+/// </param>
+/// <param name="RequestedBy">Quem pediu, quando a origem admite autor. Nulo no resto.</param>
 public sealed record MarkBillScheduleCancelledCommand(
     Guid TenantId,
     Guid BillId,
-    Guid PaymentOrderId) : ITenantScopedCommand, IRequest<ReflectPaymentOnBillResponse>;
+    Guid PaymentOrderId,
+    string Origin,
+    Guid? RequestedBy) : ITenantScopedCommand, IRequest<ReflectPaymentOnBillResponse>;
 
 public sealed record ReflectPaymentOnBillResponse(Guid BillId, string Status, bool Applied);
 
@@ -150,20 +158,31 @@ public sealed class MarkBillScheduleCancelledCommandHandler(
         var orderId = PaymentOrderId.From(request.PaymentOrderId);
         var now = clock.GetUtcNow().UtcDateTime;
 
-        // Agendamento vivo DESTA ordem: cancelamento pós-submissão espelha Scheduled → Cancelled.
+        // Origem desconhecida (evento de uma versão anterior, reentregue) degrada para Provider:
+        // é a suposição segura, porque atribuir a mudança a uma pessoa que não a fez é pior que
+        // dizer apenas "veio de fora".
+        var origin = Enumeration.GetAll<BillActionOrigin>()
+            .FirstOrDefault(o => o.Name == request.Origin) ?? BillActionOrigin.Provider;
+
+        var requestedBy = request.RequestedBy is { } id ? UserId.From(id) : (UserId?)null;
+
+        // Agendamento vivo DESTA ordem: o boleto volta a Approved, SEM data e sem vínculo — a
+        // aprovação humana sobrevive ao cancelamento do agendamento (ADR-018). Até 2026-09-08
+        // isto levava o boleto a Cancelled, e cancelar um agendamento só para trocar a data
+        // matava o boleto junto: era preciso reimportar o documento para tentar de novo.
         if (bill.Status == BillStatus.Scheduled && bill.PaymentOrderId == orderId)
         {
-            bill.MarkScheduleCancelled(now);
+            bill.UnschedulePayment(origin, now, requestedBy);
             await unitOfWork.SaveEntitiesAsync(cancellationToken);
 
             return new ReflectPaymentOnBillResponse(request.BillId, bill.Status.Name, Applied: true);
         }
 
         // Ordem cancelada AINDA EM RASCUNHO (o boleto nunca chegou a Scheduled, então não há
-        // vínculo): o boleto aprovado volta à fila de decisão — a fila nunca mais criará ordem
-        // para esta aprovação, e sem o reflexo ele ficaria Approved para sempre, sem saída
-        // (ReopenForApproval só aceita Failed). A consulta de ordem ativa é a guarda contra a
-        // reentrega tardia: existindo uma ordem viva (rodada NOVA de aprovação), o evento é
+        // vínculo): a fila nunca mais criará ordem para este agendamento, e sem o reflexo o
+        // boleto ficaria Approved com uma data que não vai acontecer. Limpar a data é o que o
+        // devolve à aba de aprovados como agendável. A consulta de ordem ativa é a guarda contra
+        // a reentrega tardia: existindo uma ordem viva (rodada NOVA de agendamento), o evento é
         // história e não desfaz nada.
         if (bill.Status == BillStatus.Approved && bill.PaymentOrderId is null)
         {
@@ -171,7 +190,12 @@ public sealed class MarkBillScheduleCancelledCommandHandler(
             if (active is not null && active.Id != orderId)
                 return new ReflectPaymentOnBillResponse(request.BillId, bill.Status.Name, Applied: false);
 
-            bill.ReturnToApprovalAfterScheduleCancellation(now);
+            // Já sem data é reentrega do mesmo evento: nada a desfazer, e registrar de novo
+            // encheria a trilha de linhas idênticas.
+            if (bill.ScheduledFor is null)
+                return new ReflectPaymentOnBillResponse(request.BillId, bill.Status.Name, Applied: false);
+
+            bill.UnschedulePayment(origin, now, requestedBy);
             await unitOfWork.SaveEntitiesAsync(cancellationToken);
 
             return new ReflectPaymentOnBillResponse(request.BillId, bill.Status.Name, Applied: true);

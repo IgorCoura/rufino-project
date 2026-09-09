@@ -40,10 +40,19 @@ public sealed class BillCheck : ValueObject
             EvaluatedAt = evaluatedAt,
         };
 
-    public bool IsBlockingFailure => Outcome.IsFailure && Severity != CheckSeverity.Advisory;
+    /// <summary>
+    /// Esta falha, sozinha, impede a aprovação? Só <c>Blocking</c> e <c>Critical</c> — ver a
+    /// nota em <c>CheckResult.IsBlockingFailure</c> sobre por que a regra é afirmativa.
+    /// </summary>
+    public bool IsBlockingFailure
+        => Outcome.IsFailure
+        && (Severity == CheckSeverity.Blocking || Severity == CheckSeverity.Critical);
 
     /// <summary>Falha por declaração explícita do tenant — leva o boleto a Extremo Perigo.</summary>
     public bool IsCriticalFailure => Outcome.IsFailure && Severity == CheckSeverity.Critical;
+
+    /// <summary>Quanto esta verificação pesa na classificação de risco do boleto.</summary>
+    public RiskLevel RiskContribution => RiskLevel.Of(Outcome, Severity);
 
     public bool RequiresAttention => Outcome.RequiresAttention;
 

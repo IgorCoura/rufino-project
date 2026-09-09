@@ -65,6 +65,22 @@ internal sealed class PaymentOrderMap : IEntityTypeConfiguration<PaymentOrder>
             .HasColumnName("provider_order_id")
             .HasMaxLength(PaymentOrder.PROVIDER_ORDER_ID_MAX_LENGTH);
 
+        // O id do transfer espelho do Pix — é por ele que o webhook TRANSFER_* acha a ordem, e
+        // por isso ele é indexado: a resolução acontece a cada evento recebido.
+        builder.Property(e => e.ProviderTransferId)
+            .HasColumnName("provider_transfer_id")
+            .HasMaxLength(PaymentOrder.PROVIDER_ORDER_ID_MAX_LENGTH);
+
+        builder.Property(e => e.ProviderRawStatus)
+            .HasColumnName("provider_raw_status")
+            .HasMaxLength(PaymentOrder.PROVIDER_RAW_STATUS_MAX_LENGTH);
+
+        builder.Property(e => e.ProviderAuthorized).HasColumnName("provider_authorized");
+
+        builder.Property(e => e.RequestedBy)
+            .HasColumnName("requested_by")
+            .HasConversion(id => id!.Value.Value, value => UserId.From(value));
+
         // Money é owned de 1º nível com escalares — pode ser achatado com segurança (a
         // armadilha documentada é o owned de 2º nível).
         builder.OwnsOne(e => e.Amount, amount =>
@@ -141,6 +157,12 @@ internal sealed class PaymentOrderMap : IEntityTypeConfiguration<PaymentOrder>
 
         builder.HasIndex(e => new { e.TenantId, e.CreatedAt })
             .HasDatabaseName("ix_payment_orders_tenant_created");
+
+        // O webhook de Pix chega com o id do TRANSFER, não com o da transação: esta é a chave
+        // de resolução daquele caminho. Parcial porque só o trilho Pix preenche a coluna.
+        builder.HasIndex(e => e.ProviderTransferId)
+            .HasDatabaseName("ix_payment_orders_provider_transfer")
+            .HasFilter("provider_transfer_id IS NOT NULL");
 
         // Uma ordem ATIVA por boleto: é o que torna idempotente o handler de aprovação sob a
         // entrega at-least-once do outbox — a segunda entrega encontra a ordem da primeira, e

@@ -909,11 +909,15 @@ BillDetail billDetail({
   List<BillCheck> checks = const [],
   bool hasArtifact = false,
   String readingStatus = ReadingStatuses.notApplicable,
+  DateTime? scheduledFor,
+  List<BillHistoryEntry> history = const [],
 }) {
   return BillDetail(
     id: id,
     status: status,
     riskLevel: riskLevel,
+    scheduledFor: scheduledFor,
+    history: history,
     dueDate: dueDate,
     kind: BillKinds.bankSlip,
     rail: PaymentRails.boleto,
@@ -949,11 +953,27 @@ class FakeBillRepository implements BillRepository {
   /// The acknowledgement flag the last approval carried (phase 3).
   bool? lastApproveImmediateAck;
 
+  /// The date the last approve/schedule call carried; null means "approve only".
+  DateTime? lastApproveScheduleFor;
+
+  /// Errors the next [scheduleBill] calls should return, in order.
+  final List<Object> scriptedScheduleRefusals = [];
+
   /// The preview served by [previewSchedule]; null echoes the asked date.
   SchedulePreview? schedulePreview;
 
   /// Makes only the preview fail — the sheet must keep working without it.
   bool previewShouldFail = false;
+
+  /// The suggestions served by [getScheduleOptions]; null builds the usual
+  /// four, all available, anchored on [scheduleOptionsToday].
+  List<ScheduleOptionPreview>? scheduleOptions;
+
+  /// The day the default suggestions are anchored on.
+  DateTime scheduleOptionsToday = DateTime(2026, 6, 20);
+
+  /// Makes only the suggestions fail — the sheet must fall back to the picker.
+  bool scheduleOptionsShouldFail = false;
 
   /// Rule refusals scripted for the next [approveBill] calls, consumed in
   /// order — lets a test refuse once (`BLP.BIL35`) and accept the retry.
@@ -1044,17 +1064,44 @@ class FakeBillRepository implements BillRepository {
   @override
   Future<Result<void>> approveBill(
     String id, {
-    required DateTime scheduleFor,
+    DateTime? scheduleFor,
     String? note,
     bool acknowledgeRisk = false,
     bool acknowledgeImmediateExecution = false,
   }) async {
     if (_shouldFail) return _fail();
-    calls.add('approveBill:$id');
+
+    // A chamada registra SE veio data: é o que distingue "aprovar" de
+    // "aprovar e agendar" para quem assere sobre os calls.
+    calls.add(scheduleFor == null ? 'approveBill:$id' : 'approveAndSchedule:$id');
+    lastApproveScheduleFor = scheduleFor;
     lastApproveImmediateAck = acknowledgeImmediateExecution;
     if (scriptedApproveRefusals.isNotEmpty) {
       return Result.error(scriptedApproveRefusals.removeAt(0));
     }
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<void>> scheduleBill(
+    String id, {
+    required DateTime scheduleFor,
+    bool acknowledgeImmediateExecution = false,
+  }) async {
+    if (_shouldFail) return _fail();
+    calls.add('scheduleBill:$id');
+    lastApproveScheduleFor = scheduleFor;
+    lastApproveImmediateAck = acknowledgeImmediateExecution;
+    if (scriptedScheduleRefusals.isNotEmpty) {
+      return Result.error(scriptedScheduleRefusals.removeAt(0));
+    }
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<void>> undoBillDecision(String id, String reason) async {
+    if (_shouldFail) return _fail();
+    calls.add('undoBillDecision:$id:$reason');
     return const Result.success(null);
   }
 
@@ -1065,15 +1112,46 @@ class FakeBillRepository implements BillRepository {
   ) async {
     calls.add('previewSchedule:$id');
     if (previewShouldFail || _shouldFail) return _fail();
-    return Result.success(
-      schedulePreview ??
-          SchedulePreview(
-            requestedDate: date,
-            effectiveDate: date,
-            slid: false,
-            immediate: false,
-          ),
-    );
+    return Result.success(schedulePreview ?? _previewOf(date));
+  }
+
+  @override
+  Future<Result<List<ScheduleOptionPreview>>> getScheduleOptions(
+    String id,
+  ) async {
+    calls.add('getScheduleOptions:$id');
+    if (scheduleOptionsShouldFail || _shouldFail) return _fail();
+    return Result.success(scheduleOptions ?? _defaultScheduleOptions());
+  }
+
+  SchedulePreview _previewOf(DateTime date) => SchedulePreview(
+        requestedDate: date,
+        effectiveDate: date,
+        slid: false,
+        immediate: false,
+        afterDueDate: false,
+      );
+
+  List<ScheduleOptionPreview> _defaultScheduleOptions() {
+    final today = scheduleOptionsToday;
+    final dates = {
+      ScheduleOptionKind.today: today,
+      ScheduleOptionKind.tomorrow: today.add(const Duration(days: 1)),
+      ScheduleOptionKind.dayBeforeDue: today.add(const Duration(days: 9)),
+      ScheduleOptionKind.onDueDate: today.add(const Duration(days: 10)),
+    };
+
+    return [
+      for (final entry in dates.entries)
+        ScheduleOptionPreview(
+          kind: entry.key,
+          available: true,
+          date: entry.value,
+          // [schedulePreview] vale para qualquer data: é o que o servidor
+          // responderia, e as sugestões nascem dele como a prévia do seletor.
+          preview: schedulePreview ?? _previewOf(entry.value),
+        ),
+    ];
   }
 
   @override

@@ -1,4 +1,4 @@
-namespace BillPayment.Infra.Asaas;
+﻿namespace BillPayment.Infra.Asaas;
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -96,6 +96,21 @@ internal sealed class AsaasPixPaymentResponse
 
     [JsonPropertyName("refusalReason")]
     public string? RefusalReason { get; set; }
+
+    /// <summary>
+    /// MEDIDO (2026-09-08): o provedor DESCARTA o <c>externalReference</c> deste endpoint, mas
+    /// grava e devolve o <c>description</c>. É por ele que a busca de idempotência casa a
+    /// transação — ver <c>AsaasPixPaymentGateway.BuildReferenceMarker</c>.
+    /// </summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// O <c>transfer</c> espelho desta transação. É o id que chega nos webhooks
+    /// <c>TRANSFER_*</c> — a única família de eventos que o provedor emite para saída de Pix.
+    /// </summary>
+    [JsonPropertyName("transferId")]
+    public string? TransferId { get; set; }
 }
 
 internal sealed class AsaasPixPaymentListResponse
@@ -114,6 +129,9 @@ internal sealed class AsaasPixPaymentListResponse
 /// </summary>
 internal static class AsaasPaymentStatusMap
 {
+    /// <summary>O status que o provedor usa enquanto a autorização de ação crítica não chega.</summary>
+    private const string AWAITING_CRITICAL_ACTION_AUTHORIZATION = "AWAITING_CRITICAL_ACTION_AUTHORIZATION";
+
     public static PaymentOrderStatus FromBillPayment(string? raw)
         => ProviderStatusCatalog.FromBillPayment(raw);
 
@@ -165,5 +183,21 @@ internal static class AsaasPaymentStatusMap
             AsaasHttp.ReadMoney(body.ChargedFeeValue),
             string.IsNullOrWhiteSpace(body.RefusalReason) ? [] : [body.RefusalReason],
             body.TransactionReceiptUrl,
-            AsaasHttp.ReadMoney(body.Value));
+            AsaasHttp.ReadMoney(body.Value),
+            body.TransferId,
+            IsAuthorized(body.Status));
+
+    /// <summary>
+    /// Se o provedor já liberou a ação crítica. Derivado do status cru porque o endpoint de
+    /// transação Pix não traz o booleano <c>authorized</c> que o <c>transfer</c> traz —
+    /// <c>AWAITING_CRITICAL_ACTION_AUTHORIZATION</c> é exatamente "esperando alguém digitar o
+    /// código no celular" (medido em sandbox, 2026-09-08).
+    /// </summary>
+    private static bool? IsAuthorized(string? rawStatus)
+        => string.IsNullOrWhiteSpace(rawStatus)
+            ? null
+            : !string.Equals(
+                rawStatus.Trim(),
+                AWAITING_CRITICAL_ACTION_AUTHORIZATION,
+                StringComparison.OrdinalIgnoreCase);
 }

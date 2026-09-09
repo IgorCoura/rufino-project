@@ -22,8 +22,28 @@ public sealed class BillStatus : Enumeration
     public static readonly BillStatus Failed = new(8, "Failed");
     public static readonly BillStatus Cancelled = new(9, "Cancelled", isTerminal: true);
 
-    /// <summary>Estado final: nenhuma mutação é aceita a partir daqui (BLP.BIL07).</summary>
+    /// <summary>
+    /// Estado final do <strong>fluxo</strong>: a máquina não sai daqui por transição normal
+    /// (BLP.BIL07).
+    /// </summary>
+    /// <remarks>
+    /// <strong>Há uma única exceção, e ela é nomeada:</strong> <see cref="CanBeUndone"/>.
+    /// Recusar e cancelar são decisões de gente, e gente erra — <c>Bill.UndoDecision</c> desfaz
+    /// as duas por um caminho próprio, com alçada própria, sem passar pela matriz de transições.
+    /// Nenhum outro método escapa daqui, e a reversão não vale para <c>Paid</c>: dinheiro que
+    /// saiu não volta por decisão nossa.
+    /// </remarks>
     public bool IsTerminal { get; }
+
+    /// <summary>
+    /// Se uma decisão humana terminal pode ser desfeita, devolvendo o boleto à fila de decisão.
+    /// </summary>
+    /// <remarks>
+    /// Só <see cref="Denied"/> e <see cref="Cancelled"/> — os dois estados que já liberam a chave
+    /// natural (<see cref="OccupiesNaturalKey"/>), o que torna a volta coerente: a chave estava
+    /// livre e o boleto volta a ocupá-la. <see cref="Paid"/> é terminal de verdade.
+    /// </remarks>
+    public bool CanBeUndone => this == Denied || this == Cancelled;
 
     /// <summary>
     /// Se o boleto ainda ocupa a chave natural do instrumento na deduplicação global.
@@ -50,7 +70,11 @@ public sealed class BillStatus : Enumeration
             // esta aresta o boleto ficaria "aprovado, agendamento em processamento" para sempre
             // — a falha visível na ordem e invisível no espelho (fase 3, 2026-09-02).
             _ when this == Approved && (target == Scheduled || target == Failed || target == AwaitingApproval || target == Rejected || target == Cancelled) => true,
-            _ when this == Scheduled && (target == Paid || target == Failed || target == Cancelled) => true,
+            // Scheduled → Approved: o AGENDAMENTO foi desfeito, não o boleto. Até 2026-09-08 a
+            // ordem cancelada levava o boleto a Cancelled (terminal) — cancelar um agendamento
+            // para trocar a data matava o boleto, e a aprovação vigente ia junto. A aprovação é
+            // de gente e continua de pé; quem some é a data.
+            _ when this == Scheduled && (target == Paid || target == Failed || target == Approved || target == Cancelled) => true,
             _ when this == Failed && (target == AwaitingApproval || target == Cancelled) => true,
             _ => false,
         };

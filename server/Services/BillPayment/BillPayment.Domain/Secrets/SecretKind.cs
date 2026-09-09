@@ -1,4 +1,4 @@
-namespace BillPayment.Domain.Secrets;
+﻿namespace BillPayment.Domain.Secrets;
 
 using BillPayment.Domain.SeedWork;
 
@@ -26,6 +26,17 @@ public sealed class SecretKind : Enumeration
 
     /// <summary>Senha de PDF aprendida. Nunca é logada nem devolvida por API.</summary>
     public static readonly SecretKind PdfPassword = new(4, "PdfPassword");
+
+    /// <summary>
+    /// O token que o provedor de pagamento devolve em cada webhook desta conta.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Direção oposta à da chave de API</strong>: aquela autentica NÓS no provedor, esta
+    /// autentica O PROVEDOR em nós. Tipo próprio porque o tipo entra no dado autenticado da cifra
+    /// — um token de webhook apresentado como chave de subconta não decifra, e é isso que impede
+    /// que um confundir o outro vire escalada de privilégio.
+    /// </remarks>
+    public static readonly SecretKind AsaasWebhookToken = new(5, "AsaasWebhookToken");
 
     private SecretKind(int id, string name) : base(id, name) { }
 }

@@ -4,21 +4,26 @@ using System.Globalization;
 using BillPayment.Domain.PaymentOrders;
 
 /// <summary>
-/// A política inicial de agendamento (ADR-017) e os parâmetros da fila de submissão, como
-/// configuração da instalação. Afrouxar a política é mudar números aqui + revisar o ADR —
-/// nunca reescrever regra, que vive no <c>PaymentSchedulingService</c>.
+/// A política de agendamento (ADR-017, revista pelo ADR-021) e os parâmetros da fila de
+/// submissão, como configuração da instalação. Afrouxar a política é mudar números aqui +
+/// revisar o ADR — nunca reescrever regra, que vive no <c>PaymentSchedulingService</c>.
 /// </summary>
+/// <remarks>
+/// <strong><c>MinLeadHours</c> (antecedência de 24h) foi removida em 2026-09-08 (ADR-021).</strong>
+/// Chave sobrando no <c>appsettings</c> de alguma instalação é ignorada em silêncio pelo binder —
+/// não é erro, mas também não faz mais nada.
+/// </remarks>
 public sealed class PaymentSchedulingOptions
 {
     public const string SectionName = "Payments";
 
-    /// <summary>Antecedência mínima entre a submissão e a data efetiva — a janela de reação.</summary>
-    public int MinLeadHours { get; set; } = 24;
-
-    /// <summary>Janela de submissão, no fuso do provedor. Fora dela a fila espera.</summary>
+    /// <summary>
+    /// Janela de submissão, no fuso do provedor. Fora dela a fila espera — e, por consequência,
+    /// "pagar hoje" deixa de ser oferecido: a próxima submissão possível já seria amanhã.
+    /// </summary>
     public string SubmissionWindowStart { get; set; } = "09:00";
 
-    public string SubmissionWindowEnd { get; set; } = "17:00";
+    public string SubmissionWindowEnd { get; set; } = "18:00";
 
     /// <summary>
     /// O fuso do provedor. IANA funciona em Windows e Linux desde o .NET 6 (ICU); o fallback
@@ -36,7 +41,6 @@ public sealed class PaymentSchedulingOptions
 
     public PaymentSchedulingPolicy ToPolicy()
         => PaymentSchedulingPolicy.Of(
-            TimeSpan.FromHours(MinLeadHours < 0 ? 0 : MinLeadHours),
             ParseTime(SubmissionWindowStart, PaymentSchedulingPolicy.DEFAULT_WINDOW_START),
             ParseTime(SubmissionWindowEnd, PaymentSchedulingPolicy.DEFAULT_WINDOW_END));
 

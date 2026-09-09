@@ -157,6 +157,40 @@ void main() {
       expect(text, contains('código de barras'));
     });
   });
+
+  group('expectation check', () {
+    // O rótulo da verificação 14 é o que a tela mostra na lista de checks —
+    // sem ele, o tipo cru vazaria para a tela do aprovador.
+    test('check 14 has a label of its own', () {
+      expect(CheckTypes.label(CheckTypes.expectationMatch), 'Conta esperada');
+    });
+
+    // Todo motivo da verificação 14 tem tradução: um código sem texto cai na
+    // evidência do servidor, que é escrita para diagnóstico e não para a tela.
+    test('every expectation reason code is translated', () {
+      const codes = [
+        'expectation_cycle_opens_on_arrival',
+        'expectation_not_registered',
+        'expectation_ambiguous',
+        'expectation_paused',
+        'expectation_payee_unresolved',
+        'expectation_due_date_unavailable',
+      ];
+
+      for (final code in codes) {
+        expect(checkReasonMessage(code), isNotNull, reason: code);
+      }
+    });
+
+    // O caso que o recurso existe para expor: chegou uma cobrança que ninguém
+    // estava esperando, e a frase precisa dizer isso a quem vai aprovar.
+    test('a bill nobody expected says so in plain words', () {
+      final text = checkReasonMessage('expectation_not_registered')!;
+
+      expect(text, contains('não tem conta esperada'));
+      expect(text, contains('aguardando'));
+    });
+  });
 }
 
 BillCheck _check({

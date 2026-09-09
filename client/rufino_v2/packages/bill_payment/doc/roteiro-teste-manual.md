@@ -400,17 +400,41 @@ protegido nem verificação de pagador.
 - [ ] **BOL-24 — Boleto vencido exige o aceite de execução imediata**
   Passos: aprove um boleto cuja data de vencimento já passou.
   Esperado: a folha de aprovação mostra a caixa avisando que o pagamento
-  sai **imediatamente** (sem as 24h de antecedência); **Autorizar** fica
-  desabilitado até marcá-la. Sem a caixa o servidor recusa (`BLP.BIL35`).
+  sai **imediatamente**, sem agendamento; **Autorizar** fica desabilitado
+  até marcá-la. Sem a caixa o servidor recusa (`BLP.BIL35`).
 
 - [ ] **BOL-25 — A folha mostra quando o pagamento sai de verdade**
-  Passos: abra **Aprovar…** num boleto com vencimento futuro; troque a
-  data para uma véspera de feriado bancário ou fim de semana.
-  Esperado: abaixo do seletor de data aparece "Pagamento será executado
-  em \<data\>", com o sufixo "(deslizou do dia pedido)" quando a política
-  (24h + dia útil) empurrar a execução. A linha é **informativa**: se a
-  prévia falhar (rede), nada aparece e o Autorizar continua funcionando
-  exatamente como antes.
+  Passos: abra **Aprovar…** num boleto com vencimento futuro; escolha
+  **Outra data…** e aponte para uma véspera de feriado bancário ou fim de
+  semana.
+  Esperado: abaixo das opções aparece "Pagamento será executado em
+  \<data\>", com o sufixo "(deslizou do dia pedido)" quando o dia útil
+  empurrar a execução. A linha é **informativa**: se a prévia falhar
+  (rede), nada aparece e o Autorizar continua funcionando exatamente como
+  antes.
+
+- [ ] **BOL-25a — As quatro datas prontas**
+  Passos: abra **Aprovar e agendar…** num boleto com vencimento futuro.
+  Esperado: a folha lista **Pagar hoje**, **Amanhã**, **Um dia antes do
+  vencimento** e **No dia do vencimento**, cada uma com a data ao lado, mais
+  **Outra data…**. A marcada por padrão é **No dia do vencimento**.
+
+- [ ] **BOL-25b — "Pagar hoje" fora do horário de envio**
+  Passos: repita o BOL-25a **antes das 9h ou depois das 18h** (ou num
+  sábado/feriado bancário).
+  Esperado: **Pagar hoje** aparece **desabilitado**, com o motivo no lugar
+  da data ("fora do horário de envio dos pagamentos", "hoje não é dia
+  útil"). As outras opções seguem funcionando. Se o horário virar com a
+  folha aberta, o Autorizar recusa com `BLP.BIL40`: a folha **não fecha**,
+  as opções são relidas e o aviso "O horário de envio dos pagamentos
+  fechou…" aparece.
+
+- [ ] **BOL-25c — Data depois do vencimento avisa, mas não trava**
+  Passos: num boleto que vence amanhã, escolha **Outra data…** e aponte
+  para dali a uma semana.
+  Esperado: aparece "Esta data é posterior ao vencimento. O pagamento sai
+  em atraso e pode ter encargos." em vermelho — e o **Autorizar**
+  continua habilitado.
 
 - [ ] **BOL-26 — Recusa `BLP.BIL35` revela a caixa sem perder a folha**
   Passos: perto da virada do dia (após ~21h), aprove um boleto que vence
@@ -435,7 +459,7 @@ uma janela curta sem ordem.
 
 - [ ] **EXE-02 — Conteúdo da ordem**
   Esperado: status traduzido, retenção quando houver, data pedida × data
-  efetiva (com "(deslizou)" quando a política de 24h/janela 9h–17h moveu o
+  efetiva (com "(deslizou)" quando o piso do provedor ou o dia útil moveu o
   dia), valor, taxa e "Pago em" quando pago; falhas listadas com o último
   erro.
 

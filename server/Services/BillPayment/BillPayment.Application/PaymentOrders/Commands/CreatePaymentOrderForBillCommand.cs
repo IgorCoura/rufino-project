@@ -86,7 +86,8 @@ public sealed class CreatePaymentOrderForBillCommandHandler(
             bill.Rail,
             request.ScheduleFor,
             bill.AmountForPayment,
-            now);
+            now,
+            UserId.From(request.ApprovedBy));
 
         var profile = await payerProfiles.GetByTenantAsync(tenantId, cancellationToken);
         if (profile is null || !profile.CanSchedulePayments)

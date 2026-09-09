@@ -121,6 +121,38 @@ Um alerta por nível por ciclo — nunca repetir o mesmo nível.
 
 Ciclo que vira `Fulfilled` a qualquer momento cancela os níveis seguintes.
 
+## A expectativa também VERIFICA o boleto — a 14ª verificação
+
+> **Entrou em 2026-09-08** ([`adr/ADR-020`](adr/ADR-020-expectativa-na-validacao-e-a-regua-endurecida.md)).
+> Até então este agregado vivia inteiramente **a jusante** da verificação: o boleto validado
+> disparava o cumprimento do ciclo e nunca ficava sabendo do resultado. Faltava a pergunta
+> inversa, e ela é a mais barata que existe — **alguém estava esperando esta conta?**
+
+`CheckType.ExpectationMatch` (nº 14, `CheckSeverity.Notice`) é o inverso do alerta do ADR-014: lá o
+sistema avisa que a conta esperada não chegou; aqui ele avisa que **chegou uma conta que ninguém
+esperava**. Cobrança de fornecedor que o tenant nunca teve, com valor plausível e beneficiário
+desconhecido, é o formato da fraude por e-mail.
+
+**Teto de Atenção, sempre.** Não haver expectativa não desmente nada — a maior parte dos boletos
+legítimos nunca teve uma. O check destaca; nunca leva a Perigo.
+
+**Quem apura é este mesmo serviço, nunca uma cópia.** `BillValidationService.EvaluateExpectationMatch`
+chama o `ExpectationMatchingService`. Duas implementações da regra divergiriam, e a divergência
+apareceria como "a tela diz conta esperada" sobre um ciclo que segue alertando sozinho.
+
+> ⚠️ **O ciclo cumprido POR AQUELE BOLETO continua casando** (`Match(..., alreadyFulfilledBy)`).
+> O cumprimento fecha o ciclo, e revalidar é **rotina** — a leitura por IA chega depois da captura
+> e refaz a apuração. Sem essa exceção, o segundo passe encontraria "nenhuma expectativa" sobre o
+> boleto que acabou de cumprir a dele, e o risco cairia de Seguro para Atenção sozinho. O mesmo
+> parâmetro tornou desnecessário o curto-circuito por competência que vivia solto no
+> `FulfillExpectationForBillCommandHandler`.
+
+**A ordem não mudou:** o cumprimento continua a jusante, no `BillValidatedDomainEvent`. A validação
+**observa**; quem muta a expectativa é o handler dela, e nenhum agregado novo entra na transação do
+boleto. Quem carrega as expectativas para o contexto são os dois handlers que validam —
+`ValidateBillCommand` e **`ApplyBillReadingCommand`**; esquecer o segundo faria toda revalidação
+por leitura de IA nascer sem expectativa.
+
 ## Aprendizado
 
 `ExpectationLearningService` roda após cada `Bill` chegar a `Paid` ou `Approved`:
@@ -147,7 +179,7 @@ Alerta indevido treina o usuário a ignorar alerta, o que destrói o mecanismo. 
 
 | Serviço | Por que é serviço |
 |---|---|
-| `ExpectationMatchingService` | Cruza `Bill` + `BillExpectation` — dois Aggregates. Casa pela **competência do vencimento** primeiro; a janela de dias (**±3**, era ±15) sobra só para o vencimento que atravessa a virada do mês. Quando não há ciclo para aquela competência e há **uma única** expectativa vigiando, devolve qual é — e o handler abre o ciclo sob demanda, rede de segurança contra prazo de chegada subestimado. Ambiguidade devolve `null`. |
+| `ExpectationMatchingService` | Cruza `Bill` + `BillExpectation` — dois Aggregates. Casa pela **competência do vencimento** primeiro; a janela de dias (**±3**, era ±15) sobra só para o vencimento que atravessa a virada do mês. Quando não há ciclo para aquela competência e há **uma única** expectativa vigiando, devolve qual é — e o handler abre o ciclo sob demanda, rede de segurança contra prazo de chegada subestimado. Ambiguidade devolve `null`. Desde 2026-09-08 tem **dois** chamadores — o cumprimento e a verificação 14 —, e o parâmetro `alreadyFulfilledBy` existe para o segundo (ver abaixo). |
 | `ExpectationCaptureMatchingService` | Cruza `CaptureItem` + `BillExpectation`. Um artefato travado falhou **antes** da extração: não tem beneficiário nem vencimento, e a única ponte é a **fonte** por onde entrou (`HintSourceId`) mais a janela do ciclo. Traduz o estado do item em `MissReason`. Ambiguidade devolve `null`. |
 | `ExpectationLearningService` | Cruza histórico de `Bill` + `Payee` para propor expectativas — e para **recusá-las**, com motivo (`TooFewOccurrences`, `Irregular`, `MultipleAccounts`). Devolve candidatas, nunca persiste. Não usa `RoutingRule`, que não existe. |
 

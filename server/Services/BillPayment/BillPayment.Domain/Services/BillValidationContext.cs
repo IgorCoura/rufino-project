@@ -1,6 +1,7 @@
 namespace BillPayment.Domain.Services;
 
 using BillPayment.Domain.Bills;
+using BillPayment.Domain.Expectations;
 using BillPayment.Domain.Lookups;
 using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.Ports;
@@ -76,6 +77,17 @@ public sealed class BillValidationContext
     public PayerProfile? PayerProfile { get; init; }
 
     public required IBankDirectory BankDirectory { get; init; }
+
+    /// <summary>
+    /// As expectativas do beneficiário resolvido. Vazio quando não há beneficiário, quando ele
+    /// não tem nenhuma cadastrada — ou quando quem monta o contexto ainda não as carrega.
+    /// </summary>
+    /// <remarks>
+    /// Entrou em 2026-09-08 (ADR-020) para a verificação 14 existir. Vem por aqui, e não por uma
+    /// porta, porque este serviço é <strong>puro</strong>: quem faz o I/O é o handler, logo
+    /// depois de <c>ResolvePayee</c> resolver contra quem perguntar.
+    /// </remarks>
+    public IReadOnlyCollection<BillExpectation> Expectations { get; init; } = [];
 
     public DuplicateFinding Duplicate { get; init; } = DuplicateFinding.None;
 

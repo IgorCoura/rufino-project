@@ -112,4 +112,25 @@ public static class CheckReasons
     public const string DOCUMENT_DUE_DATE_DIVERGENCE = "document_due_date_divergence";
     public const string OFFICIAL_IDENTITY_NOT_AVAILABLE = "official_identity_not_available";
     public const string NOTHING_COMPARABLE = "nothing_comparable";
+
+    // 14. ExpectationMatch — o inverso do alerta do ADR-014: chegou uma conta que ninguém
+    // esperava. Todos com teto de Atenção; nenhum deles desmente coisa alguma.
+
+    /// <summary>O ciclo não existia e nasce na chegada — rede de segurança contra prazo curto.</summary>
+    public const string EXPECTATION_CYCLE_OPENS_ON_ARRIVAL = "expectation_cycle_opens_on_arrival";
+
+    /// <summary>O beneficiário não tem nenhuma expectativa cadastrada.</summary>
+    public const string EXPECTATION_NOT_REGISTERED = "expectation_not_registered";
+
+    /// <summary>Mais de uma conta do mesmo beneficiário poderia ser esta. Nunca desempatamos.</summary>
+    public const string EXPECTATION_AMBIGUOUS = "expectation_ambiguous";
+
+    /// <summary>Há expectativa, mas ela está pausada ou desativada — ninguém está vigiando.</summary>
+    public const string EXPECTATION_PAUSED = "expectation_paused";
+
+    /// <summary>Sem beneficiário resolvido não há contra o quê perguntar.</summary>
+    public const string EXPECTATION_PAYEE_UNRESOLVED = "expectation_payee_unresolved";
+
+    /// <summary>Sem vencimento legível não há competência para casar.</summary>
+    public const string EXPECTATION_DUE_DATE_UNAVAILABLE = "expectation_due_date_unavailable";
 }

@@ -3,6 +3,7 @@ namespace BillPayment.Application.Bills.Commands;
 using BillPayment.Application.Mediator;
 using BillPayment.Domain.Bills;
 using BillPayment.Application.Bills;
+using BillPayment.Domain.Expectations;
 using BillPayment.Domain.Lookups;
 using BillPayment.Domain.Payees;
 using BillPayment.Domain.Ports;
@@ -50,6 +51,7 @@ public sealed record ApplyBillReadingResponse(Guid BillId, bool Applied, string 
 public sealed class ApplyBillReadingCommandHandler(
     IBillRepository bills,
     IPayeeRepository payees,
+    IBillExpectationRepository expectations,
     IPayerProfileRepository payerProfiles,
     ITrustedOriginRepository trustedOrigins,
     IBankDirectory bankDirectory,
@@ -132,6 +134,12 @@ public sealed class ApplyBillReadingCommandHandler(
             Origin = await ResolveOriginAsync(bill, tenantId, cancellationToken),
             PayerProfile = await payerProfiles.GetByTenantAsync(tenantId, cancellationToken),
             BankDirectory = bankDirectory,
+            // A verificação 14 depende disto, e este caminho é rotina: todo boleto vindo de
+            // caixa passa por aqui quando o retrato da IA aterrissa. Sem as expectativas o
+            // check nasceria "não havia expectativa" e rebaixaria o risco na revalidação.
+            Expectations = bill.PayeeId is { } payeeId
+                ? await expectations.ListByPayeeAsync(tenantId, payeeId, cancellationToken)
+                : [],
             Today = DateOnly.FromDateTime(now.UtcDateTime),
             TimeOfDay = TimeOnly.FromDateTime(now.UtcDateTime),
         };

@@ -48,6 +48,11 @@ abstract final class CheckTypes {
   /// the official lookup.
   static const String documentConsistency = 'DocumentConsistency';
 
+  /// Whether this bill was one the system was waiting for — the inverse of
+  /// the expectation alert: there the system says an expected bill never
+  /// arrived; here it says a bill nobody expected did.
+  static const String expectationMatch = 'ExpectationMatch';
+
   /// The label to show for [type].
   static String label(String type) => switch (type) {
         barcodeIntegrity => 'Integridade do código',
@@ -63,6 +68,7 @@ abstract final class CheckTypes {
         tenantRouting => 'Roteamento',
         pixBarcodeConsistency => 'Pix × código de barras',
         documentConsistency => 'Documento × consulta oficial',
+        expectationMatch => 'Conta esperada',
         _ => type,
       };
 }
@@ -199,5 +205,24 @@ String? checkReasonMessage(String? reasonCode) => switch (reasonCode) {
         'Documento com um trilho só — não há o que comparar.',
       'pix_qr_not_payable' => 'O QR Pix não é pagável.',
       'static_qr_without_amount' => 'QR Pix estático sem valor definido.',
+
+      // Conta esperada. Nenhum destes desmente nada — todos têm teto de
+      // Atenção, e existem para separar "chegou o que eu esperava" de
+      // "chegou uma conta que ninguém estava esperando".
+      'expectation_cycle_opens_on_arrival' =>
+        'A conta era esperada; o acompanhamento deste mês começa nesta '
+            'chegada.',
+      'expectation_not_registered' =>
+        'Este beneficiário não tem conta esperada cadastrada — ninguém '
+            'estava aguardando esta cobrança.',
+      'expectation_ambiguous' =>
+        'Mais de uma conta deste beneficiário poderia ser esta. Confira de '
+            'qual delas se trata.',
+      'expectation_paused' =>
+        'A conta esperada deste beneficiário está pausada ou desativada.',
+      'expectation_payee_unresolved' =>
+        'Sem beneficiário identificado não há conta esperada a conferir.',
+      'expectation_due_date_unavailable' =>
+        'Sem vencimento legível não foi possível conferir a conta esperada.',
       _ => null,
     };

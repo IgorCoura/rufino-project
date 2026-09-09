@@ -1,4 +1,4 @@
-namespace BillPayment.Infra.Asaas;
+﻿namespace BillPayment.Infra.Asaas;
 
 using System.Globalization;
 using System.Net.Http.Json;
@@ -122,6 +122,82 @@ internal static class AsaasHttp
             logger.LogWarning(ex, "Consulta ao Asaas em {Path} não obteve resposta", path);
             return (null, new AsaasFailure(TransportReason(ex), ex.Message, IsRetryable: true));
         }
+    }
+
+    /// <summary>
+    /// Atualização. Mesma classificação de falha do POST — só o verbo muda.
+    /// </summary>
+    public static async Task<(TResponse? Body, AsaasFailure? Failure)> PutAsync<TResponse>(
+        this HttpClient http,
+        string path,
+        object payload,
+        ILogger logger,
+        CancellationToken cancellationToken)
+        where TResponse : class
+    {
+        try
+        {
+            using var response = await http.PutAsJsonAsync(path, payload, Json, cancellationToken);
+            return await ReadAsync<TResponse>(response, path, logger, cancellationToken);
+        }
+        catch (JsonException)
+        {
+            return (null, new AsaasFailure("malformed_response", null, IsRetryable: false));
+        }
+        catch (Exception ex) when (IsTransport(ex, cancellationToken))
+        {
+            logger.LogWarning(ex, "Consulta ao Asaas em {Path} não obteve resposta", path);
+            return (null, new AsaasFailure(TransportReason(ex), ex.Message, IsRetryable: true));
+        }
+    }
+
+    public static async Task<(TResponse? Body, AsaasFailure? Failure)> DeleteAsync<TResponse>(
+        this HttpClient http,
+        string path,
+        ILogger logger,
+        CancellationToken cancellationToken)
+        where TResponse : class
+    {
+        try
+        {
+            using var response = await http.DeleteAsync(new Uri(path, UriKind.Relative), cancellationToken);
+            return await ReadAsync<TResponse>(response, path, logger, cancellationToken);
+        }
+        catch (JsonException)
+        {
+            return (null, new AsaasFailure("malformed_response", null, IsRetryable: false));
+        }
+        catch (Exception ex) when (IsTransport(ex, cancellationToken))
+        {
+            logger.LogWarning(ex, "Consulta ao Asaas em {Path} não obteve resposta", path);
+            return (null, new AsaasFailure(TransportReason(ex), ex.Message, IsRetryable: true));
+        }
+    }
+
+    /// <summary>Leitura e classificação comuns aos verbos novos.</summary>
+    private static async Task<(TResponse? Body, AsaasFailure? Failure)> ReadAsync<TResponse>(
+        HttpResponseMessage response,
+        string path,
+        ILogger logger,
+        CancellationToken cancellationToken)
+        where TResponse : class
+    {
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var parsed = JsonSerializer.Deserialize<TResponse>(content, Json);
+            return parsed is null
+                ? (null, new AsaasFailure("empty_response", null, IsRetryable: false))
+                : (parsed, null);
+        }
+
+        var failure = Classify((int)response.StatusCode, content);
+        logger.LogWarning(
+            "Consulta ao Asaas em {Path} respondeu {Status}: {ReasonCode}",
+            path, (int)response.StatusCode, failure.ReasonCode);
+
+        return (null, failure);
     }
 
     /// <summary>

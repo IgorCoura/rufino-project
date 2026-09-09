@@ -20,7 +20,7 @@ O design rationale do BC vive em `BillPayment.Architecture/`. O ponto de entrada
 |---|---|
 | [`01-context-and-vision.md`](BillPayment.Architecture/01-context-and-vision.md) | Escopo (dentro/fora), premissas de negócio, linguagem ubíqua |
 | [`02-domain-model.md`](BillPayment.Architecture/02-domain-model.md) | Aggregates, VOs, máquina de estados do `Bill`, eventos, invariantes, portas, prefixos de erro |
-| [`03-bill-validation.md`](BillPayment.Architecture/03-bill-validation.md) | As dez verificações do boleto, com severidade e cobertura de teste exigida |
+| [`03-bill-validation.md`](BillPayment.Architecture/03-bill-validation.md) | As **catorze** verificações do boleto, com severidade e cobertura de teste exigida |
 | [`04-integrations.md`](BillPayment.Architecture/04-integrations.md) | Asaas (boleto + Pix), Microsoft Graph, IA, parser de PDF, storage, segredos |
 | [`05-use-cases.md`](BillPayment.Architecture/05-use-cases.md) | Casos de uso, contratos de API, recursos de `[ProtectedResource]` |
 | [`06-roadmap.md`](BillPayment.Architecture/06-roadmap.md) | Fases 1–6, sprints, critérios de pronto, riscos |
@@ -32,9 +32,9 @@ O design rationale do BC vive em `BillPayment.Architecture/`. O ponto de entrada
 | [`12-official-lookup-coverage.md`](BillPayment.Architecture/12-official-lookup-coverage.md) | **Medição** da consulta oficial por tipo de documento — o que cada check tem de dado e o que ficou por validar em produção |
 | [`13-dead-letter-replay.md`](BillPayment.Architecture/13-dead-letter-replay.md) | **Operação:** replay da dead-letter do outbox por SQL, com a análise de idempotência handler a handler |
 | [`14-auditoria-ingestao-email.md`](BillPayment.Architecture/14-auditoria-ingestao-email.md) | **Segurança:** auditoria de 2026-09-03 da ingestão por e-mail — 33 achados com arquivo:linha, todos **abertos**; o status vive na seção "Auditoria da ingestão por e-mail" do checklist abaixo |
-| [`adr/`](BillPayment.Architecture/adr/) | ADR-001 a ADR-017 — o **porquê** de cada decisão estrutural |
+| [`adr/`](BillPayment.Architecture/adr/) | ADR-001 a ADR-020 — o **porquê** de cada decisão estrutural |
 
-**Antes de propor mudança estrutural, leia o ADR correspondente.** Decisões já fechadas e greppáveis: Asaas como provedor de consulta *e* pagamento (ADR-001), com **uma conta por tenant, trazida pelo próprio tenant** (ADR-016 — o desenho de subconta criada pela plataforma do doc 07 foi substituído); `Bill` e `PaymentOrder` como Aggregates separados (ADR-002); verificação como entidade com evidência e quatro resultados, não booleano (ADR-003); pagador **não** é verificável por fonte oficial, mas **bloqueia quando contradiz** (ADR-004); confiança é do remetente, não da caixa (ADR-005); só Microsoft Graph; **Gmail entra por encaminhamento**, sem adapter (ADR-006); nenhum pagamento sem `UserId` autorizando (ADR-007); fonte compartilhada = uma `CaptureSource` por tenant, isolamento por construção (ADR-008); **sem cofre por ora — env vars + `secrets.json`**, envelope encryption no Postgres permanece (ADR-009); **QR Pix é o trilho preferencial**, divergência entre QR e código de barras bloqueia (ADR-010); **IA extrai candidatos, DV + consulta oficial decidem** (ADR-011); **DDA está fora** — portais depois de esgotar fatura digital, **sem evasão de anti-bot** (ADR-012); **Gemini atrás de porta agnóstica** (ADR-013); **o sistema sabe o que espera receber e avisa quando não recebeu** (ADR-014); **a validação classifica Seguro/Atenção/Perigo e NUNCA rejeita — quem decide é o humano, e Perigo exige aceite explícito gravado na trilha** (ADR-015); **a conta Asaas é do tenant, trazida e provada por ele — sem chave-plataforma e sem fallback global**, com webhook, saldo e whitelist por conta (ADR-016); **política inicial de agendamento: 24h de antecedência, submissão só das 9h às 17h, e vencido exige confirmação explícita gravada na trilha** (ADR-017).
+**Antes de propor mudança estrutural, leia o ADR correspondente.** Decisões já fechadas e greppáveis: Asaas como provedor de consulta *e* pagamento (ADR-001), com **uma conta por tenant, trazida pelo próprio tenant** (ADR-016 — o desenho de subconta criada pela plataforma do doc 07 foi substituído); `Bill` e `PaymentOrder` como Aggregates separados (ADR-002); verificação como entidade com evidência e quatro resultados, não booleano (ADR-003); pagador **não** é verificável por fonte oficial, mas **bloqueia quando contradiz** (ADR-004); confiança é do remetente, não da caixa (ADR-005); só Microsoft Graph; **Gmail entra por encaminhamento**, sem adapter (ADR-006); nenhum pagamento sem `UserId` autorizando (ADR-007); fonte compartilhada = uma `CaptureSource` por tenant, isolamento por construção (ADR-008); **sem cofre por ora — env vars + `secrets.json`**, envelope encryption no Postgres permanece (ADR-009); **QR Pix é o trilho preferencial**, divergência entre QR e código de barras bloqueia (ADR-010); **IA extrai candidatos, DV + consulta oficial decidem** (ADR-011); **DDA está fora** — portais depois de esgotar fatura digital, **sem evasão de anti-bot** (ADR-012); **Gemini atrás de porta agnóstica** (ADR-013); **o sistema sabe o que espera receber e avisa quando não recebeu** (ADR-014); **a validação classifica Seguro/Atenção/Perigo e NUNCA rejeita — quem decide é o humano, e Perigo exige aceite explícito gravado na trilha** (ADR-015); **a conta Asaas é do tenant, trazida e provada por ele — sem chave-plataforma e sem fallback global**, com webhook, saldo e whitelist por conta (ADR-016); **política de agendamento: submissão só das 9h às 18h e vencido exige confirmação explícita gravada na trilha** (ADR-017, com as 24h de antecedência REMOVIDAS pelo ADR-021); **aprovar e agendar são DOIS atos com alçadas diferentes, cancelar agendamento devolve a `Approved`, e recusa/cancelamento se desfazem com revalidação automática** (ADR-018); **webhook POR TENANT, com o payload tratado como aviso e a ordem RELIDA no provedor** (ADR-019); **a expectativa entra na validação como a 14ª verificação e a régua de risco endurece — o que era Atenção virou Perigo, e só expectativa, prazo e nome do beneficiário ficam com teto de Atenção** (ADR-020); **a antecedência de 24h sai, a janela vira 9h–18h e ela só bloqueia "pagar hoje" — porque é sobre a hora da SUBMISSÃO, não a do pagamento, que é do Asaas — com a tela oferecendo quatro datas prontas resolvidas pelo servidor** (ADR-021).
 
 ### Três regras que não podem erodir
 
@@ -295,7 +295,7 @@ Walking Skeleton (Fase 0) e **Sprint 1.1 concluídos**: os três Aggregates de c
 - **`TaxId.TryParse`** acrescentado ao SharedKernel — documento ilegível na resposta do provedor vira ausência, não exceção.
 
 **Sprint 1.4 — ✅ Concluída.** A verificação existe e decide:
-- **`Domain/Bills/Checks/`**: `CheckType` (as doze), `CheckOutcome` (**cinco** — `Warning` entrou junto), `CheckSeverity`, `CheckReasons` (códigos estáveis), `CheckResult`, `BillCheck`, `ValidationOutcome`.
+- **`Domain/Bills/Checks/`**: `CheckType` (as **catorze**), `CheckOutcome` (**cinco** — `Warning` entrou junto), `CheckSeverity` (**quatro** — `Notice` entrou em 2026-09-08), `CheckReasons` (códigos estáveis), `CheckResult`, `BillCheck`, `ValidationOutcome`, `RiskLevel` (com `Of`/`Worst`, a régua inteira).
 - **`Domain/Services/`**: `BillValidationService` (as doze checagens, **puro e síncrono**) e `PayeeResolutionService` (documento → nome → sósia), mais `BillValidationContext`/`DuplicateFinding`.
 - **`Bill`** ganhou `AttachLookups`, `ResolvePayee`, `RecordChecks`, `Lookup`, `PixLookup`, `LookupHistory`, `Checks`, `ExtractedPayer` (`PartyInfo`), `Routing` (`RoutingConfidence`), e os eventos `BillValidatedDomainEvent`/`BillRejectedDomainEvent`.
 - **`BillStatus`** ganhou as transições de revalidação e `AcceptsValidation`.
@@ -579,22 +579,22 @@ A Fase 1 inteira (verificação + aprovação) não movimenta dinheiro: a consul
 
 **Sprint 3.0 — 🚧 Em andamento (2026-09-02).** A fase foi replanejada (roadmap 06 revisado) e a 3.0 virou sprint de medição e decisão:
 
-- **ADR-016** (conta Asaas trazida pelo tenant — formaliza 2026-08-31 e fixa webhook/saldo/whitelist por conta, mitigação de suspensão) e **ADR-017** (política inicial de agendamento: 24h de antecedência, janela de submissão 9h–17h, vencido exige confirmação gravada na trilha) escritos; docs 04/05/06/07 atualizados no mesmo passo.
+- **ADR-016** (conta Asaas trazida pelo tenant — formaliza 2026-08-31 e fixa webhook/saldo/whitelist por conta, mitigação de suspensão) e **ADR-017** (política inicial de agendamento: 24h de antecedência, janela de submissão 9h–17h, vencido exige confirmação gravada na trilha — as duas primeiras revistas pelo **ADR-021** em 2026-09-08) escritos; docs 04/05/06/07 atualizados no mesmo passo.
 - **[`tools/smoke-probe-payment.js`](BillPayment.Architecture/tools/smoke-probe-payment.js)** — a sonda de pagamento, **travada em sandbox por construção** (base constante, sem flag de produção: ela cria clientes, cobranças e ordens). Mede: pagamento de boleto emitido pelo próprio sandbox, busca por `externalReference` (idempotência de submissão), `transactionReceiptUrl` (natureza da URL do comprovante), trilho Pix ponta a ponta (payload → decode → pay agendado → cancel) e o contrato real de `GET /v3/webhooks`.
 - **⚠️ Sonda bloqueada**: a única chave no user-secrets (`Asaas:ApiKey`) **não pertence ao sandbox** — `401 invalid_environment` medido em 2026-09-02. Para rodá-la: `dotnet user-secrets set "Asaas:SandboxApiKey" "<chave>"` (ou env `ASAAS_SANDBOX_API_KEY`). Até lá, o critério de pronto da fase segue o caminho alternativo do roadmap (transporte falso + validação final por decisão explícita do usuário).
 
 **Sprints 3.1 + 3.2 — ✅ Concluídas (2026-09-02).** O boleto aprovado vira ordem e é submetido pela fila, sob a política do ADR-017:
 
-- **Domain — `PaymentOrders/`**: `PaymentOrder` (Aggregate Root, fonte de verdade da execução — ADR-002), `PaymentOrderStatus` (Draft→Pending→BankProcessing→Paid/Failed/Cancelled/Refunded; `ApplyProviderStatus` **monotônica** — fora de ordem é ignorado, incoerente lança PMO03), `PaymentOrderHold` (None/AwaitingAccount/AwaitingConfirmation — retenção é estado visível, nunca fila girando), `ProviderPaymentSnapshot`, os resultados de gateway com **falha modelada** (`PaymentSubmissionResult`/`PaymentFetchResult`/`PaymentCancellationResult`, molde `LookupResult`), `PaymentSchedulingPolicy` + `SchedulingResolution`, `IPaymentOrderRepository`. Portas: `IBillPaymentGateway`, `IPixPaymentGateway`, `IWorkingDayCalendar`. `Services/PaymentSchedulingService` (estático e puro: regras do provedor + ADR-017; antecedência medida contra o INÍCIO do expediente do dia de execução). **Cinco eventos** (Scheduled/Paid/Failed/Cancelled/Refunded + HeldForConfirmation), no `DrainDomainEvents`.
+- **Domain — `PaymentOrders/`**: `PaymentOrder` (Aggregate Root, fonte de verdade da execução — ADR-002), `PaymentOrderStatus` (Draft→Pending→BankProcessing→Paid/Failed/Cancelled/Refunded; `ApplyProviderStatus` **monotônica** — fora de ordem é ignorado, incoerente lança PMO03), `PaymentOrderHold` (None/AwaitingAccount/AwaitingConfirmation — retenção é estado visível, nunca fila girando), `ProviderPaymentSnapshot`, os resultados de gateway com **falha modelada** (`PaymentSubmissionResult`/`PaymentFetchResult`/`PaymentCancellationResult`, molde `LookupResult`), `PaymentSchedulingPolicy` + `SchedulingResolution`, `IPaymentOrderRepository`. Portas: `IBillPaymentGateway`, `IPixPaymentGateway`, `IWorkingDayCalendar`. `Services/PaymentSchedulingService` (estático e puro: regras do provedor + ADR-017; ~~antecedência medida contra o INÍCIO do expediente do dia de execução~~ — **`MinimumLead` e `EarliestDateHonoringLead` foram REMOVIDOS pelo ADR-021**, o piso da data é hoje, e o que sobrou da política é `CanScheduleForToday` → `SameDayScheduling`). **Cinco eventos** (Scheduled/Paid/Failed/Cancelled/Refunded + HeldForConfirmation), no `DrainDomainEvents`.
 - **`Bill`**: `PaymentOrderId?`, `AmountForPayment`, e os reflexos `LinkPaymentOrder`/`MarkPaid`/`MarkFailed`/`MarkScheduleCancelled`/`ReopenForApproval` (só handler de evento da ordem os chama — BIL34 guarda a máquina). **`Approved → Failed` entrou na máquina**: submissão RECUSADA falha antes de agendar, e sem a aresta o boleto ficaria "agendamento em processamento" para sempre (achado do próprio teste de integração da fase). `Approve` ganhou `acknowledgeImmediateExecution` (**BIL35**: vencido não é aprovado em silêncio, ADR-017) — o consentimento viaja até a ordem e a fila não pergunta de novo.
 - **Application**: handler de `BillApprovedDomainEvent` cria a ordem **sem chamada externa** (idempotente por `GetActiveByBillAsync` + índice único parcial `ix_payment_orders_bill_active`); `SubmitPaymentOrderCommand` (agenda pela política, **confere `externalReference` antes de qualquer reenvio** a partir da 2ª tentativa, PMO18 devolve à fila); `ConfirmImmediatePayment`/`CancelPaymentOrder` (+Identified), `ReleasePaymentOrderAccountHold`; os quatro comandos de reflexo no `Bill` (`ReflectPaymentOnBillCommands.cs` — só o agendamento vivo DESTA ordem reflete); `IPaymentOrderWorkQueries` (**ADO direto** — `payment_orders` tem `xmin`, e `RETURNING *` não devolve coluna de sistema) e `IPaymentQueries` (lista/detalhe/by-bill, keyset por `(CreatedAt, Id)`).
 - **Infra**: `PaymentOrderMap` (Money achatado em owned de 1º nível; `fail_reasons` jsonb; `xmin`; fila parcial `status = 1`), `PaymentOrderRepository` (a referência É o id — `GetByExternalReferenceAsync` só faz `Guid.TryParse`), adapters `AsaasBillPaymentGateway`/`AsaasPixPaymentGateway` sobre o **cliente nomeado `asaas-payment` SEM `AddStandardResilienceHandler`** (retentativa de rede em submissão = candidata a pagamento duplicado; a retentativa é da fila e começa pela consulta), `AsaasPaymentStatusMap` (**status desconhecido cai em `Pending`** de propósito — mantém a conciliação vigiando em vez de declarar desfecho por chute), `WorkingDays/BrazilianWorkingDayCalendar` (**feriados calculados** — fixos por lei + móveis por Páscoa/Meeus, sem I/O, singleton; mudança de lei é mudança aqui, visível no diff). Migração `PaymentOrders`.
-- **API**: `PaymentsController` (list/detail/by-bill + `cancel` + `confirm-immediate`) **reusando escopos `bill`** de propósito (`view`/`cancel`/`approve` — mesma doutrina do `capture-item:claim` na reprovação; nenhum partial import novo no realm); `PaymentSubmissionBackgroundService` (**serial**, ligado por padrão `PaymentSubmission:Enabled`, só submete na janela 9h–17h; a reconferência das ordens `AwaitingAccount` roda sempre) + `PaymentSubmissionOptions`. Seções novas no `appsettings`: `Payments` (política ADR-017) e `PaymentSubmission` (worker). A suíte desliga `PaymentSubmission:Enabled` na fábrica.
+- **API**: `PaymentsController` (list/detail/by-bill + `cancel` + `confirm-immediate`) **reusando escopos `bill`** de propósito (`view`/`cancel`/`approve` — mesma doutrina do `capture-item:claim` na reprovação; nenhum partial import novo no realm); `PaymentSubmissionBackgroundService` (**serial**, ligado por padrão `PaymentSubmission:Enabled`, só submete na janela 9h–18h — 17h até o ADR-021; a reconferência das ordens `AwaitingAccount` roda sempre) + `PaymentSubmissionOptions`. Seções novas no `appsettings`: `Payments` (política ADR-017) e `PaymentSubmission` (worker). A suíte desliga `PaymentSubmission:Enabled` na fábrica.
 - **Testes**: `PaymentOrders/PaymentOrderTests` + `Services/PaymentSchedulingServiceTests` + `Bills/BillPaymentMirrorTests` (unit) e `Payments/PaymentOrderFlowTests` (integração — aprovação→ordem pelo outbox, fila→Scheduled espelhado, retenção por falta de conta destravada pelo vínculo, **o teste-âncora da retentativa que adota a ordem existente por `externalReference` SEM reenviar** — provado por contador —, recusa→Failed espelhado, Paid espelhado, confirm-immediate e cancel pela borda, e o 409 BIL35 do vencido sem aceite). **Os testes de approve existentes ganharam `AcknowledgeImmediateExecution: true`** — o boleto sintético da suíte está vencido em relógio real, e o ADR-017 passou a exigir o aceite (mudança intencional, no molde da reescrita do ADR-015).
 
 **Sprints 3.3 + 3.4 (servidor) — ✅ Concluídas (2026-09-02).** A verdade do provedor volta por dois caminhos, o comprovante vira arquivo, e o falhado reabre:
 
-- **Webhook** (`POST /webhooks/asaas`, `WebhooksController`): **fora de `api/v1` de propósito** (o provedor não conhece tenant, e a teoria de erosão exige `{tenantId}` de toda rota lá), `[AllowAnonymous]` + token próprio em tempo constante — **sem token configurado o endpoint responde 404**. Payload lido com frouxidão deliberada (objeto `bill` ou `payment` — o contrato é medido, e a sonda está bloqueada). `ProcessAsaasBillWebhookCommand` é **o único Command sem `TenantId`** (a `externalReference` É o id da ordem e resolve o tenant); idempotente por id de evento via **`IPaymentWebhookLedger`** (SeedWork, molde `IRequestManager` — a marca persiste no MESMO `SaveEntitiesAsync` do efeito, tabela `payment_webhook_events`, migração `PaymentWebhookEvents`). Evento desconhecido/fora de ordem → 200 `Ignored`/`Unknown`, nunca erro (falhar faria o provedor reentregar para sempre). ⚠️ **Token da INSTALAÇÃO por env (`PaymentWebhook__Token`) como interim** — o desenho final do ADR-016 é token POR TENANT provisionado com a chave dele, bloqueado junto com a sonda; item no checklist.
+- **Webhook** (`POST /webhooks/asaas/{tenantId}`, `WebhooksController`): **fora de `api/v1` de propósito** (o provedor não conhece tenant, e a teoria de erosão exige `{tenantId}` de toda rota lá), `[AllowAnonymous]` + **token POR TENANT** no cofre (`SecretKind.AsaasWebhookToken`), comparado em tempo constante — o token da INSTALAÇÃO foi REMOVIDO em 2026-09-08 (ADR-019): com uma conta Asaas por tenant, segredo compartilhado deixaria qualquer tenant forjar evento de qualquer outro. **O payload é AVISO, não verdade** (o provedor não assina o corpo): ele só resolve DE QUAL ORDEM se trata — `externalReference` no trilho boleto, `provider_transfer_id` no Pix, porque **não existe evento de transação Pix, só `TRANSFER_*`** — e o handler RELÊ a ordem no provedor antes de aplicar. Idempotente por `(tenant, event id)` via **`IPaymentWebhookLedger`** (tabela `payment_webhook_events`). Evento desconhecido/fora de ordem → 200 `Ignored`/`Unknown`/`Unverifiable`, nunca erro (falhar represa a fila SEQUENCIAL da conta inteira, que o provedor interrompe após falhas repetidas). **401 é o único não-2xx**, e é deliberado: token errado não é evento nosso para absorver.
 - **Conciliação** (`PaymentReconciliationBackgroundService`, **ligada por padrão**): varre ordens `Pending`/`BankProcessing` sem notícia além de `StaleAfter` (`ClaimStaleAwaitingProviderAsync`, que CARIMBA `sweep_attempted_at` na saída — anti-inanição) e reflete via `ReconcilePaymentOrderCommand` (gateway `GetAsync` → `ApplyProviderStatus` monotônica). Provedor que "não conhece mais" a própria ordem fica em log e na fila — descompasso raro exige gente.
 - **Comprovante**: `CaptureReceiptOnPaymentPaidHandler` (segundo handler do `PaymentOrderPaidDomainEvent` — **registrar handler novo em `ApplicationDependencies` é obrigatório**, o dispatcher só resolve o que o DI conhece; esquecê-lo foi exatamente o defeito pego pelo teste) → `CapturePaymentReceiptCommand`: `GET` fresco no provedor (a URL é credencial ao portador e **nunca é persistida nem logada** — só o host), download via porta **`IPaymentReceiptFetcher`** (adapter `HttpPaymentReceiptFetcher`, cliente `asaas-receipt` sem retry — a retentativa é a reentrega do outbox via `BLP.PMO21`), gravação no balde e `AttachReceipt`. Servido por `GET /payments/{id}/receipt` (`bill:view`, 404 colapsado).
 - **3.4**: `POST /bills/{id}/reopen` (`bill:approve`, `ReopenBillCommand`) — **só `Failed` reabre** (a guarda restringe a matriz de propósito: reabrir `Approved` descartaria aprovação vigente sem motivo de pagamento); a nova aprovação cria **ordem nova** (ADR-002). `REFUNDED` alerta pelo canal 2.7 (`NotifyPaymentRefundedHandler`). **Replay de dead-letter**: o roteiro operacional por SQL existe desde 2026-09-03 ([`13-dead-letter-replay.md`](BillPayment.Architecture/13-dead-letter-replay.md)); o endpoint administrativo segue no checklist.
@@ -605,7 +605,9 @@ A Fase 1 inteira (verificação + aprovação) não movimenta dinheiro: a consul
 - **Complemento no servidor**: `BillDto` ganhou **`ScheduledFor`** — leitura da **coluna espelhada `bill.ScheduledFor`** em `BillQueries` (o espelho que os reflexos de pagamento mantêm; não há subconsulta sobre a ordem) — é o que a lista usa para "pagar em <data>". Nada além disso mudou no BC.
 - **Cliente**: entidade `PaymentOrder` + `PaymentRepository` (`GET /payments/by-bill` com **404 → null** — a janela do outbox é estado normal), seção "Execução do pagamento" no detalhe (status/retenção/data pedida × efetiva/valor/taxa/falhas + cancelar/confirmar imediato), rota `/bill-payment/bills/:id/receipt` reusando `ArtifactViewerScreen`, botão "Reabrir para nova tentativa" (só `Failed`), caixa de aceite do vencido no sheet de aprovar (`acknowledgeImmediateExecution` — BIL35), filtros Agendados/Pagos/Falhou na lista. O `PaymentRepository` é provider **opcional** na página; falha ao ler pagamento nunca derruba o detalhe. Detalhes e regras de erosão no `client/rufino_v2/CLAUDE.md` (seção Bill Payment) e casos manuais no `doc/roteiro-teste-manual.md` (seção 7b).
 
-**Pendências honestas da fase 3** (registradas também no roadmap): sonda sandbox bloqueada (falta `Asaas:SandboxApiKey`); token de webhook por tenant (interim = env da instalação); endpoint administrativo de replay de dead-letter (o **roteiro operacional** já existe — [`13-dead-letter-replay.md`](BillPayment.Architecture/13-dead-letter-replay.md)). **NÃO é pendência**: verificação de saldo pré-submissão — removida do escopo em 2026-09-03 por decisão do usuário (saldo nunca bloqueia agendamento; ADR-017, "Decisões posteriores").
+**Agendamento revisto em 2026-09-08 (ADR-021).** As 24h de antecedência **saíram do código** — `PaymentSchedulingPolicy.MinimumLead` e `PaymentSchedulingService.EarliestDateHonoringLead` foram removidos, não zerados (a fórmula media a antecedência contra a abertura do expediente e, com lead zero, ainda empurraria para o dia seguinte a qualquer hora depois das 9h). O piso da data efetiva é **hoje**. A janela virou **9h–18h** e ganhou o alcance certo: ela é sobre a hora da SUBMISSÃO — a hora do pagamento é do Asaas, que só recebe data —, então **só consegue bloquear "pagar hoje"**, via `PaymentSchedulingService.CanScheduleForToday` → `SameDayScheduling` (janela → vencido → piso do provedor → dia útil, **nessa ordem**: vencido dispensa piso e calendário, mas não a janela). Dois consumidores obrigatórios: a guarda de `Bill.Schedule` (**`BLP.BIL40`**) e `Queries/Bills/ScheduleOptionQueries` (`GET /bills/{id}/schedule-options`), que resolve as quatro sugestões da folha — `Today`/`Tomorrow`/`DayBeforeDue`/`OnDueDate` — numa chamada só. **O contrato de escrita não mudou**: `scheduleFor` continua sendo `DateOnly`, e a data livre continua pelo `schedule-preview?date=`, que ganhou `AfterDueDate` (aviso de encargos, nunca bloqueio). `Payments:MinLeadHours` deixou de existir no `appsettings`.
+
+**Pendências honestas da fase 3**: endpoint administrativo de replay de dead-letter (o **roteiro operacional** já existe — [`13-dead-letter-replay.md`](BillPayment.Architecture/13-dead-letter-replay.md)); e **rebaixar o `StaleAfter` da conciliação** de 1h para ~12h, o que só é seguro depois de o webhook estar comprovado em produção. **DEIXOU de ser pendência** (2026-09-08): sonda de sandbox (rodada, com os achados no ADR-019) e token de webhook por tenant (implementado). **NÃO é pendência**: verificação de saldo pré-submissão — removida do escopo em 2026-09-03 por decisão do usuário (saldo nunca bloqueia agendamento; ADR-017, "Decisões posteriores").
 
 **Catálogo `BLP.PMO01–23`** (`PaymentOrderErrors.cs`): 01 NotFound; 02 trilho obrigatório no Draft; 03 retrato do provedor incoerente (pago sem data — lança, fora-de-ordem é ignorado); 04 transição não permitida (monotônica); 05 submissão exige Draft; 06 confirmação imediata sem retenção pendente; 07 confirmação exige identidade (ADR-007); 08 submissão aceita exige id do provedor; 09 cancelamento não permitido na situação; 10 submissão exige valor (`EnsureSubmittable`, chamada pelo handler antes do gateway); 11 destravar conta sem retenção AwaitingAccount; 12 falha de submissão exige o erro; 13 retenção exige Draft; 14 anexar comprovante exige a chave; 15 comprovante exige Paid; 16 resultado aceito exige retrato (internal); 17 política de agendamento inválida; 18 submissão indisponível — **volta para a fila** (irmão do BIL28); 19 cancelamento indisponível (retryable); 20 provedor recusou o cancelamento; 21 comprovante indisponível — **o outbox retenta**; 22 cancelar rascunho com aluguel de submissão vigente (conflito/409 — a janela da corrida cancelar×submeter); 23 id do provedor longo demais — **recusa em vez de truncar** (id cortado consultaria o vazio para sempre).
 
@@ -628,6 +630,227 @@ A Fase 1 inteira (verificação + aprovação) não movimenta dinheiro: a consul
 - **`SafeUrlPolicy` também no fetcher de comprovante** — a URL vem do provedor, mas é dado de fora: host interno/metadados de nuvem recusados antes de qualquer requisição (`unsafe_receipt_url`).
 - **Prévia do agendamento**: `GET bills/{id}/schedule-preview?date=` (`bill:view`, `IPaymentSchedulePreviewQueries`) roda o MESMO `PaymentSchedulingService`/calendário/fuso da fila — o sheet de aprovar mostra deslize e execução imediata ANTES da autorização; contrato `{requestedDate, effectiveDate, slid, immediate}`, o cliente consome. 400 sem `date`, 404 fora do tenant.
 - Guardas novas no domínio: `EnsureSubmittable` (PMO10 antes do gateway), **PMO23** recusa id do provedor longo demais (truncar quebraria conciliação/cancel/comprovante); `Pending/BankProcessing → Refunded` direto é tolerância COMENTADA a reordenação de webhook; a captura de comprovante compensa o blob com `RemoveAsync` no catch (molde ImportBill); `confirm-immediate` entrou na policy `expensive`.
+
+## 2026-09-08 (2) — A expectativa entra na validação, e a régua de risco endurece
+
+[`ADR-020`](BillPayment.Architecture/adr/ADR-020-expectativa-na-validacao-e-a-regua-endurecida.md).
+Quatro frentes, todas nas quatro camadas + cliente Flutter. **Sem migração** — os ids novos de Smart
+Enum entram em colunas `integer` sem constraint.
+
+### A expectativa vira a 14ª verificação
+
+`CheckType.ExpectationMatch` (id 14) cruza o boleto com os ciclos das `BillExpectation` do
+beneficiário. Até aqui o agregado vivia inteiramente **a jusante** da verificação — o boleto
+validado disparava o cumprimento e nunca ficava sabendo do resultado. É o inverso do alerta do
+ADR-014: lá o sistema avisa que a conta esperada não chegou; aqui avisa que **chegou uma conta que
+ninguém esperava**. `BillValidationContext.Expectations` alimenta o Domain Service, carregado pelos
+**dois** handlers que validam (`ValidateBillCommand` e `ApplyBillReadingCommand`). Seis motivos
+novos em `CheckReasons`.
+
+🔑 **`ExpectationMatchingService.Match` ganhou `alreadyFulfilledBy`, e sem ele o recurso se
+autodestruiria.** O cumprimento fecha o ciclo, e revalidar é rotina — a leitura por IA chega depois
+da captura e refaz a apuração. Sem reconhecer o ciclo `Fulfilled` **por aquele mesmo boleto**, o
+segundo passe encontraria "nenhuma expectativa" e rebaixaria o risco de Seguro para Atenção
+sozinho. O mesmo parâmetro aposentou o curto-circuito por competência que vivia solto no
+`FulfillExpectationForBillCommandHandler`. **A ordem não mudou**: a validação observa, o
+cumprimento continua no `BillValidatedDomainEvent`, e nenhum agregado novo entra na transação do
+boleto.
+
+### A régua endureceu: o que era Atenção virou Perigo
+
+`CheckSeverity.Notice` (id 4) é o degrau **abaixo** de `Advisory`, com teto de Atenção. Falha
+advisory, `Warning` e `Inconclusive` passaram a valer **Perigo** — e só três assuntos ficam em
+amarelo: **a expectativa** (14), **o prazo** (`DueDateSanity` virou Notice: vencido é problema de
+calendário, não de fraude) e **o nome do beneficiário** (os dois desfechos do check 5).
+
+A cadeia de `if` de `RecordChecks` virou **contribuição por check + o pior vence**:
+`RiskLevel.Of(outcome, severity)` é a régua inteira num lugar só, `RiskLevel.Worst` agrega, e
+`CheckResult`/`BillCheck` expõem `RiskContribution`. `ValidationOutcome` e `ValidateBillResponse`
+passaram a carregar o `RiskLevel` — com "zero bloqueios" convivendo com `Danger`, as contagens
+deixaram de descrever o desfecho.
+
+### 🐛 `IsBlockingFailure` era escrito pela NEGATIVA, e o Notice nasceu bloqueando
+
+`Outcome.IsFailure && Severity != CheckSeverity.Advisory` contava o degrau novo junto: um boleto
+**vencido**, cujo teto é Atenção, virava falha bloqueante e entrava no contador de bloqueios. Agora
+é afirmativo — `Blocking` **ou** `Critical`. Pego pela suíte de integração no mesmo dia; regressão
+em `Services/ExpectationCheckTests`. **Não reescreva pela negativa.**
+
+### 🐛 O alarme falso de nome: havia DUAS normalizações, e a estrita decidia
+
+Relatado como "muito problema de consistência com o nome". `Payee.MatchesName` comparava com
+`value.Trim()` e mais nada, enquanto o `PayeeResolutionService` — dez linhas adiante, na detecção de
+sósia — já derrubava acento, pontuação e caixa. **A regra frouxa estava no caminho que só levanta
+suspeita; a estrita, no caminho que decide.** `"EDP SÃO PAULO ... S.A."` da consulta oficial não
+casava com `"EDP SAO PAULO ... S/A"` do cadastro, e a diferença de grafia virava evidência.
+
+- **`SharedKernel/PartyName`** é a normalização única (sem acento, sem pontuação, sem espaço, caixa
+  alta), usada pelo cadastro e pelo serviço. `LegalName` continua gravado como digitado.
+- **Tolerância de grafia, nunca de semelhança**: depois de normalizar a comparação continua sendo
+  igualdade exata, então o cotejo de sósia vale exatamente o que valia (contraprova em teste).
+- **A divergência passou a conferir razão social E nome fantasia** (`PayeeResolutionService.NameMatches`,
+  agora público). Antes só o `DisplayName` era comparado — e quem cadastrava o beneficiário pelo
+  nome fantasia via divergência em **todo** boleto, mesmo com o `TradingName` batendo. De passagem:
+  o docstring de `LookupParty.DisplayName` promete "fantasia quando houver" e o código faz
+  `Name ?? TradingName`, que é o inverso.
+- Os dois desfechos de nome do check 5 (`payee_name_divergence` e `matched_by_name_only`) saem com
+  `CheckSeverity.Notice`. Sem isso, **100% da arrecadação** — que não traz documento fiscal na
+  consulta — passaria a exigir "assumo o risco" todo mês, **pelo nome ter batido**.
+
+### Cliente
+
+`CheckTypes.expectationMatch` ("Conta esperada"), `CheckSeverities.notice` e as seis mensagens de
+motivo em `check_translations.dart`. O banner e a caixa de aceite já cobriam os quatro níveis.
+
+### ⚠️ Implantação
+
+- **Varredura de revalidação obrigatória**: `EnsureChecksAreComplete` compara contra o catálogo
+  inteiro, então todo boleto em `AwaitingApproval` reprova com `BLP.BIL03` até ser revalidado. É o
+  dia previsto no bullet "Duas invariantes de aprovação são defesa em profundidade".
+- **Keycloak antes do deploy**: quem tem só `bill-approver-attention` deixa de aprovar boleto de
+  fornecedor novo ou de remetente desconhecido.
+
+**Testes:** 1.291 unitários verdes (+28), 365 de cliente. `Services/ExpectationCheckTests` (10, novos)
+tem os dois testes-âncora — a revalidação que continua Seguro e a regressão do `IsBlockingFailure`;
+`BillValidationTests` ganhou a matriz nova e o teto do Notice; `PayeeTests` e
+`PayeeResolutionServiceTests` ancoram a normalização com as duas contraprovas de sósia.
+**Ressalva honesta:** a suíte de integração ficou com 21 falhas **pré-existentes**, todas do
+trabalho não commitado do ADR-018/ADR-019 (webhook por tenant, agendar/reverter, descrição do realm
+acima de 255 caracteres) — HEAD roda 739/739 verde, e nenhuma das falhas toca validação, risco,
+expectativa ou nome. Duas lacunas daquele trabalho foram corrigidas de passagem porque bloqueavam a
+verificação desta entrega: o `FakeAuthorizationServerClient` não conhecia os escopos
+`schedule`/`undo-decision`, e os testes de alçada de risco aprovavam **com data** sem pedir a
+alçada de agendamento.
+
+## 2026-09-08 — Aprovar ≠ agendar, reversão de decisão, trilha do boleto, e o webhook que nunca existiu
+
+Sessão longa, quatro frentes, todas nas quatro camadas + cliente Flutter. **Dois ADRs novos**
+([`ADR-018`](BillPayment.Architecture/adr/ADR-018-aprovar-e-agendar-sao-dois-atos.md) e
+[`ADR-019`](BillPayment.Architecture/adr/ADR-019-webhook-por-tenant-e-o-payload-como-aviso.md)),
+uma migração (`BillHistoryAndTenantWebhooks`), 1.256 unitários e 359 testes de cliente verdes.
+
+### O que a sonda de sandbox mediu (e mudou o plano no meio)
+
+A chave de sandbox destravou o `smoke-probe-payment.js`, e **dois bugs de dinheiro apareceram**:
+
+- 🔴 **`POST /v3/pix/qrCodes/pay` DESCARTA o `externalReference`** — enviado, volta `null`. E o
+  filtro `?externalReference=` é **ignorado pelo servidor**: consulta com GUID inexistente devolveu
+  a lista inteira. O `FindByExternalReferenceAsync` do Pix pegava `data[0]` e **adotava a transação
+  de OUTRO pagamento** na retentativa de submissão. Corrigido: marcador `RUF:{orderId}` no
+  `description` (o único campo que o provedor grava e devolve) + casamento LOCAL varrendo a janela
+  recente; não achando com certeza → `PaymentOrderHold.AwaitingManualReconciliation`, **nunca**
+  reenvio. "Não sei" não autoriza reenviar dinheiro.
+- 🔴 **NÃO existe evento `PIX_TRANSACTION_*`.** Toda saída de Pix é notificada como `TRANSFER_*`, e
+  o objeto traz o id do **transfer**, não o da transação que guardávamos. Era esta a lacuna que
+  fazia cancelar um Pix no painel não chegar ao app. Coluna nova `provider_transfer_id` + índice
+  parcial + `GetByProviderTransferIdAsync`.
+- **O Pix nasce em `AWAITING_CRITICAL_ACTION_AUTHORIZATION`** com `authorized: false` — o "não
+  autorizei" do relato. O `RawStatus` viajava no retrato e era **jogado fora**; agora persiste em
+  `provider_raw_status`/`provider_authorized` e chega ao DTO.
+- Contrato do webhook fixado: `authToken` ≥ 32 caracteres, **o `GET` não devolve o token** (só
+  `hasAuthToken`), e `interrupted`/`penalizedRequestsCount` são o sinal de saúde da fila.
+- A sonda foi corrigida (a cobrança Pix usava R$ 4,44 e o provedor exige ≥ R$ 5,00 — essa etapa
+  falhava **sempre**) e ganhou o ciclo `POST`/`GET`/`DELETE` de webhook.
+
+### Aprovar e agendar viraram dois atos (ADR-018)
+
+- `Bill.Approve` perde a data e as guardas de calendário; `Bill.Schedule` nasce com elas e emite
+  **`BillSchedulingRequestedDomainEvent`** — é ele, não mais a aprovação, que cria a `PaymentOrder`.
+  **O frescor do retrato é reconferido no agendamento**: separar os atos abriu uma janela, e é ali
+  que o dinheiro anda.
+- `Approved` passa a ter dois significados — sem data (esperando agendamento) e com data (ordem a
+  caminho). **Sem status novo**: `ScheduledFor` já os distingue, e a tela mostra o selo "Na fila
+  de envio".
+- `ApproveBillCommand` ganha `ScheduleFor` **opcional**: com ele, aprova e agenda na MESMA
+  transação (o "Aprovar e agendar" da tela). Atômico de propósito — duas chamadas HTTP deixariam o
+  boleto aprovado-sem-data se a segunda falhasse.
+- Erros novos: **BIL36** (agendar exige aprovado), **BIL37** (já agendado), **BIL38** (só
+  negado/cancelado reverte), **BIL39** (reversão com ordem viva).
+
+### 🐛 A REGRESSÃO QUE ORIGINOU TUDO: cancelar agendamento matava o boleto
+
+`MarkScheduleCancelled` levava a `Cancelled` (terminal). Quem cancelava o agendamento só para
+trocar a data **perdia o boleto e a aprovação junto**, e precisava reimportar o documento.
+`Bill.UnschedulePayment` substitui os dois métodos antigos e devolve a **`Approved`**, sem data e
+sem vínculo — a aprovação humana sobrevive. Aresta `Scheduled → Approved` entrou na matriz.
+
+O caso `Draft` (que voltava a `AwaitingApproval`) foi **unificado** no mesmo método: descartar uma
+aprovação que ninguém desfez era efeito colateral de o cancelamento não ter para onde voltar.
+
+### Reversão de decisão terminal + trilha completa
+
+- `Bill.UndoDecision` devolve `Denied`/`Cancelled` a `AwaitingApproval` e dispara a **revalidação
+  automática** pelo outbox. `IsTerminal` **continua verdadeiro** — a reversão não passa pela matriz,
+  e a exceção é nomeada em `BillStatus.CanBeUndone`. **`Paid` não reverte.**
+- Duas pré-condições no caso de uso (exigem consulta): chave natural reocupada → `BLP.BIL02`;
+  ordem viva no provedor → `BLP.BIL39`.
+- **`BillHistoryEntry`** (VO em coleção owned, molde do `BillCheck`) grava ação, **origem**,
+  instante, autor e transição. Acrescentada **pelos próprios métodos ricos**, nunca por handler — é o que impede
+  trilha e máquina de estados de divergirem. `ActorName` é **desnormalizado de propósito**: trilha
+  grava o nome como era na hora, e este BC não tem cadastro de pessoas. `Approval` continua sendo a
+  decisão **vigente** que as guardas consultam; a trilha é a narrativa.
+
+### 🐛 A trilha dizia "Sistema" para o que o PROVEDOR fez
+
+Achado ao revisar a própria entrega, e corrigido na mesma sessão. Um cancelamento feito no
+**painel do Asaas** e um pedido por uma pessoa no nosso app percorriam o mesmo caminho
+(`ApplyProviderStatus` → `PaymentOrderCancelledDomainEvent` → `MarkBillScheduleCancelled` →
+`UnschedulePayment`) e gravavam **a mesma linha de histórico, com autor "Sistema"**. Pior: o
+`CancelPaymentOrderCommand.RequestedBy` existia e era usado **só numa linha de log** — nunca
+persistia. A auditoria não respondia "quem cancelou isto?".
+
+- **`BillActionOrigin`** (Smart Enum: `User`/`Provider`/`System`) entra na entrada de trilha e é
+  **persistida** (coluna `origin`). `Provider` NÃO separa "painel" de "decisão do provedor" —
+  a API devolve o mesmo `CANCELLED` nos dois, e inventar a distinção seria afirmar o que não foi
+  medido.
+- **Autor só é aceito quando a origem o admite** (`BillActionOrigin.CarriesActor`): um `UserId`
+  chegando junto de uma mudança do provedor é DESCARTADO no VO. Atribuir a alguém um ato que essa
+  pessoa não praticou é pior que não ter autor.
+- `PaymentOrderCancelledDomainEvent` ganhou `Origin` + `RequestedBy`; `ApplyProviderStatus` e
+  `CancelDraft` recebem os dois (default `Provider`/`System`, que é o certo — a maioria dos
+  chamadores é webhook e conciliação). Origem desconhecida num evento reentregue de versão
+  anterior degrada para `Provider`: suposição segura.
+- Na tela, o selo **"no provedor"** ao lado da linha. Ação de pessoa não leva selo — ele existe
+  para o que veio de fora.
+
+### Webhook por tenant, e o payload como AVISO (ADR-019)
+
+- **Não havia webhook funcionando**: nada chamava `POST /v3/webhooks`, e sem
+  `PaymentWebhook__Token` o endpoint respondia 404 para tudo. O que refletia o Pix era a
+  conciliação, com até 1h de atraso.
+- Rota agora é **`POST /webhooks/asaas/{tenantId}`**; token por tenant no cofre
+  (`SecretKind.AsaasWebhookToken`), comparado em tempo constante. **`PaymentWebhookOptions` deixou
+  de guardar segredo** — sobrou endereço. Ledger passou a `(tenant, event id)`.
+- 🔑 **O payload é AVISO, não verdade.** O provedor não assina o corpo (sem HMAC), então o handler
+  usa o payload só para descobrir DE QUAL ORDEM se trata e **relê a ordem no provedor** com a chave
+  do tenant. Corpo forjado custa, no pior caso, uma chamada de API.
+- Provisionamento por `AsaasAccountLinkedDomainEvent`, **fora** da transação que vincula a chave, e
+  idempotente (adota o webhook da mesma URL em vez de duplicar).
+
+### Três alçadas, não uma
+
+| Escopo | Autoriza | Papel |
+|---|---|---|
+| `bill:approve` | o mérito da despesa | `bill-approver` |
+| `bill:schedule` **+ `bill:cancel`** | **mandar pagar**, e parar pagamento ou boleto | `bill-scheduler` |
+| `bill:undo-decision` | desfazer recusa/cancelamento | `bill-approver-undo` |
+
+⚠️ **`cancel` SAIU da "Bill Decision Permission".** Quem é `bill-approver` perde o cancelar até
+receber `bill-scheduler` — o `migrate-realm.sh` concede o papel novo a todos os portadores do
+antigo, senão eles acordam sem permissão. "Aprovar e agendar" exige **as duas** alçadas, conferido
+na borda (`HasSchedulingClearanceAsync`) porque o `[ProtectedResource]` do endpoint é fixo.
+
+### Cliente
+
+Botões **Aprovar** (sem data) e **Aprovar e agendar…** em `AwaitingApproval`; **Agendar…** em
+`Approved` sem data, e também direto no card da aba Aprovados; **Reverter** nos estados negado e
+cancelado; **ExpansionTile "Histórico"** no detalhe, recolhido, do mais recente para o mais antigo.
+O `if (bill.isTerminal) return SizedBox.shrink()` deixou de apagar a barra inteira.
+
+⚠️ **Bug corrigido de passagem:** o `_askReason` criava o `TextEditingController` no chamador e o
+descartava logo após o `await showDialog` — o diálogo continua vivo durante a animação de saída, e
+a recarga da tela por baixo estourava o campo. Virou `_ReasonDialog`, `StatefulWidget` dono do
+próprio controller (é o gotcha que o CLAUDE.md do cliente já documentava para o `_ScheduleSignDialog`).
 
 ## 2026-08-27 — Vencimento consolidado, e-mail visível, leitura por IA em todo boleto, ADR-015 e o check 13
 
@@ -988,7 +1211,7 @@ cena, porque é a chave que paga). O desenho:
 
 ## Architecture — what is non-obvious
 
-Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC transversal — hoje só `BLP01` TenantMismatch em `BillPaymentErrors.cs`), `BLP.<AGG>##` (Aggregate-specific — reserve a sigla do Aggregate ao criá-lo e registre aqui). **Siglas em uso**: `PRF` (PayerProfile, BLP.PRF01–13 — o 10 foi aposentado em 2026-08-31, não o reutilize), `PYE` (Payee, BLP.PYE01–17), `ORG` (TrustedOrigin, BLP.ORG01–10), `BNK` (BankCode, SHK.BNK01–02), `DGL` (DigitableLine, BLP.DGL01–06), `PIX` (PixPayload, BLP.PIX01–04), `INS` (PaymentInstrument, BLP.INS01–03), `BIL` (Bill, BLP.BIL01–35), `LKP` (Lookups, BLP.LKP01–07), `SEC` (Secrets, BLP.SEC01–07), `CPS` (CaptureSource, BLP.CPS01–20), `CPI` (CaptureItem, BLP.CPI01–17), `MBX` (Mailboxes — VOs de leitura de caixa, BLP.MBX01–04), `EXT` (Extraction — VOs da cascata, BLP.EXT01–08), `EXP` (BillExpectation, BLP.EXP00–13), `NTF` (TenantNotificationSettings, BLP.NTF00–03), `CMS` (CapturedMessage, BLP.CMS01–12), `CRP` (CaptureRetentionPolicy, BLP.CRP01–02), `PMO` (PaymentOrder, BLP.PMO01–23 — codificada na fase 3, 2026-09-02; o 18 é o sinal de "volte para a fila" da submissão, irmão do BIL28, e o 21 é o equivalente do comprovante via outbox; catálogo completo na seção "Fase 3 — Status"). `BIL` foi até o 35 na fase 3: 34 é o reflexo de pagamento fora da máquina, 35 é o aceite de vencido do ADR-017. **`RTR` (RoutingRule) foi ABANDONADA na 2.6** — a medição mostrou que a chave que ela usaria não distingue pagadores; não recrie a sigla sem reabrir aquele achado. **`BLP.CPI04` é fixado pelo doc 07** (reivindicação que contradiz o pagador extraído) — não renumere a factory. Convenções:
+Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC transversal — hoje só `BLP01` TenantMismatch em `BillPaymentErrors.cs`), `BLP.<AGG>##` (Aggregate-specific — reserve a sigla do Aggregate ao criá-lo e registre aqui). **Siglas em uso**: `PRF` (PayerProfile, BLP.PRF01–13 — o 10 foi aposentado em 2026-08-31, não o reutilize), `PYE` (Payee, BLP.PYE01–17), `ORG` (TrustedOrigin, BLP.ORG01–10), `BNK` (BankCode, SHK.BNK01–02), `DGL` (DigitableLine, BLP.DGL01–06), `PIX` (PixPayload, BLP.PIX01–04), `INS` (PaymentInstrument, BLP.INS01–03), `BIL` (Bill, BLP.BIL01–40), `LKP` (Lookups, BLP.LKP01–07), `SEC` (Secrets, BLP.SEC01–07), `CPS` (CaptureSource, BLP.CPS01–20), `CPI` (CaptureItem, BLP.CPI01–17), `MBX` (Mailboxes — VOs de leitura de caixa, BLP.MBX01–04), `EXT` (Extraction — VOs da cascata, BLP.EXT01–08), `EXP` (BillExpectation, BLP.EXP00–13), `NTF` (TenantNotificationSettings, BLP.NTF00–03), `CMS` (CapturedMessage, BLP.CMS01–12), `CRP` (CaptureRetentionPolicy, BLP.CRP01–02), `PMO` (PaymentOrder, BLP.PMO01–23 — codificada na fase 3, 2026-09-02; o 18 é o sinal de "volte para a fila" da submissão, irmão do BIL28, e o 21 é o equivalente do comprovante via outbox; catálogo completo na seção "Fase 3 — Status"). `BIL` foi até o 40: 34 é o reflexo de pagamento fora da máquina, 35 é o aceite de vencido do ADR-017, 36–39 saíram da separação aprovar×agendar (ADR-018) e **40 é a recusa de "pagar hoje" fora do horário de envio (ADR-021)**. **`RTR` (RoutingRule) foi ABANDONADA na 2.6** — a medição mostrou que a chave que ela usaria não distingue pagadores; não recrie a sigla sem reabrir aquele achado. **`BLP.CPI04` é fixado pelo doc 07** (reivindicação que contradiz o pagador extraído) — não renumere a factory. Convenções:
 
 - Aggregate Roots emitem Domain Events; Entities internas nunca.
 - **Portas de integração vão em `Domain/Ports/`** (pasta a criar na Fase 1, irmã de `SeedWork/`), não em `Domain/SeedWork/` — mesma razão (`Infra → Application` seria ciclo), mas separadas por serem contratos de mundo externo e não do modelo. Trafegam só tipos do Domain; nenhum DTO de provedor cruza a fronteira. Catálogo em [`02-domain-model.md`](BillPayment.Architecture/02-domain-model.md).
@@ -1199,6 +1422,7 @@ Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC t
 - **QR Pix estático não deduplica.** `PaymentInstrument.IsSingleUse` é `false` para QR estático porque o mesmo payload é reutilizado indefinidamente — um fornecedor manda todo mês a conta com o mesmo QR, e deduplicar por ele bloquearia a de fevereiro por causa da de janeiro. Só código de barras e QR **dinâmico** viram `Bill.DedupKey`; sem chave, a defesa contra duplicata passa a ser (beneficiário, valor, vencimento), ainda por implementar na 1.4.
 - **O banco recebedor sai do código de barras, não do provedor.** `DigitableLine.BankCode` lê as posições 1–3 (COMPE) e é a fonte do check 6; `Lookup.BankCode` serve de conferência cruzada, e divergência entre os dois é bloqueante. Vale só para `BillKind.BankSlip` — **arrecadação não tem campo de banco em posição nenhuma** e `BankCode` lança `BLP.DGL06` lá, de propósito, para a chamada indevida falhar alto em vez de devolver lixo. No trilho Pix a instituição é **ISPB de 8 dígitos**, incompatível com COMPE sem a tabela do Bacen.
 - **Tabela de bancos é snapshot embutido, não consulta ao vivo.** `Infra/BankDirectory/bacen-participants.csv` é `EmbeddedResource`, gerado por `tools/fetch-bacen-participants.js` a partir da [relação de participantes do STR](https://www.bcb.gov.br/pom/spb/estatistica/port/ParticipantesSTRport.csv). **Buscar em tempo de validação faria indisponibilidade do bcb.gov.br virar bloqueio de pagamento.** A tabela muda algumas vezes por ano; o arquivo versionado deixa a mudança auditável no diff. `IBankDirectory` é síncrono e sem `CancellationToken` de propósito — não é I/O. Registrado como **singleton**. O teste que importa está em `BacenBankDirectoryTests`: ele resolve a porta pelo DI justamente para provar que o recurso **embarca no assembly publicado**, que é o defeito que passaria despercebido.
+- ⚠️ **A `BLP.BIL03` DEIXA de ser inalcançável a cada `CheckType` novo, e 2026-09-08 foi um desses dias.** O check 14 invalida toda aprovação pendente até a revalidação — comportamento desejado (um check novo é uma pergunta que ninguém respondeu para aquele boleto), mas **exige varredura de revalidação no deploy**, senão a fila trava com 409.
 - **Duas invariantes de aprovação são defesa em profundidade, não caminho quente.** `BLP.BIL03` (catálogo de checks incompleto) e `BLP.BIL04` (falha bloqueante) **não têm como ser alcançadas hoje**: `RecordChecks` recusa conjunto parcial, e um boleto com bloqueio já está em `Rejected`, então a guarda de situação (`BLP.BIL25`) dispara antes. Elas existem porque `Approve` é a operação mais perigosa do sistema e porque a BIL03 passa a valer no dia em que um `CheckType` novo for acrescentado. **Não as remova por "código morto"** — e não escreva teste que force o estado por reflexão.
 - **Quem decide nunca vem do corpo da requisição, nem de header.** A data de pagamento vem no corpo (é escolha do aprovador); a identidade vem **só do `sub` do token**. Aceitar o `UserId` no body — ou num header, como foi até 2026-08-15 — permite aprovar em nome de outra pessoa, e o ADR-007 apoia toda a trilha nesse campo. Quem recusa identidade vazia é o **domínio** (`BLP.BIL22`), não o controller, para a regra viver num lugar só.
 - **O guard lê `bp_tenants`, o claim DO PRODUTO — não o `tenants` genérico.** O genérico diz que a pessoa acessa aquele tenant; `bp_tenants` diz que aquele tenant **contratou este produto**, e só ele. Quem emite os dois é o TenantManagement (ADR-005 de lá): o atributo por produto carrega os tenants em que a pessoa tem vínculo ativo **e** o BillPayment está habilitado, e some quando o tenant é suspenso. Lendo o genérico, quem assinou só o PeopleManagement entraria aqui. **A ordem de deploy é obrigatória** — backfill dos tenants → **declarar `bp_tenants` no User Profile do realm** → mappers no realm → reprovisionamento de todos os tenants → só então esta linha do `appsettings`; fora dela o atributo nasce vazio e todo cliente legítimo toma 403. **O passo do User Profile não é opcional nem redundante com o mapper**: o mapper transforma atributo em claim, mas quem autoriza o atributo a existir é o User Profile, e atributo não declarado é descartado na escrita **com HTTP 204** — o provisionamento reporta sucesso e o claim nunca aparece (medido em 2026-08-19; detalhe em `../../CLAUDE.md`). O nome do claim tem armadilha: o guard casa o *tipo* por `Contains`, e `"bp_tenants".Contains("tenants")` é verdadeiro — o sentido que nos protege é o inverso, `"tenants".Contains("bp_tenants")` é falso.
@@ -1218,7 +1442,9 @@ Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC t
 - **O dublê de autenticação traduz o header `x-user-id` em claim `sub`.** Não é resquício do fallback removido: é o que permite os testes de decisão dizerem quem decide sem que a produção tenha esse caminho — e é o motivo de a remoção do fallback não ter exigido reescrever teste nenhum.
 - **Documento na consulta decide sozinho; nome só vale quando não há documento.** `PayeeResolutionService` tenta o CNPJ; **não casando, o cotejo por nome vira detecção de sósia, nunca confirmação**. A primeira versão caía para nome nesse caso e transformava o pior cenário no melhor — consulta com o nome de um fornecedor conhecido e CNPJ de terceiro virava `Passed`. O fallback por nome existe só quando a consulta **não trouxe** documento (100% da arrecadação). Coberto por teste; não "simplifique" reunificando os dois caminhos.
 - **`Warning` é o quinto resultado e nunca bloqueia**, qualquer que seja a severidade do check. Existe porque as duas alternativas falhavam na divergência de nome em arrecadação: `Failed` num check `Blocking` travaria pagamento por grafia de concessionária, e `Passed` jogaria fora a única evidência de beneficiário que arrecadação oferece. Só `Failed` reprova.
-- **A severidade viaja no `CheckResult`, não só no `CheckType` — e desde 2026-08-31 são TRÊS degraus.** Checks `Advisory` viram `Blocking` em situação específica (fontes autoritativas discordando sobre o banco, pagador extraído contradizendo o cadastro, documento impresso contradizendo a consulta); e **`Critical` é o degrau acima do `Blocking`**, reservado a declaração explícita do tenant — `payee_blacklisted` e `origin_blocked` — que leva o boleto a **Extremo Perigo**. `IsBlockingFailure` conta Critical junto (é "leva a Perigo ou pior"); `IsCriticalFailure` separa o Extremo.
+- **A severidade viaja no `CheckResult`, não só no `CheckType` — e desde 2026-09-08 são QUATRO degraus, com desvio nos DOIS sentidos.** Para cima: checks `Advisory` viram `Blocking` em situação específica (fontes autoritativas discordando sobre o banco, pagador extraído contradizendo o cadastro, documento impresso contradizendo a consulta), e **`Critical` é o degrau acima do `Blocking`**, reservado a declaração explícita do tenant — `payee_blacklisted` e `origin_blocked` — que leva a **Extremo Perigo**. Para **baixo**: **`Notice` fica abaixo de `Advisory`, com teto de Atenção**, e é o que salva os três assuntos que o endurecimento do ADR-020 não devia alcançar — expectativa, prazo e nome do beneficiário. `IsCriticalFailure` separa o Extremo. ⚠️ **`IsBlockingFailure` é afirmativo — `Blocking` OU `Critical` —, e não "diferente de Advisory"**: escrita pela negativa, contava `Notice` junto e fazia um boleto vencido virar falha bloqueante (defeito real, corrigido no dia em que o degrau nasceu; regressão em `Services/ExpectationCheckTests`).
+- **A régua de risco vive em `RiskLevel.Of(outcome, severity)`, num lugar só.** `RecordChecks` agrega com `Worst` e não tem mais cadeia de `if`; `CheckResult`/`BillCheck` expõem `RiskContribution`. A troca não é estética: com a régua declarada por desfecho, o teto do `Notice` fica visível no tipo em vez de virar caso especial escondido num `else if`.
+- **A normalização de nome é UMA só (`SharedKernel/PartyName`), e a tolerância é de GRAFIA — nunca de semelhança.** Havia duas até 2026-09-08: o cadastro comparava com `Trim()` e o serviço de resolução já derrubava acento e pontuação — a regra frouxa no caminho que só levanta suspeita, a estrita no caminho que decide. Era a causa raiz do alarme falso de nome. Depois de normalizar a comparação continua sendo **igualdade exata**, então dois nomes diferentes nunca passam a casar e o cotejo de sósia vale o que valia (contraprova em `PayeeResolutionServiceTests`). No mesmo passo, a divergência do check 5 passou a conferir **razão social E nome fantasia** pelo `PayeeResolutionService.NameMatches` — antes só o `DisplayName`, e quem cadastrava pelo fantasia via divergência em todo boleto.
 - **`RecordChecks` exige o catálogo completo** (`BLP.BIL19`) e é o **único** ponto que muda status por validação. Devolve `ValidationOutcome` — o handler nunca lê `bill.Checks` para montar resposta. Revalidar um boleto já aprovado **derruba a aprovação incondicionalmente** (mais rígido que o doc 03, ver a nota em `02-domain-model.md`).
 - **`BillValidationService` e `PayeeResolutionService` são `static`, e isso é intencional.** São funções puras sobre valores do domínio: sem estado, sem I/O, sem relógio — a data e a hora entram pelo `BillValidationContext`. Não há nada a substituir em teste (a suíte usa agregados reais via Mother), e instanciá-las só para satisfazer o DI inventaria estado que não existe. Quando o limiar de sósia virar configuração, aí sim viram instância.
 - **Consulta que não resolveu não apaga o retrato anterior.** `AttachLookups` substitui só quando resolve, e registra **toda** tentativa em `LookupHistory`. Apagar deixaria o boleto sem evidência nenhuma justamente quando a rede falhou. **A garantia de só-append é invariante de domínio, não de armazenamento** — o histórico é uma coluna jsonb (os retratos têm `Money`/`TaxId` aninhados); promover para tabela filha append-only é o passo seguinte se a auditoria exigir a garantia no banco.
@@ -1300,10 +1526,10 @@ BillPayment/
 │   └── Queries/<Aggregate>/          #   IXxxQueries + XxxQueries + XxxDtos (arquivo próprio) — única exceção autorizada a tocar a Infra
 ├── BillPayment.Domain/               # SeedWork + SharedKernel + Aggregates
 │   ├── SeedWork/                     #   Entity, AggregateRoot, ValueObject, Enumeration, DomainException/Errors, IUnitOfWork, IDomainEvent, IDomainEventHandler, IDomainEventDispatcher, IRequestManager, IEntityId
-│   ├── SharedKernel/                 #   TenantId, UserId, Money, Currency, TaxId, DateRange, CompetencePeriod, BankCode, EmailSyntax (+ *Errors)
+│   ├── SharedKernel/                 #   TenantId, UserId, Money, Currency, TaxId, DateRange, CompetencePeriod, BankCode, EmailSyntax, PartyName (+ *Errors)
 │   ├── Bills/                        #   Bill (Aggregate Root), BillStatus, BillOrigin, BillSourceKind, BillCapturedDomainEvent, IBillRepository, BillErrors
 │   ├── Instruments/                  #   BillKind, DigitableLine, PixPayload, PaymentInstrument, PaymentInstrumentKind, PaymentRail (+ Errors)
-│   ├── Bills/Checks/                 #   CheckType, CheckOutcome, CheckSeverity, CheckReasons, CheckResult, BillCheck, ValidationOutcome
+│   ├── Bills/Checks/                 #   CheckType (14), CheckOutcome, CheckSeverity (4, com Notice), CheckReasons, CheckResult, BillCheck, ValidationOutcome, RiskLevel
 │   ├── Services/                     #   BillValidationService, PayeeResolutionService, BillValidationContext, CaptureTriageService, PasswordDerivationService, CandidateValidationService, VisionGateService, LinkUnwrapService, BodyCaptureGateService, BillRoutingService, ExpectationLearningService, ExpectationMatchingService, ExpectationCaptureMatchingService (Domain Services estáticos)
 │   ├── Lookups/                      #   LookupSnapshot, PixLookupSnapshot, LookupParty, MaskedParty, LookupResult (+Bill/Pix), LookupStatus, LookupErrors
 │   ├── Secrets/                      #   CredentialRef, SecretKind, SecretErrors — o Domain só vê o ponteiro, nunca o segredo
@@ -1438,8 +1664,8 @@ apagar o registro do alerta.
 - [ ] **CORS — origens de produção** — `AddCorsForFront` já está plugado em `Program.cs`. Antes do deploy: popular `Cors:AllowedOrigins` no `appsettings` do ambiente real (sem `AllowAnyOrigin`/wildcard).
 - [x] **Chave do Asaas por tenant (subconta)** — **feito em 2026-08-31.** A chave entra por tenant (`PUT /payer-profile/asaas-account`, com prova no provedor), vive cifrada em `tenant_secrets` e é resolvida por chamada; a chave global da instalação deixou de existir. O que resta é operacional: cada tenant precisa colar a própria chave (e a whitelist de IP do provedor vale por subconta).
 - [ ] **Rotação da master key do cofre** — `EnvelopeSecretVault` decifra sempre com a chave única de `Secrets:MasterKey`; `KekVersion` é gravado, mas não há como manter a chave anterior nem re-envelopar. Trocar a chave hoje torna TODAS as linhas de `tenant_secrets` ilegíveis. Escrever a rotina de re-envelope (ler com a antiga, gravar com a nova) antes do primeiro cliente externo.
-- [ ] **Whitelist de IP no Asaas** — a chave da Fase 1 exige permissão de saque via API (achado da sprint 1.0), então ela pode pagar contas se vazar. A whitelist é o mecanismo do provedor para limitar o estrago e dispensar aprovação manual de operações críticas. **Não é opcional.**
-- [ ] **`PaymentWebhook__Token` por variável de ambiente + webhook cadastrado no Asaas** — sem o token o endpoint `/webhooks/asaas` responde 404 e só a conciliação move as ordens (funciona, com atraso de até `StaleAfter`). O desenho final do ADR-016 — token POR TENANT, provisionado via `POST /v3/webhooks` com a chave do tenant no vínculo — está **bloqueado junto com a sonda de sandbox**; ao desbloquear, medir o contrato e migrar.
+- [ ] **Whitelist de IP no Asaas** — a chave da Fase 1 exige permissão de saque via API (achado da sprint 1.0), então ela pode pagar contas se vazar. A whitelist é o mecanismo do provedor para limitar o estrago **e dispensar a autorização de ação crítica** (o código no celular). **Não é opcional.** Três coisas medidas em 2026-09-08 que mudam a execução deste item: (a) **não há API pública para autorizar a ação crítica** — `/criticalActions` e `/myAccount/criticalActionConfigs` respondem 404, então trazer o código para dentro do app NÃO é opção; (b) o IP a cadastrar é o de **SAÍDA** do container (confira de dentro dele, e **também o IPv6** — se a VPS tiver IPv6 e o container resolver `api.asaas.com` por AAAA, a whitelist de IPv4 bloqueia tudo com erro que parece "chave sem permissão"); (c) é **por conta** (ADR-016), então CADA tenant cadastra o nosso IP na conta dele, e trocar de VPS quebra todos de uma vez. Enquanto não estiver feito, o pagamento fica em `AWAITING_CRITICAL_ACTION_AUTHORIZATION` — agora **visível** na tela, em vez de aparecer como "aceito pelo provedor".
+- [ ] **`PaymentWebhook__PublicBaseUrl` + `PaymentWebhook__NotificationEmail` no ambiente** — o token deixou de ser configuração (ADR-019): ele é gerado por tenant no provisionamento e vive cifrado no cofre. **Sem `PublicBaseUrl` nenhum webhook é provisionado** e a instalação depende só da conciliação (funciona, com atraso de até `StaleAfter`). O provisionamento em si é automático, disparado ao vincular a chave Asaas do tenant.
 - [ ] **Replay de dead-letter do outbox — endpoint administrativo** — com a fase 3 uma mensagem de aprovação morta na dead-letter é um pagamento que nunca acontece. O endpoint exige escopo novo no realm e segue por fazer; **o roteiro operacional por SQL está documentado** em [`13-dead-letter-replay.md`](BillPayment.Architecture/13-dead-letter-replay.md) (identificar → corrigir a causa → reemitir → conferir), com a análise de idempotência handler a handler.
 - [x] **Sonda de fumaça do decode Pix em produção** — **feita em 2026-08-06: VERDE.** `receiver.cpfCnpj`, nome, nome fantasia, ISPB, valor, vencimento e `expirationDate` voltaram. Três achados registrados no [doc 12](BillPayment.Architecture/12-official-lookup-coverage.md): o **pagador NÃO vem mascarado** (abre decisão sobre o ADR-004), seis campos fora da documentação (`description` foi mapeado), e o Pix **cobre o buraco da arrecadação** — devolve o documento do beneficiário que o código de barras não devolve.
 - [x] **Sonda de fumaça da consulta oficial em produção** — **feita em 2026-08-06: VERDE.** `beneficiaryCpfCnpj`, `beneficiaryName`, `bank` (string de 3 dígitos), valor, vencimento e `minimumScheduleDate` voltaram preenchidos para boleto de cobrança registrado. Detalhe em [`12-official-lookup-coverage.md`](BillPayment.Architecture/12-official-lookup-coverage.md). Reexecutável por [`tools/smoke-probe-production.js`](BillPayment.Architecture/tools/smoke-probe-production.js) quando trocar de conta ou de provedor.

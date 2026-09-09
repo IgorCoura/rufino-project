@@ -1,4 +1,4 @@
-namespace BillPayment.UnitTests.Bills;
+﻿namespace BillPayment.UnitTests.Bills;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.SeedWork;
@@ -25,6 +25,8 @@ public class BillStatusTests
     [InlineData("Approved", "Cancelled")]
     [InlineData("Approved", "AwaitingApproval")]
     [InlineData("Approved", "Rejected")]
+    // ADR-018: cancelar o agendamento devolve o boleto a Approved, com a aprovacao humana de pe.
+    [InlineData("Scheduled", "Approved")]
     [InlineData("Scheduled", "Paid")]
     [InlineData("Scheduled", "Failed")]
     [InlineData("Scheduled", "Cancelled")]
@@ -38,7 +40,23 @@ public class BillStatusTests
         Assert.True(source.CanTransitionTo(target));
     }
 
+    // ADR-018: recusa e cancelamento sao as UNICAS decisoes terminais que se desfazem, e por um
+    // caminho proprio (UndoDecision), nunca pela matriz de transicoes.
+    [Theory]
+    [InlineData("Denied", true)]
+    [InlineData("Cancelled", true)]
+    [InlineData("Paid", false)]
+    [InlineData("Approved", false)]
+    [InlineData("AwaitingApproval", false)]
+    [InlineData("Scheduled", false)]
+    public void CanBeUndone_ShouldCoverOnlyTheHumanTerminalDecisions(string status, bool expected)
+    {
+        Assert.Equal(expected, Enumeration.FromDisplayName<BillStatus>(status).CanBeUndone);
+    }
+
     // Atalhos que pulariam verificação ou aprovação são recusados.
+    // Scheduled -> Approved NAO esta aqui, e nao e esquecimento: desde o ADR-018 desfazer o
+    // agendamento devolve o boleto a Approved com a aprovacao intacta. Ver o teste proprio abaixo.
     [Theory]
     [InlineData("Captured", "Approved")]
     [InlineData("Captured", "Paid")]
@@ -47,7 +65,6 @@ public class BillStatusTests
     [InlineData("AwaitingApproval", "Scheduled")]
     [InlineData("Approved", "Paid")]
     [InlineData("Rejected", "Approved")]
-    [InlineData("Scheduled", "Approved")]
     [InlineData("Failed", "Paid")]
     public void CanTransitionTo_WithShortcutThatSkipsAStep_ShouldBeRejected(string from, string to)
     {
