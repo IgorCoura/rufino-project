@@ -92,6 +92,17 @@ Por isso: **Fase 1 = verificação e aprovação; Fase 2 = captura por e-mail; F
 
 **Critério de pronto (condicionado à sonda 3.0):** se o sandbox processar pagamento, o original vale — `Pending → BankProcessing → Paid` com o `Bill` refletindo, webhook duplicado sem efeito — mais: timeout na criação não gera duas ordens, e duas aprovações concorrentes geram **uma** ordem. Se o sandbox não processar cobrança real (o que a medição da 1.0 sugere), a prova é por teste de integração com transporte falso + contrato de webhook medido, e a validação final — pagamento de valor ínfimo em produção, com whitelist de IP — é decisão explícita do usuário.
 
+**Dívida da fase, saldada em 2026-09-09.** A separação aprovar/agendar (ADR-018) e o webhook por
+tenant (ADR-019) entraram junto com testes **já vermelhos**, registrados como ressalva de rodapé
+enquanto a mesma seção do `CLAUDE.md` afirmava "739/739 verde". Quatro commits depois restavam
+**11 falhas** que ninguém sabia serem dívida. Foram diagnosticadas e consertadas; a suíte fecha
+**796/796**. Duas delas eram defeito de verdade, e uma movia dinheiro: o
+`PaymentOrderCancelledDomainEvent` carregava um Smart Enum que o outbox não conseguia
+desserializar, então **todo cancelamento de ordem morria na fila** e o boleto ficava com a data e o
+vínculo de um pagamento que não ia acontecer. As lições viraram três entradas no `gotchas.md` e
+duas guardas de erosão. **Regra que fica para as fases seguintes:** teste que entra vermelho ou é
+`Skip` com motivo e link, ou não entra.
+
 **Riscos:** o irreversível mora aqui; toda a fase roda em sandbox/stub até os testes de idempotência e ordenação. Novos: o sandbox pode não exercitar cobrança (medido na 1.0); o Pix não documenta idempotência (mitigação obrigatória no adapter); webhook por conta multiplica configuração (mitigado por provisionamento programático + conciliação por padrão); ~~a política das 24h + janela empurra boleto aprovado em cima da hora para execução imediata mediante confirmação~~ — **resolvido pelo ADR-021**: as 24h saíram, e o que restou da janela é o bloqueio de "pagar hoje" fora do horário de envio, dito na tela com o motivo. O risco de KYC saiu (a conta é do tenant).
 
 ---

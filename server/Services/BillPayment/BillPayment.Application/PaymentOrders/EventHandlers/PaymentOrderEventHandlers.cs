@@ -268,7 +268,7 @@ public sealed class ReflectPaymentCancelledOnBillHandler(IMediator mediator)
                 domainEvent.TenantId.Value,
                 domainEvent.BillId.Value,
                 domainEvent.PaymentOrderId.Value,
-                domainEvent.Origin.Name,
+                domainEvent.Origin,
                 domainEvent.RequestedBy?.Value),
             cancellationToken);
     }

@@ -1,6 +1,7 @@
 namespace BillPayment.Application.Queries.PaymentOrders;
 
 using System.Data.Common;
+using BillPayment.Application.PaymentOrders;
 using BillPayment.Domain.PaymentOrders;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Persistence;
@@ -143,13 +144,19 @@ internal sealed class PaymentOrderWorkQueries(BillPaymentDbContext context, Time
         // Só ordem envelhecida (o caminho do outbox teve a vez dele) e sem a marca definitiva
         // de "sem comprovante" — a marca é o que impede a varredura eterna. O carimbo aqui e na
         // conciliação é a MESMA coluna, sem interferência: os status são disjuntos.
+        //
+        // A chave terminada em .html conta como AUSENTE: é a página do provedor gravada no lugar
+        // do arquivo (ver LandingPageReceipt), e a ordem precisa voltar para cá até render o PDF.
+        // Sem isto o acervo já capturado ficaria com a tela vazia para sempre — a varredura só
+        // enxergava chave nula.
         var schema = BillPaymentDbContext.DEFAULT_SCHEMA;
         var sql =
             $"UPDATE {schema}.payment_orders SET sweep_attempted_at = @now "
             + "WHERE id IN ("
             + $"SELECT id FROM {schema}.payment_orders "
             + "WHERE status IN (@paid, @refunded) "
-            + "AND receipt_storage_key IS NULL AND receipt_unavailable = FALSE "
+            + "AND (receipt_storage_key IS NULL OR receipt_storage_key LIKE @landingPage) "
+            + "AND receipt_unavailable = FALSE "
             + "AND provider_order_id IS NOT NULL "
             + "AND updated_at < @cutoff "
             + "AND (sweep_attempted_at IS NULL OR sweep_attempted_at < @cutoff) "
@@ -165,6 +172,7 @@ internal sealed class PaymentOrderWorkQueries(BillPaymentDbContext context, Time
             {
                 Bind(command, "@paid", PaymentOrderStatus.Paid.Id);
                 Bind(command, "@refunded", PaymentOrderStatus.Refunded.Id);
+                Bind(command, "@landingPage", LandingPageReceipt.KEY_LIKE_PATTERN);
             },
             cancellationToken);
     }

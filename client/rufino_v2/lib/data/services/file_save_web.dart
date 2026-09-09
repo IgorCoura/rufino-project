@@ -19,8 +19,9 @@ Future<FileSaveOutcome> saveXlsx(String fileName, Uint8List bytes) async {
 /// Triggers a browser download of [bytes] under [fileName].
 ///
 /// Uses a temporary anchor with a blob URL — the standard way to start a
-/// programmatic download in a browser.
-Future<void> saveBytes(String fileName, Uint8List bytes) async {
+/// programmatic download in a browser. Always `true`: the browser owns the
+/// download from here, and there is no dialog for the person to dismiss.
+Future<bool> saveBytes(String fileName, Uint8List bytes) async {
   final blob = web.Blob([bytes.toJS].toJS);
   final url = web.URL.createObjectURL(blob);
   web.HTMLAnchorElement()
@@ -28,6 +29,7 @@ Future<void> saveBytes(String fileName, Uint8List bytes) async {
     ..download = fileName
     ..click();
   web.URL.revokeObjectURL(url);
+  return true;
 }
 
 /// No-op on web: there is no arbitrary path to write to, and the save dialog

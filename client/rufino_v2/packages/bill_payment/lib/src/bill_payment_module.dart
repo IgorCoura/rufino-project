@@ -52,6 +52,7 @@ class BillPaymentModule extends AppModule {
     required this.homeRoute,
     required this.onPickDocument,
     required this.onOpenLink,
+    required this.onSaveDocument,
   });
 
   /// O cliente HTTP da casca.
@@ -78,6 +79,9 @@ class BillPaymentModule extends AppModule {
   /// Abridor de link (plugin, mora na casca).
   final LinkOpener onOpenLink;
 
+  /// Salvador de documento (plugin, mora na casca).
+  final DocumentSaver onSaveDocument;
+
   @override
   String get menuTitle => 'CONTAS A PAGAR';
 
@@ -86,6 +90,7 @@ class BillPaymentModule extends AppModule {
         homeRoute: homeRoute,
         onPickDocument: onPickDocument,
         onOpenLink: onOpenLink,
+        onSaveDocument: onSaveDocument,
       );
 
   @override

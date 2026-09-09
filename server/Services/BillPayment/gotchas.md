@@ -2,6 +2,101 @@
 
 Registro de correções e lições aprendidas neste BC (ver regra em CLAUDE.md → Self-Correction).
 
+## Smart Enum dentro de Domain Event: o outbox grava e não consegue ler de volta
+
+**Quando:** 2026-09-09, ao investigar por que o espelho do cancelamento nunca disparava.
+
+**O que aconteceu:** `PaymentOrderCancelledDomainEvent` recebeu o campo `Origin` tipado como
+`BillActionOrigin` (Smart Enum) em 2026-09-08, junto com a trilha do boleto. O dreno serializa o
+evento em JSON e o processador o reconstrói do outro lado — e `Enumeration` não tem construtor
+que o `System.Text.Json` saiba usar. **Toda** mensagem de cancelamento falhava na leitura com
+`NotSupportedException: Deserialization of types without a parameterless constructor…`, ia para
+dead-letter em cinco tentativas, e o boleto ficava com a data e o vínculo de um pagamento
+cancelado. Em silêncio.
+
+**Por que é traiçoeiro:** três coisas se somam.
+1. **A gravação aceita.** `JsonSerializer.Serialize` escreve o Smart Enum como objeto sem
+   reclamar; a recusa só existe na volta. O commit que introduz o campo passa em tudo — o dreno
+   roda na transação do efeito e nunca desserializa.
+2. **A recusa acontece dentro do worker**, e o `OutboxProcessor` a persistia na coluna `error`
+   sem passar a exceção ao `LogWarning`. A causa raiz estava gravada no banco e ausente do log;
+   foi acrescentar o `failure` como primeiro argumento dos dois `LogWarning` que a revelou.
+3. **O sintoma não parece de serialização.** O que se vê é um boleto com estado velho, e o
+   caminho natural é procurar o defeito na guarda do reflexo.
+
+**Regra:** **Domain Event carrega primitivo — Smart Enum viaja como o `Name`**, e quem consome o
+traduz de volta (`Enumeration.GetAll<T>().FirstOrDefault(o => o.Name == …)`, com degradação
+explícita para o valor seguro quando o nome não casar). Vale para qualquer tipo sem construtor
+utilizável, não só `Enumeration`.
+
+**Guarda:** `UnitTests/SeedWork/DomainEventSerializationErosionTests` — varre por reflexão todo
+`IDomainEvent` do Domain, reprova propriedade que carregue `Enumeration` e pede ao próprio
+desserializador que construa cada tipo que viaja. Provada pelo avesso: reintroduzindo o campo
+tipado, os três testes ficam vermelhos.
+
+---
+
+## Suíte vermelha herdada vira suíte ignorada — e a documentação é o que a mantém invisível
+
+**Quando:** 2026-09-09, ao cumprir o portão de pré-push e encontrar 11 falhas que ninguém
+esperava.
+
+**O que aconteceu:** `ScheduleAndUndoBillTests` foi criado em `227383b8` (ADR-020) já com os
+testes do ADR-018 **vermelhos** — trabalho não terminado que entrou de carona. O commit registrou
+isso como ressalva de rodapé ("21 falhas pré-existentes do trabalho não commitado") e, na MESMA
+seção do `CLAUDE.md`, escreveu **"HEAD roda 739/739 verde"**. Quatro commits depois ninguém mais
+sabia que havia dívida: quem rodava a suíte via vermelho e concluía "já era assim", e quem lia a
+documentação via verde.
+
+**Por que é traiçoeiro:** a ressalva descrevia uma situação **transitória** e envelheceu como
+permanente, enquanto o número ao lado dela — medido antes, num commit anterior — continuava
+parecendo atual. Nenhum dos dois estava errado no dia em que foi escrito. Juntos, apagaram o
+rastro.
+
+**Regra, em duas metades.**
+1. **Teste que entra vermelho ou é marcado `Skip` com o motivo e o link, ou não entra.** `Skip` é
+   visível na contagem da suíte; falha herdada é ruído que treina quem vem depois a ignorar
+   vermelho.
+2. **Número medido entra na documentação com a ferramenta e a data ao lado**, e a linha registra
+   **aprovados E falhas conhecidas** — "739/739 verde" é uma afirmação sobre um commit, não sobre
+   o HEAD, e sem a data ela não tem como ser reconferida.
+
+**Método que provou a pré-existência**, e que vale registrar: `git worktree add --detach <tmp>
+<commit-anterior>` + rodar a suíte lá. Foi assim que as 11 foram separadas das 9 novas da entrega
+— os totais (787→796, 776→785) mostram que nenhuma das novas falhava.
+
+---
+
+## `[ProtectedResource]` era decorativo na suíte inteira: o dublê concedia tudo
+
+**Quando:** 2026-09-09, consertando as duas falhas de escopo do grupo A.
+
+**O que aconteceu:** `MockProtectedResourceHandler` chamava `context.Succeed(requirement)`
+**incondicionalmente**. O header de teste `bp_scopes` alcançava só o
+`FakeAuthorizationServerClient`, que alimenta a alçada de risco lida DENTRO do
+`BillsController` — nunca a porta de entrada do endpoint. Resultado: em ~780 testes,
+`[ProtectedResource]` nunca negou ninguém, e `EndpointProtectionTests` provava apenas que o
+atributo **está escrito**, jamais que ele funciona. Os dois testes que tentavam provar uma
+NEGATIVA de escopo (`Schedule_WithoutTheSchedulingScope`, `UndoDecision_WithoutItsOwnScope`)
+recebiam 200 onde esperavam 403.
+
+**Por que é traiçoeiro:** é o padrão já registrado três vezes neste BC — **medir com uma
+ferramenta e executar com outra** —, agora entre o que o atributo declara e o que a suíte
+exercita. O docstring do próprio dublê dizia que ele servia à alçada de risco; ninguém leu a
+consequência.
+
+**Regra:** dublê de autorização **honra a mesma decisão da produção** — aqui,
+`RptSnapshot.Grants(permission, options.ScopesValidationMode)` sobre o retrato que o header
+descreve —, e concede tudo apenas na AUSÊNCIA do header (é o que mantém os outros testes de pé).
+A regra de qual recurso o header modela vive numa constante (`FakeAuthorizationServerClient.
+ModelledResource`), não escrita à mão em dois lugares.
+
+**Como provar uma guarda de autorização:** troque o escopo de um endpoint por um mais fraco e
+confirme que um teste **reprova**. Foi feito com `bill:schedule` → `bill:view`. Guarda que nunca
+foi vista vermelha não é guarda.
+
+---
+
 ## `DateOnly.TryParse` recusa o formato de data-hora do Asaas, e a falha vira `null`, não exceção
 
 **Quando:** 2026-09-09, relatado pelo usuário ("o pagamento saiu no Asaas e o boleto não mudou").
@@ -175,6 +270,42 @@ no corpo.
 
 **Como pegar de novo:** ao ver `42P01 relation ... does not exist` num banco que "já funcionava", conte as tabelas antes de investigar conexão:
 `SELECT count(*) FROM information_schema.tables WHERE table_schema='bill_payment';` — hoje o modelo tem 12.
+
+## `transactionReceiptUrl` não é o comprovante — é a página dele
+
+**Quando:** 2026-09-09, relatado pelo usuário ("a visualização do comprovante não está funcionando").
+
+**O que aconteceu:** o campo se chama *comprovante*, a documentação do provedor o descreve como
+"Comprovante do pagamento de conta", e o `HttpPaymentReceiptFetcher` fazia o óbvio: `GET` na URL e
+grava o que vier. O que vem é **`text/html`** — a página web do comprovante, com CSS e script
+externos. Ela ia para o balde como `comprovante-{id}.html`, `GET /payments/{id}/receipt` a servia
+com `content-type: text/html`, e o app, que só renderiza `application/pdf` e `image/*`, caía no
+painel *"Este documento chegou em um formato que o app não exibe (text/html)"*. O arquivo de
+verdade estava a uma âncora de distância, dentro da própria página:
+`<a href="/transactionReceipt/pdf/{id}">Baixar pdf</a>` — `200`, `application/pdf`, A4 retrato,
+**uma página**, 27 KB, sem autenticação.
+
+**Por que é traiçoeiro:** **não tem sintoma no servidor.** O download funciona, o balde grava, a
+ordem recebe `ReceiptStorageKey`, `hasReceipt` fica verdadeiro, o endpoint responde `200` com
+bytes de verdade, e os 739 testes de integração passam — inclusive o que afirma "o comprovante é
+servido", porque o dublê `FakeReceiptFetcher` sempre devolveu PDF. **A suíte nunca exercitou o
+tipo que o provedor de fato manda.** O único lugar onde o defeito aparece é a tela do usuário, e
+lá ele aparece como uma frase sobre formato — que lê como limitação do app, não como captura
+errada. O doc `04-integrations.md` já registrava a dúvida ("o que a sonda ainda precisa medir: se
+serve PDF ou página") e a dúvida sobreviveu sete dias em produção.
+
+**Regra:** **campo de provedor com nome de arquivo pode ser uma PÁGINA sobre o arquivo** — meça o
+`content-type` antes de tratar o corpo como documento, e nunca deixe o dublê de teste ser o único
+lugar que decide qual tipo o adapter recebe. Quando o dublê é mais bem-comportado que o provedor,
+a suíte verde afirma menos do que parece. É o mesmo padrão que este BC já registrou duas vezes
+com outro nome ("medir com uma ferramenta e executar com outra", `pdftotext` × PdfPig): aqui a
+divergência não estava entre duas ferramentas de leitura, e sim entre **o que o teste entrega ao
+adapter e o que a rede entrega**.
+
+**Como pegar de novo:** o precedente estava a três seções daqui, na entrada da cobrança da Asaas
+sem anexo — *"a página responde 200 sem autenticação e traz um `href` para o PDF"*. A mesma forma,
+no mesmo provedor, resolvida um mês antes do outro lado do sistema. Ao integrar campo novo que
+promete documento, procure primeiro se o BC já descobriu que aquele host serve página com âncora.
 
 ## Serviço compatível com S3 recusa a assinatura quando falta a região
 

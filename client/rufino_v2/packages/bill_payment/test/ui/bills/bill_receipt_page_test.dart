@@ -25,12 +25,16 @@ void main() {
     PaymentRepository repository,
   ) async {
     await tester.pumpWidget(
-      Provider<PaymentRepository>.value(
-        value: repository,
-        child: const MaterialApp(
+      MultiProvider(
+        providers: [
+          Provider<PaymentRepository>.value(value: repository),
+          Provider<ErrorReporter>.value(value: const NoopErrorReporter()),
+        ],
+        child: MaterialApp(
           home: BillReceiptPage(
             billId: 'bill-1',
             backFallback: '/bill-payment/bills/bill-1',
+            onSaveDocument: ({required fileName, required bytes}) async => true,
           ),
         ),
       ),

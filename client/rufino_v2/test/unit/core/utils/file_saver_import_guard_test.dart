@@ -2,37 +2,40 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Guards against importing the native [file_saver.dart] without a web fallback.
+/// Guards the conditional import that keeps file saving working on the web.
 ///
-/// `lib/core/utils/file_saver.dart` reaches for `dart:io`'s `Platform`, which
-/// throws `Unsupported operation: Platform._operatingSystem` on the web. Every
-/// consumer must import it through a conditional import that defaults to
-/// `file_saver_stub.dart` (the browser blob-download implementation) and only
-/// switches to the native file under `if (dart.library.io)`:
+/// `lib/data/services/file_save_io.dart` reaches for `dart:io`'s `Platform`,
+/// which throws `Unsupported operation: Platform._operatingSystem` in a
+/// browser. Every consumer must name it through a conditional import that
+/// offers the web implementation alongside it:
 ///
 /// ```dart
-/// import '.../core/utils/file_saver_stub.dart'
-///     if (dart.library.io) '.../core/utils/file_saver.dart';
+/// import 'file_save_io.dart' if (dart.library.js_interop) 'file_save_web.dart'
+///     as platform;
 /// ```
 ///
-/// A plain `import '.../core/utils/file_saver.dart';` compiles fine and even
-/// passes VM tests (where `dart:io` exists), so only a static scan like this
-/// catches the regression before it ships to the web build.
+/// A plain `import '.../file_save_io.dart';` compiles fine and even passes VM
+/// tests, where `dart:io` exists — only a static scan like this catches the
+/// regression before it reaches the web build.
+///
+/// This guard was written for `lib/core/utils/file_saver.dart`, which the D6
+/// refactor renamed and moved. It kept scanning for the old path, so for months
+/// it passed by finding nothing while the hole it was written for stayed open.
+/// Repointing it is what makes it a guard again.
 void main() {
-  group('file_saver import guard', () {
-    /// The local native import, regardless of the relative `../` depth.
-    final nativeImport = RegExp(r'core/utils/file_saver\.dart');
+  group('file save import guard', () {
+    /// The implementation that only exists outside the browser.
+    final nativeImport = RegExp(r'file_save_io\.dart');
 
-    /// The local stub import that the conditional default must point to.
-    final stubImport = RegExp(r'core/utils/file_saver_stub\.dart');
+    /// The alternative the conditional import has to offer next to it.
+    final webImport = RegExp(r'file_save_web\.dart');
 
-    test('every consumer of the native file saver also imports the web stub',
-        () {
-      // The implementation files themselves are exempt — they are the targets
-      // of the conditional import, not consumers of it.
-      const implementationFiles = {
-        'lib/core/utils/file_saver.dart',
-        'lib/core/utils/file_saver_stub.dart',
+    test('nobody names the native implementation without the web fallback', () {
+      // The two implementation files are the TARGET of the conditional import,
+      // not consumers of it.
+      const implementations = {
+        'lib/data/services/file_save_io.dart',
+        'lib/data/services/file_save_web.dart',
       };
 
       final offenders = <String>[];
@@ -41,13 +44,10 @@ void main() {
         if (entity is! File || !entity.path.endsWith('.dart')) continue;
 
         final normalizedPath = entity.path.replaceAll(r'\', '/');
-        if (implementationFiles.contains(normalizedPath)) continue;
+        if (implementations.contains(normalizedPath)) continue;
 
         final content = entity.readAsStringSync();
-        final importsNative = nativeImport.hasMatch(content);
-        final importsStub = stubImport.hasMatch(content);
-
-        if (importsNative && !importsStub) {
+        if (nativeImport.hasMatch(content) && !webImport.hasMatch(content)) {
           offenders.add(normalizedPath);
         }
       }
@@ -55,10 +55,22 @@ void main() {
       expect(
         offenders,
         isEmpty,
-        reason: 'These files import the native file_saver.dart directly, which '
-            'crashes on the web with "Unsupported operation: '
-            'Platform._operatingSystem". Use a conditional import defaulting to '
-            'file_saver_stub.dart instead:\n  ${offenders.join('\n  ')}',
+        reason: 'These files name the native file save implementation without '
+            'the web fallback, which crashes the web build with "Unsupported '
+            'operation: Platform._operatingSystem". Use the conditional '
+            'import instead:\n  ${offenders.join('\n  ')}',
+      );
+    });
+
+    // A varredura precisa estar olhando para algo que existe: se os arquivos
+    // mudarem de nome de novo, o teste acima passa por vacuidade — foi
+    // exatamente assim que este guarda morreu sem ninguém notar.
+    test('the files it guards still exist', () {
+      expect(File('lib/data/services/file_save_io.dart').existsSync(), isTrue);
+      expect(File('lib/data/services/file_save_web.dart').existsSync(), isTrue);
+      expect(
+        File('lib/data/services/platform_file_save_service.dart').existsSync(),
+        isTrue,
       );
     });
   });

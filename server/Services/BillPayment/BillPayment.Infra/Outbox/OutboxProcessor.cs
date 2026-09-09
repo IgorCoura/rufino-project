@@ -163,13 +163,18 @@ internal sealed class OutboxProcessor : IOutboxProcessor
             {
                 db.OutboxDeadLetters.Add(OutboxDeadLetter.From(message, now));
                 db.OutboxMessages.Remove(message);
+                // A exceção vai JUNTO, e não só na coluna `error`: mensagem que morre em
+                // dead-letter sem causa no log obriga a abrir o banco para saber o que houve, e
+                // em produção isso costuma ser tarde demais.
                 _logger.LogWarning(
+                    failure,
                     "Outbox message {MessageId} ({EventType}) moved to dead-letter after {Attempts} attempts.",
                     message.Id, message.EventType, message.Attempts);
             }
             else
             {
                 _logger.LogWarning(
+                    failure,
                     "Outbox message {MessageId} ({EventType}) failed on attempt {Attempts}; will retry.",
                     message.Id, message.EventType, message.Attempts);
             }

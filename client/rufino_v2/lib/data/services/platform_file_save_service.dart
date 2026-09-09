@@ -25,7 +25,7 @@ class PlatformFileSaveService implements FileSaveService {
   }
 
   @override
-  Future<void> saveBytes({
+  Future<bool> saveBytes({
     required String fileName,
     required Uint8List bytes,
   }) =>

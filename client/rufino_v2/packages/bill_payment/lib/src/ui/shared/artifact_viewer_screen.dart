@@ -33,29 +33,57 @@ class ArtifactViewerScreen extends StatefulWidget {
 }
 
 class _ArtifactViewerScreenState extends State<ArtifactViewerScreen> {
+  String? _lastInfoMessage;
+
   @override
   void initState() {
     super.initState();
+    widget.viewModel.addListener(_onViewModelChanged);
     widget.viewModel.load();
   }
 
   @override
+  void dispose() {
+    widget.viewModel.removeListener(_onViewModelChanged);
+    super.dispose();
+  }
+
+  /// Mostra o desfecho do download uma vez só.
+  ///
+  /// Comparar com a última mensagem é o que impede o SnackBar de reaparecer a
+  /// cada `notifyListeners` — é o molde repetido nas outras telas do módulo.
+  void _onViewModelChanged() {
+    final message = widget.viewModel.infoMessage;
+    if (message != null && message != _lastInfoMessage && mounted) {
+      _lastInfoMessage = message;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        leading: BillPaymentBackButton(fallback: widget.backFallback),
-      ),
-      body: SafeArea(
-        child: ListenableBuilder(
-          listenable: widget.viewModel,
-          builder: (context, _) {
-            final viewModel = widget.viewModel;
-            switch (viewModel.status) {
-              case ArtifactViewerStatus.loading:
-                return const Center(child: CircularProgressIndicator());
-              case ArtifactViewerStatus.error:
-                return MessagePanel(
+    // O ListenableBuilder envolve o Scaffold INTEIRO, e não só o body: o botão
+    // de baixar vive na barra e precisa enxergar o estado do ViewModel.
+    return ListenableBuilder(
+      listenable: widget.viewModel,
+      builder: (context, _) {
+        final viewModel = widget.viewModel;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(widget.title),
+            leading: BillPaymentBackButton(fallback: widget.backFallback),
+            actions: [
+              if (viewModel.canSave)
+                _DownloadButton(viewModel: viewModel),
+            ],
+          ),
+          body: SafeArea(
+            child: switch (viewModel.status) {
+              ArtifactViewerStatus.loading =>
+                const Center(child: CircularProgressIndicator()),
+              ArtifactViewerStatus.error => MessagePanel(
                   icon: Symbols.error,
                   title: viewModel.errorMessage ??
                       'O documento original não está disponível.',
@@ -63,13 +91,41 @@ class _ArtifactViewerScreenState extends State<ArtifactViewerScreen> {
                     onPressed: viewModel.load,
                     child: const Text('Tentar novamente'),
                   ),
-                );
-              case ArtifactViewerStatus.loaded:
-                return _Document(viewModel: viewModel);
-            }
-          },
+                ),
+              ArtifactViewerStatus.loaded => _Document(viewModel: viewModel),
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// O botão de baixar, com o giro enquanto o sistema decide onde salvar.
+class _DownloadButton extends StatelessWidget {
+  const _DownloadButton({required this.viewModel});
+
+  final ArtifactViewerViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    if (viewModel.isSaving) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
         ),
-      ),
+      );
+    }
+
+    return IconButton(
+      tooltip: 'Baixar',
+      icon: const Icon(Symbols.download),
+      onPressed: viewModel.save,
     );
   }
 }
@@ -99,11 +155,17 @@ class _Document extends StatelessWidget {
       );
     }
 
-    // Nem PDF nem imagem: dizer o que é vale mais do que uma tela em branco.
+    // Nem PDF nem imagem: dizer o que é vale mais do que uma tela em branco —
+    // e baixar é a ÚNICA saída que sobra, então o botão aparece aqui também,
+    // por extenso. Escondê-lo só na barra seria esconder a resposta.
     return MessagePanel(
       icon: Symbols.description,
       title: 'Este documento chegou em um formato que o app não exibe '
           '(${artifact.contentType}).',
+      action: FilledButton.tonal(
+        onPressed: viewModel.isSaving ? null : viewModel.save,
+        child: const Text('Baixar arquivo'),
+      ),
     );
   }
 }

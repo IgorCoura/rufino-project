@@ -15,15 +15,32 @@ using Microsoft.Extensions.DependencyInjection;
 /// </remarks>
 internal sealed class RoutingStubHttpMessageHandler : HttpMessageHandler
 {
-    private readonly List<(Func<Uri, bool> Matches, Func<int, (HttpStatusCode Status, string Body)> Respond)> _routes = [];
+    private const string DEFAULT_MEDIA_TYPE = "application/json";
+
+    private readonly List<(Func<Uri, bool> Matches, string MediaType, Func<int, (HttpStatusCode Status, string Body)> Respond)> _routes = [];
     private readonly Dictionary<string, int> _hits = new(StringComparer.Ordinal);
 
     public List<Uri> Requests { get; } = [];
 
-    /// <summary>Responde sempre o mesmo para URLs que contenham <paramref name="fragment"/>.</summary>
-    public RoutingStubHttpMessageHandler Route(string fragment, HttpStatusCode status, string body)
+    /// <summary>
+    /// Responde sempre o mesmo para URLs que contenham <paramref name="fragment"/>.
+    /// </summary>
+    /// <remarks>
+    /// O <paramref name="mediaType"/> existe porque nem todo provedor deste BC fala JSON: a
+    /// página do comprovante vem em <c>text/html</c> e o arquivo em <c>application/pdf</c>, e é
+    /// o cabeçalho que decide se o adapter procura o link do arquivo dentro da resposta.
+    /// </remarks>
+    public RoutingStubHttpMessageHandler Route(
+        string fragment,
+        HttpStatusCode status,
+        string body,
+        string mediaType = DEFAULT_MEDIA_TYPE)
     {
-        _routes.Add((uri => uri.ToString().Contains(fragment, StringComparison.OrdinalIgnoreCase), _ => (status, body)));
+        _routes.Add((
+            uri => uri.ToString().Contains(fragment, StringComparison.OrdinalIgnoreCase),
+            mediaType,
+            _ => (status, body)));
+
         return this;
     }
 
@@ -35,6 +52,7 @@ internal sealed class RoutingStubHttpMessageHandler : HttpMessageHandler
     {
         _routes.Add((
             uri => uri.ToString().Contains(fragment, StringComparison.OrdinalIgnoreCase),
+            DEFAULT_MEDIA_TYPE,
             hit => (HttpStatusCode.OK, bodies[Math.Min(hit, bodies.Length - 1)])));
 
         return this;
@@ -47,7 +65,7 @@ internal sealed class RoutingStubHttpMessageHandler : HttpMessageHandler
         var uri = request.RequestUri!;
         Requests.Add(uri);
 
-        foreach (var (matches, respond) in _routes)
+        foreach (var (matches, mediaType, respond) in _routes)
         {
             if (!matches(uri))
                 continue;
@@ -60,7 +78,7 @@ internal sealed class RoutingStubHttpMessageHandler : HttpMessageHandler
 
             return Task.FromResult(new HttpResponseMessage(status)
             {
-                Content = new StringContent(body, Encoding.UTF8, "application/json"),
+                Content = new StringContent(body, Encoding.UTF8, mediaType),
             });
         }
 

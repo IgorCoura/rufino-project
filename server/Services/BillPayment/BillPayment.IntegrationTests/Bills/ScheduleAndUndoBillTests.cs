@@ -206,6 +206,9 @@ public sealed class ScheduleAndUndoBillTests : BaseIntegrationTest, IDisposable
         Assert.Equal(BillStatus.Denied, (await LoadAsync(billId)).Status);
     }
 
+    // Só recusa e cancelamento se desfazem: boleto que AINDA espera decisão não tem o que
+    // reverter. A recusa tem de ser a do agregado — o BLP.BIL38 que nomeia a regra — e não a
+    // pré-condição de chave reocupada, que num boleto vivo encontra ele mesmo.
     [Fact]
     public async Task UndoDecision_OnABillAwaitingApproval_ShouldBeRefusedWith_BLP_BIL38()
     {
@@ -260,10 +263,13 @@ public sealed class ScheduleAndUndoBillTests : BaseIntegrationTest, IDisposable
         await DrainOutboxAsync();
 
         var order = await SingleOrderAsync(billId);
-        await _client.PostAsync(
-            new Uri($"/api/v1/{TenantId}/payments/{order.Id.Value}/cancel", UriKind.Relative),
-            null,
-            CancellationToken.None);
+        // O `x-user-id` é o que o dublê de autenticação traduz em `sub`, e é do `sub` que sai o
+        // autor. Sem ele o pedido ainda cancela — só que como Guid.Empty, que a trilha descarta
+        // por não ser pessoa nenhuma; a asserção de autor passaria a valer vazio.
+        using var cancel = new HttpRequestMessage(
+            HttpMethod.Post, new Uri($"/api/v1/{TenantId}/payments/{order.Id.Value}/cancel", UriKind.Relative));
+        cancel.Headers.Add("x-user-id", ApproverId.ToString());
+        (await _client.SendAsync(cancel, CancellationToken.None)).EnsureSuccessStatusCode();
         await DrainOutboxAsync();
 
         var bill = await LoadAsync(billId);

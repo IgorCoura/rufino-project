@@ -191,6 +191,34 @@ public sealed class PaymentOrderWorkQueriesTests : BaseIntegrationTest
         Assert.Equal(missing.Value, Assert.Single(claimed).PaymentOrderId);
     }
 
+    // Teste de regressão do comprovante que não abria (2026-09-09): o adapter gravava a PÁGINA
+    // do provedor como .html, a ordem ficava com chave, e a varredura — que só enxergava chave
+    // nula — nunca voltava para buscar o PDF. A tela do usuário ficava vazia para sempre.
+    // Chave .html conta como ausente; chave .pdf continua sendo comprovante guardado.
+    [Fact]
+    public async Task ClaimMissingReceipts_ShouldReclaimOrdersWhoseReceiptIsTheProvidersPage()
+    {
+        var paidAt = new DateOnly(2026, 8, 21);
+
+        var landingPage = await SeedDraftAsync(arrange: order =>
+        {
+            order.MarkSubmitted("pay_landing_page", paidAt, null, null, OccurredAt);
+            order.ApplyProviderStatus(PaymentOrderStatus.Paid, paidAt, fee: null, null, DateTimeOffset.UtcNow, OccurredAt);
+            order.AttachReceipt("tenants/x/captures/2026/09/abc-comprovante.html", OccurredAt);
+        });
+
+        await SeedDraftAsync(arrange: order =>
+        {
+            order.MarkSubmitted("pay_real_pdf", paidAt, null, null, OccurredAt);
+            order.ApplyProviderStatus(PaymentOrderStatus.Paid, paidAt, fee: null, null, DateTimeOffset.UtcNow, OccurredAt);
+            order.AttachReceipt("tenants/x/captures/2026/09/abc-comprovante.pdf", OccurredAt);
+        });
+
+        var claimed = await ClaimMissingReceiptsAsync(DateTimeOffset.UtcNow.AddMinutes(1));
+
+        Assert.Equal(landingPage.Value, Assert.Single(claimed).PaymentOrderId);
+    }
+
     // O claim do comprovante também carimba na saída: a segunda passada dentro da mesma janela
     // não devolve a mesma ordem — é o que impede o laço quente quando o provedor está fora.
     [Fact]

@@ -90,9 +90,18 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
             StringComparison.Ordinal);
     }
 
-    // Rota sem tenant não existe: o webhook é POR CONTA desde o ADR-019.
+    // Rota sem tenant não existe: o webhook é POR CONTA desde o ADR-019 — e a resposta é 401,
+    // não 404.
+    //
+    // `webhooks/asaas` sem o `{tenantId:guid}` não casa endpoint nenhum, e desde a fase 8 da
+    // auditoria o fallback de autorização exige autenticação. O middleware o aplica TAMBÉM quando
+    // nenhum endpoint casou, então a requisição para na porta antes de virar 404.
+    //
+    // O 401 é o desfecho melhor e por isso a expectativa mudou em vez da produção: ele não
+    // confirma se a rota existe. Trocar o comportamento do servidor para devolver 404 seria abrir
+    // um oráculo de rotas em troca de um teste.
     [Fact]
-    public async Task Webhook_WithoutATenantInTheRoute_ShouldRespond404()
+    public async Task Webhook_WithoutATenantInTheRoute_ShouldRespondUnauthorized()
     {
         using var client = _host.CreateClient();
 
@@ -101,7 +110,7 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
             new { id = "evt_1", @event = "BILL_PAID" },
             CancellationToken.None);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     // Token errado num tenant que TEM webhook é 401 — validado em tempo constante, antes de
@@ -205,6 +214,8 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
     public async Task Webhook_Redelivered_ShouldHaveNoSecondEffect()
     {
         var (_, orderId) = await SubmitOrderAsync();
+        ScriptProviderStatus(PaymentOrderStatus.BankProcessing, "BANK_PROCESSING");
+
         var payload = new
         {
             id = "evt_dup_1",
@@ -261,9 +272,14 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
 
     // Referência que não é nossa devolve 200: falhar faria o provedor reentregar para sempre um
     // evento de outra conta.
+    //
+    // A conta precisa estar vinculada: desde o ADR-022 o tenant SEM webhook responde 200
+    // `NotConfigured` antes de olhar a referência, e sem isto o teste media o desfecho errado.
     [Fact]
     public async Task Webhook_WithAnUnknownReference_ShouldAcknowledgeWithoutEffect()
     {
+        await LinkPaymentAccountAsync();
+
         var response = await PostWebhookAsync(new
         {
             id = "evt_unknown_1",
@@ -314,6 +330,7 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
     public async Task Webhook_WithAPaymentObjectPayload_ShouldStillResolveTheOrder()
     {
         var (_, orderId) = await SubmitOrderAsync();
+        ScriptProviderStatus(PaymentOrderStatus.BankProcessing, "BANK_PROCESSING");
 
         var response = await PostWebhookAsync(new
         {
@@ -460,6 +477,64 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
         Assert.Equal("AlreadyStored", outcome);
         Assert.Equal(blobsAfterFirst, storage.Count);
         Assert.Equal(1, _receipts.Calls);
+    }
+
+    // A REPESCAGEM DE 2026-09-09: ordem cujo comprovante ficou gravado como a PÁGINA do
+    // provedor (.html) volta para a captura, recebe o PDF, e a página antiga sai do balde.
+    // Sem isto, o acervo capturado antes do conserto continuaria abrindo a tela vazia — e com
+    // um blob órfão a mais por ordem repescada.
+    [Fact]
+    public async Task CaptureReceipt_WhenTheStoredReceiptIsTheProvidersPage_ShouldReplaceItWithThePdf()
+    {
+        var (_, orderId) = await SubmitOrderAsync();
+        await MarkPaidAsync(orderId);
+        ScriptReceiptUrl();
+
+        var storage = _host.Services.GetRequiredService<InMemoryAttachmentStorage>();
+
+        // O estado que o adapter antigo produzia: a página guardada como se fosse o comprovante.
+        _receipts.Scripted = ReceiptFetchResult.Fetched("<html>comprovante</html>"u8.ToArray(), "text/html");
+        Assert.Equal("Stored", await CaptureReceiptAsync(orderId));
+
+        var landingPageKey = (await LoadOrderAsync(orderId)).ReceiptStorageKey;
+        Assert.EndsWith(".html", landingPageKey, StringComparison.Ordinal);
+
+        // O adapter consertado passa a entregar o PDF que a página oferecia.
+        _receipts.Scripted = ReceiptFetchResult.Fetched(FakeReceiptFetcher.DefaultReceipt, "application/pdf");
+        Assert.Equal("Stored", await CaptureReceiptAsync(orderId));
+
+        var pdfKey = (await LoadOrderAsync(orderId)).ReceiptStorageKey;
+        Assert.EndsWith(".pdf", pdfKey, StringComparison.Ordinal);
+        Assert.False(storage.Contains(landingPageKey!), "a página antiga deveria ter saído do balde");
+
+        // E é o PDF que chega ao app — o content-type é o que a tela usa para decidir renderizar.
+        var receipt = await _client.GetAsync(
+            new Uri($"/api/v1/{TenantId}/payments/{orderId}/receipt", UriKind.Relative), CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, receipt.StatusCode);
+        Assert.Equal("application/pdf", receipt.Content.Headers.ContentType?.MediaType);
+    }
+
+    // Repescagem que não melhorou nada não regrava: o provedor devolveu a página de novo, e
+    // guardar outra cópia a cada ciclo da varredura só encheria o balde.
+    [Fact]
+    public async Task CaptureReceipt_WhenTheProviderStillServesThePage_ShouldKeepTheStoredCopy()
+    {
+        var (_, orderId) = await SubmitOrderAsync();
+        await MarkPaidAsync(orderId);
+        ScriptReceiptUrl();
+
+        var storage = _host.Services.GetRequiredService<InMemoryAttachmentStorage>();
+        _receipts.Scripted = ReceiptFetchResult.Fetched("<html>comprovante</html>"u8.ToArray(), "text/html");
+
+        Assert.Equal("Stored", await CaptureReceiptAsync(orderId));
+        var storedKey = (await LoadOrderAsync(orderId)).ReceiptStorageKey;
+        var blobs = storage.Count;
+
+        Assert.Equal("AlreadyStored", await CaptureReceiptAsync(orderId));
+
+        Assert.Equal(blobs, storage.Count);
+        Assert.Equal(storedKey, (await LoadOrderAsync(orderId)).ReceiptStorageKey);
     }
 
     // O comprovante é do tenant: a MESMA pessoa com acesso a duas contas não alcança a ordem de
@@ -633,6 +708,30 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
     /// Marca a ordem como paga SEM drenar o outbox — o teste então dirige a captura do
     /// comprovante pelo comando, deterministicamente, em vez de pela reentrega.
     /// </summary>
+    /// <summary>
+    /// O retrato que a RELEITURA vai encontrar no provedor.
+    /// </summary>
+    /// <remarks>
+    /// O ADR-019 fez o payload do webhook virar aviso: o handler relê a ordem no provedor e
+    /// aplica o que ELE responder. Teste que só manda o evento no corpo e não arma isto encontra
+    /// o retrato padrão e vê a ordem parada — foi o que deixou três testes vermelhos desde
+    /// 227383b8.
+    /// </remarks>
+    private void ScriptProviderStatus(PaymentOrderStatus status, string rawStatus)
+        => _gateways.ScriptedGet = PaymentFetchResult.Found(new ProviderPaymentSnapshot(
+            "pay_fake_1", status, rawStatus,
+            null, null, null, [], null));
+
+    /// <summary>
+    /// O provedor oferecendo o comprovante — sem URL o comando toma o caminho de "sem
+    /// comprovante" e nunca chega ao fetcher.
+    /// </summary>
+    private void ScriptReceiptUrl()
+        => _gateways.ScriptedGet = PaymentFetchResult.Found(new ProviderPaymentSnapshot(
+            "pay_fake_1", PaymentOrderStatus.Paid, "PAID",
+            null, DateOnly.FromDateTime(DateTime.UtcNow), null, [],
+            "https://www.asaas.com/comprovantes/000123"));
+
     private async Task MarkPaidAsync(Guid orderId)
     {
         using var scope = _host.Services.CreateScope();

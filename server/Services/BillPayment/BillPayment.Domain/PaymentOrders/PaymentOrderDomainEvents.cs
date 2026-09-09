@@ -52,6 +52,13 @@ public sealed record PaymentOrderFailedDomainEvent(
 /// Sem ele, o mesmo evento servia ao cancelamento pedido no nosso app e ao feito no painel do
 /// provedor — e o espelho gravava "Sistema" nos dois, deixando sem resposta a pergunta "quem
 /// cancelou isto?". Acrescentado em 2026-09-08.
+///
+/// <strong>Viaja como o NOME, não como o Smart Enum.</strong> O evento atravessa o outbox, que o
+/// serializa em JSON e o reconstrói do outro lado — e <c>Enumeration</c> não tem construtor que o
+/// desserializador saiba usar. Enquanto o campo foi tipado, TODO cancelamento morria na fila com
+/// <c>NotSupportedException</c> e ia para dead-letter: a ordem cancelava e o boleto ficava com a
+/// data e o vínculo de um pagamento que não ia acontecer, em silêncio. Quem consome já falava
+/// nome (<c>MarkBillScheduleCancelledCommand</c>), então a tradução acontece num lugar só.
 /// </param>
 /// <param name="RequestedBy">
 /// Quem pediu, quando <paramref name="Origin"/> é <c>User</c>. Nulo nas demais origens: atribuir
@@ -61,7 +68,7 @@ public sealed record PaymentOrderCancelledDomainEvent(
     PaymentOrderId PaymentOrderId,
     TenantId TenantId,
     BillId BillId,
-    BillActionOrigin Origin,
+    string Origin,
     UserId? RequestedBy,
     DateTime OccurredAt) : IDomainEvent
 {

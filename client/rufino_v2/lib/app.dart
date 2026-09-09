@@ -331,6 +331,7 @@ class App extends StatelessWidget {
       homeRoute: _homeRoute,
       onPickDocument: _pickBillDocument,
       onOpenLink: _openBillLink,
+      onSaveDocument: _billDocumentSaver(fileSaveService),
     );
 
     final tenantManagement = TenantManagementModule(
@@ -541,6 +542,19 @@ String _contentTypeOf(String? extension) => switch (extension?.toLowerCase()) {
       'webp' => 'image/webp',
       _ => 'application/pdf',
     };
+
+/// Salva no dispositivo o boleto ou o comprovante que está na tela.
+///
+/// Mora na casca pelo mesmo motivo do seletor de arquivos e do abridor de
+/// link: salvar arquivo é plugin de plataforma (`file_saver` no desktop e no
+/// celular, download por blob no navegador), e o módulo de Contas a Pagar não
+/// carrega plugin.
+///
+/// Reaproveita o `FileSaveService` que a casca já monta para a gestão de
+/// pessoas — é a mesma capacidade, e ter duas seria ter duas para manter.
+DocumentSaver _billDocumentSaver(FileSaveService fileSaveService) =>
+    ({required String fileName, required Uint8List bytes}) =>
+        fileSaveService.saveBytes(fileName: fileName, bytes: bytes);
 
 /// Abre no navegador o endereço onde o emissor publicou o boleto.
 ///

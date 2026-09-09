@@ -5,6 +5,8 @@ using System.Text.Encodings.Web;
 using BillPayment.API.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Primitives;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -72,12 +74,68 @@ public sealed class MockAuthenticationHandler(
 /// testa aqui. O guard de rota <strong>não</strong> é substituído: ele é código deste BC, e a
 /// policy da suíte usa o <c>RouteAccessRequirementHandler</c> de produção.
 /// </summary>
-public sealed class MockProtectedResourceHandler : AuthorizationHandler<ProtectedResourceRequirement>
+/// <remarks>
+/// <para>
+/// <strong>Até 2026-09-09 ele concedia tudo incondicionalmente, e isso tornava
+/// <c>[ProtectedResource]</c> decorativo na suíte inteira.</strong> Nenhum dos ~780 testes jamais
+/// provou uma NEGATIVA de escopo: o <c>EndpointProtectionTests</c> conferia que o atributo está
+/// escrito, nunca que ele barra alguém. Os dois testes de alçada do ADR-018
+/// (<c>Schedule_WithoutTheSchedulingScope</c> e <c>UndoDecision_WithoutItsOwnScope</c>) nasceram
+/// vermelhos por causa disto, em <c>227383b8</c>.
+/// </para>
+/// <para>
+/// O que ele substitui continua sendo só a ida ao Keycloak: a decisão usa o
+/// <c>RptSnapshot.Grants</c> de produção sobre o retrato do
+/// <see cref="FakeAuthorizationServerClient"/>, então o dublê e a alçada de risco lida pelo
+/// controller não podem discordar.
+/// </para>
+/// <para>
+/// <strong>Sem o header de escopos, concede.</strong> É o comportamento que os testes que não
+/// falam de alçada dependem — e o header só sabe descrever um recurso
+/// (<see cref="FakeAuthorizationServerClient.ModelledResource"/>), então endpoint de outro
+/// recurso segue concedido: recusá-lo seria recusar por uma lista que não fala dele.
+/// </para>
+/// </remarks>
+public sealed class MockProtectedResourceHandler(
+    IHttpContextAccessor httpContextAccessor,
+    BillPayment.API.Authorization.AuthorizationOptions options)
+    : AuthorizationHandler<ProtectedResourceRequirement>
 {
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, ProtectedResourceRequirement requirement)
     {
-        context.Succeed(requirement);
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(requirement);
+
+        var httpContext = httpContextAccessor.HttpContext;
+        var header = httpContext?.Request.Headers[FakeAuthorizationServerClient.ScopesHeader]
+            ?? StringValues.Empty;
+
+        var permission = requirement.FillPermissionParams(httpContext);
+
+        if (header.Count == 0 || !DescribesTheSameResource(permission))
+        {
+            context.Succeed(requirement);
+            return Task.CompletedTask;
+        }
+
+        if (FakeAuthorizationServerClient.SnapshotFrom(header).Grants(permission, options.ScopesValidationMode))
+            context.Succeed(requirement);
+        else
+            context.Fail();
+
         return Task.CompletedTask;
+    }
+
+    /// <summary>A permissão é do recurso que o header sabe descrever?</summary>
+    private static bool DescribesTheSameResource(string permission)
+    {
+        var separator = permission.IndexOf('#', StringComparison.Ordinal);
+        var resource = separator < 0 ? permission : permission[..separator];
+
+        return string.Equals(
+            resource,
+            FakeAuthorizationServerClient.ModelledResource,
+            StringComparison.Ordinal);
     }
 }
 
