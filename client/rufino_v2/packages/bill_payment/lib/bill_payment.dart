@@ -54,7 +54,7 @@ export 'src/domain/trusted_origin_repository.dart';
 // O tipo do seletor de arquivos: a casca implementa (ela tem o `file_picker`),
 // o módulo consome. Sem isto, quem monta as rotas não tem como nomear o callback.
 export 'src/ui/shared/document_picker.dart'
-    show DocumentPicker, LinkOpener, PickedDocument;
+    show DocumentPicker, DocumentSaver, LinkOpener, PickedDocument;
 export 'src/ui/bill_payment_routes.dart';
 
 // A costura com a casca: o módulo (D6).

@@ -1136,10 +1136,10 @@ refresh de token e limpa no logout — junto com as outras duas.
 | `/bill-payment/bills` | Fila de boletos, filtro `?status=` **no servidor**, abre em Aguardando aprovação; filtros Agendados/Pagos/Falhou e a linha "pagar em" quando há data efetiva | `bill`/`view` |
 | `/bill-payment/bills/import` | Importação manual: linha digitável, código Pix e/ou **anexo do boleto** (PDF/imagem) — um dos três basta | `bill`/`import` |
 | `/bill-payment/bills/:id` | Aprovação: banner de risco (Seguro/Atenção/Perigo), 13 verificações, consulta oficial por inteiro, resumo com competência/descrição da IA + revalidar/negar/cancelar/aprovar (Perigo exige a caixa "assumo o risco"); pós-aprovação, a seção **Execução do pagamento** (fase 3) com status/retenção/datas da ordem, cancelar agendamento, confirmar pagamento imediato e reabrir boleto falhado | `bill`/`view` (cancelar ordem: `bill`/`cancel`; confirmar/reabrir: `bill`/`approve`) |
-| `/bill-payment/bills/:id/artifact` | O documento original do boleto, em tela cheia | `bill`/`view` |
-| `/bill-payment/bills/:id/receipt` | O comprovante de pagamento vindo do provedor, em tela cheia (só existe após Pago) | `bill`/`view` |
+| `/bill-payment/bills/:id/artifact` | O documento original do boleto, em tela cheia, **com botão de baixar** | `bill`/`view` |
+| `/bill-payment/bills/:id/receipt` | O comprovante de pagamento vindo do provedor, em tela cheia (só existe após Pago), **com botão de baixar** | `bill`/`view` |
 | `/bill-payment/bills/:id/email` | O e-mail que trouxe o boleto — título, remetente e corpo renderizado | `bill`/`view` |
-| `/bill-payment/capture-items` (+`/:id`, `/:id/artifact`, `/:id/email`) | Quarentena: filtro server-side, claim/reprocess, documento original e o e-mail que trouxe o item | `capture-item`/`view` |
+| `/bill-payment/capture-items` (+`/:id`, `/:id/artifact`, `/:id/email`) | Quarentena: filtro server-side, claim/reprocess, documento original (**com botão de baixar**) e o e-mail que trouxe o item | `capture-item`/`view` |
 | `/bill-payment/captured-messages` | Livro-caixa: todo e-mail lido, com busca, filtros, rolagem infinita, controle de retenção e recaptura | `captured-message`/`view`·`recapture` |
 | `/bill-payment/capture-sources` (+`/connect`, `/:id`) | Caixas monitoradas: stepper Entra ID, pastas, **piso temporal**, sync/rescan | `capture-source`/`view`·`manage` |
 | `/bill-payment/payees` (+`/create`, `/:id`) | Beneficiários: política de valor (leitura completa + **edição no detalhe**), apelidos, bancos aceitos | `payee`/`view`·`manage` |
@@ -1372,6 +1372,29 @@ Coisas que não podem erodir:
   comprovante; sem comprovante ainda, a mensagem é de regra ("ainda não tem comprovante"), não de
   rede. Os bytes ficam em memória; a URL do provedor **nunca** chega ao cliente — o servidor a
   consumiu e guardou o arquivo no storage.
+- **Baixar é salvar o que já está na tela, e o botão vale para os TRÊS visualizadores.**
+  `ArtifactViewerScreen` serve boleto, comprovante e anexo da quarentena, então o download entra
+  uma vez e cobre os três. Não há requisição nova: os bytes vieram para renderizar. **O botão
+  aparece mesmo quando o app NÃO sabe exibir o documento** — é justamente aí que ele vale mais, e
+  o painel de "formato que o app não exibe" ganhou o "Baixar arquivo" por extenso, porque
+  escondê-lo só no ícone da barra seria esconder a resposta.
+- **`DocumentSaver` é a terceira capacidade que a casca empresta**, ao lado de `DocumentPicker` e
+  `LinkOpener`, pela mesma cadeia (barril → `BillPaymentModule` → `billPaymentRoutes` → Page →
+  ViewModel) e pelo mesmo motivo: `file_saver` é plugin, e o módulo não carrega plugin. A casca
+  reusa o `PlatformFileSaveService` que ela já monta para a gestão de pessoas.
+- **O `bool` do salvador distingue "desistiu" de "salvou".** Fechar a caixa de diálogo do sistema
+  não é erro e **não** vira "Arquivo salvo." — anunciar sucesso para quem cancelou é a mentira que
+  o retorno evita. Falha de verdade sobe como exceção, vira aviso, e **não derruba a tela**: o
+  documento continua na frente da pessoa, que é o que ela veio ver.
+- **Aqui o ViewModel PODE reportar ao Sentry** — é a exceção nomeada da regra §D: quem falhou não
+  foi repositório (que reportaria sozinho), foi um plugin de plataforma. **O nome do arquivo NÃO
+  entra no contexto do reporter**: ele carrega beneficiário e vencimento. Coberto por teste-âncora.
+- **O nome do arquivo é montado no cliente, e a Page é quem o monta.** `suggestedDocumentFileName`
+  (beneficiário + vencimento, higienizados) produz `comprovante-SECONCI-SP-2026-09-25.pdf` em vez
+  do `comprovante-{guid}.pdf` do servidor. Só o **detalhe do boleto** conhece esses dados, então
+  ele os passa pelo `extra` do `go_router` — numa recarga da página (web) ou num link direto o
+  `extra` não existe, e aí vale o nome do `Content-Disposition`, que é degradar para o certo. O
+  anexo da quarentena **não** recebe nome sugerido: ele já chega com o nome que o remetente deu.
 - **Mesmas disciplinas do tenant_management**: Pages donas do ViewModel (`bill_payment_pages.dart`),
   rotas literais antes de `:id` (coberto por `bill_payment_routes_test.dart`), voltar =
   `canPop ? pop : go`, guard de rota libera enquanto permissões não carregaram (F5 na web),
@@ -1518,8 +1541,8 @@ Toda configuração em `core/theme/`: `app_theme.dart` (entry point ThemeData li
 
 | I need to… | Use | Notes |
 |------------|-----|-------|
-| Save a file (web download / native save dialog) | `data/services/file_save_service.dart` | Cross-platform; web triggers download, desktop/Android opens save-as, iOS/Linux saves to Downloads. Wraps `file_saver`. |
-| Open a "Save As" dialog and write bytes | `core/utils/file_saver.dart` (+ `_stub`) | Lower-level wrapper using `file_picker`'s `saveFile`. Prefer `file_save_service.dart` unless you specifically need the dialog flow. |
+| Save a file (web download / native save dialog) | `data/services/platform_file_save_service.dart` | Implementa a porta `FileSaveService`. `saveXlsx` (nome sem extensão) e `saveBytes` (nome COM extensão, devolve `false` quando a pessoa desiste). Web dispara download por blob; desktop/Android abrem "salvar como"; iOS/Linux vão para Downloads. **Nunca importe `file_save_io.dart` direto** — o import condicional mora só nessa classe, e um teste-guarda reprova quem furar. |
+| Open a "Save As" dialog and write bytes | `data/services/platform_file_picker_service.dart` | `saveFile` (diálogo, devolve o caminho) + `writeToPath`. Prefira `platform_file_save_service.dart` a menos que precise do caminho escolhido. |
 | Build a `.xlsx` spreadsheet | `data/services/spreadsheet_service.dart` | Wraps `syncfusion_flutter_xlsio`. All cells written as text — preserves CPF/leading-zero formatting. |
 | Merge multiple PDFs into one | `core/utils/pdf_merger.dart` | Conditional import → `_io` / `_web`. Wraps `pdf_combiner`. |
 | Convert images → multi-page PDF | `core/utils/image_to_pdf_converter.dart` | Runs decode + build in `compute` isolate. Wraps `image` + `pdf`. |

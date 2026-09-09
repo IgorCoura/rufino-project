@@ -34,9 +34,14 @@ abstract class FileSaveService {
 
   /// Saves [bytes] under [fileName], which **includes** the extension.
   ///
-  /// Used by the flows that produce an archive already named by the product
-  /// (the batch download and the template files).
-  Future<void> saveBytes({
+  /// Used by the flows that produce a file already named by the product (the
+  /// batch download, the template files, and the bill documents).
+  ///
+  /// Returns `false` when the person dismissed the save dialog — the same
+  /// distinction [saveXlsx] draws with [FileSaveOutcome.cancelled], so that a
+  /// caller does not announce a save that did not happen. A real failure
+  /// throws.
+  Future<bool> saveBytes({
     required String fileName,
     required Uint8List bytes,
   });

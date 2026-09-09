@@ -4,7 +4,12 @@ import 'package:go_router/go_router.dart';
 
 void main() {
   group('billPaymentRoutes', () {
-    final routes = billPaymentRoutes(homeRoute: '/home', onPickDocument: () async => null, onOpenLink: (_) async => true)
+    final routes = billPaymentRoutes(
+      homeRoute: '/home',
+      onPickDocument: () async => null,
+      onOpenLink: (_) async => true,
+      onSaveDocument: ({required fileName, required bytes}) async => true,
+    )
         .whereType<GoRoute>()
         .map((r) => r.path)
         .toList();

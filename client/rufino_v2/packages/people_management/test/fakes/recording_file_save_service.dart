@@ -32,12 +32,14 @@ class RecordingFileSaveService implements FileSaveService {
   }
 
   @override
-  Future<void> saveBytes({
+  Future<bool> saveBytes({
     required String fileName,
     required Uint8List bytes,
   }) async {
     saveCallCount++;
     lastFileName = fileName;
     lastBytes = bytes;
+    if (shouldFail) throw Exception('save failed');
+    return !shouldCancel;
   }
 }

@@ -40,7 +40,9 @@ Future<FileSaveOutcome> saveXlsx(String fileName, Uint8List bytes) async {
 }
 
 /// Saves [bytes] under [fileName], which already carries its extension.
-Future<void> saveBytes(String fileName, Uint8List bytes) async {
+///
+/// Returns `false` when the person dismissed the save dialog.
+Future<bool> saveBytes(String fileName, Uint8List bytes) async {
   final dot = fileName.lastIndexOf('.');
   final base = dot > 0 ? fileName.substring(0, dot) : fileName;
   final ext = dot > 0 ? fileName.substring(dot + 1) : '';
@@ -55,19 +57,22 @@ Future<void> saveBytes(String fileName, Uint8List bytes) async {
       ext: ext,
       mimeType: MimeType.other,
     );
-    if (path == null || path.isEmpty) return;
+    if (path == null || path.isEmpty) return false;
     if (Platform.isWindows) {
       await File(path).writeAsBytes(bytes, flush: true);
     }
-    return;
+    return true;
   }
 
+  // Linux: sem caixa de diálogo, o arquivo vai direto para Downloads — não há
+  // como desistir, então o desfecho é sempre "salvou".
   await FileSaver.instance.saveFile(
     name: base,
     bytes: bytes,
     ext: ext,
     mimeType: MimeType.other,
   );
+  return true;
 }
 
 /// Writes [bytes] to [path] — the path came from the platform's save dialog.

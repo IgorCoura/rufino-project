@@ -11,8 +11,10 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:rufino_core/rufino_core.dart';
 
 import '../domain/bill_repository.dart';
+import '../domain/captured_artifact.dart';
 import '../domain/capture_item_repository.dart';
 import '../domain/captured_message_repository.dart';
 import '../domain/trusted_origin_repository.dart';
@@ -240,14 +242,18 @@ class BillDetailPage extends StatefulWidget {
   /// Para onde o voltar leva quando não há pilha.
   final String backFallback;
 
-  /// Abre o documento original do boleto.
-  final VoidCallback onOpenArtifact;
+  /// Abre o documento original do boleto, com o nome sugerido para download.
+  ///
+  /// Leva o nome porque só esta página conhece o boleto: a tela do documento
+  /// recebe os bytes e mais nada, e sem isso o arquivo salvo se chamaria pelo
+  /// id do registro.
+  final ValueChanged<String?> onOpenArtifact;
 
   /// Abre o e-mail que trouxe o boleto.
   final VoidCallback onOpenEmail;
 
   /// Abre o comprovante do pagamento (fase 3). Nulo esconde o botão.
-  final VoidCallback? onOpenReceipt;
+  final ValueChanged<String?>? onOpenReceipt;
 
   @override
   State<BillDetailPage> createState() => _BillDetailPageState();
@@ -287,9 +293,26 @@ class _BillDetailPageState extends State<BillDetailPage> {
     return BillDetailScreen(
       viewModel: _viewModel,
       backFallback: widget.backFallback,
-      onOpenArtifact: widget.onOpenArtifact,
+      onOpenArtifact: () => widget.onOpenArtifact(_suggestedName('boleto')),
       onOpenEmail: widget.onOpenEmail,
-      onOpenReceipt: widget.onOpenReceipt,
+      onOpenReceipt: widget.onOpenReceipt == null
+          ? null
+          : () => widget.onOpenReceipt!(_suggestedName('comprovante')),
+    );
+  }
+
+  /// O nome amigável do arquivo, montado do boleto que esta página carregou.
+  ///
+  /// Nulo enquanto o boleto não chegou — a tela do documento então cai no nome
+  /// que o servidor sugeriu, que é o desfecho certo e não uma falha.
+  String? _suggestedName(String prefix) {
+    final bill = _viewModel.bill;
+    if (bill == null) return null;
+
+    return suggestedDocumentFileName(
+      prefix: prefix,
+      beneficiary: bill.beneficiary?.name ?? bill.beneficiary?.tradingName,
+      dueDate: bill.dueDate,
     );
   }
 }
@@ -301,6 +324,8 @@ class BillReceiptPage extends StatefulWidget {
     super.key,
     required this.billId,
     required this.backFallback,
+    required this.onSaveDocument,
+    this.suggestedFileName,
   });
 
   /// O boleto cujo comprovante está sendo mostrado.
@@ -308,6 +333,12 @@ class BillReceiptPage extends StatefulWidget {
 
   /// Para onde o voltar leva quando não há pilha.
   final String backFallback;
+
+  /// Salva o documento no dispositivo (plugin, mora na casca).
+  final DocumentSaver onSaveDocument;
+
+  /// Nome sugerido para o download, quando quem navegou até aqui o conhecia.
+  final String? suggestedFileName;
 
   @override
   State<BillReceiptPage> createState() => _BillReceiptPageState();
@@ -322,6 +353,9 @@ class _BillReceiptPageState extends State<BillReceiptPage> {
     final repository = context.read<PaymentRepository>();
     _viewModel = ArtifactViewerViewModel(
       load: () => repository.getReceiptForBill(widget.billId),
+      onSave: widget.onSaveDocument,
+      reporter: context.read<ErrorReporter>(),
+      suggestedFileName: widget.suggestedFileName,
     );
   }
 
@@ -515,6 +549,7 @@ class CaptureItemArtifactPage extends StatefulWidget {
     super.key,
     required this.itemId,
     required this.backFallback,
+    required this.onSaveDocument,
   });
 
   /// O item cujo documento está sendo mostrado.
@@ -522,6 +557,9 @@ class CaptureItemArtifactPage extends StatefulWidget {
 
   /// Para onde o voltar leva quando não há pilha.
   final String backFallback;
+
+  /// Salva o documento no dispositivo (plugin, mora na casca).
+  final DocumentSaver onSaveDocument;
 
   @override
   State<CaptureItemArtifactPage> createState() =>
@@ -537,6 +575,11 @@ class _CaptureItemArtifactPageState extends State<CaptureItemArtifactPage> {
     final repository = context.read<CaptureItemRepository>();
     _viewModel = ArtifactViewerViewModel(
       load: () => repository.getArtifact(widget.itemId),
+      onSave: widget.onSaveDocument,
+      reporter: context.read<ErrorReporter>(),
+      // Sem nome sugerido de propósito: o anexo da quarentena chega com o nome
+      // que o remetente deu, e o servidor já o repassa no Content-Disposition.
+      // Inventar um por cima trocaria o nome de verdade por um derivado.
     );
   }
 
@@ -610,6 +653,8 @@ class BillArtifactPage extends StatefulWidget {
     super.key,
     required this.billId,
     required this.backFallback,
+    required this.onSaveDocument,
+    this.suggestedFileName,
   });
 
   /// O boleto cujo documento está sendo mostrado.
@@ -617,6 +662,12 @@ class BillArtifactPage extends StatefulWidget {
 
   /// Para onde o voltar leva quando não há pilha.
   final String backFallback;
+
+  /// Salva o documento no dispositivo (plugin, mora na casca).
+  final DocumentSaver onSaveDocument;
+
+  /// Nome sugerido para o download, quando quem navegou até aqui o conhecia.
+  final String? suggestedFileName;
 
   @override
   State<BillArtifactPage> createState() => _BillArtifactPageState();
@@ -631,6 +682,9 @@ class _BillArtifactPageState extends State<BillArtifactPage> {
     final repository = context.read<BillRepository>();
     _viewModel = ArtifactViewerViewModel(
       load: () => repository.getArtifact(widget.billId),
+      onSave: widget.onSaveDocument,
+      reporter: context.read<ErrorReporter>(),
+      suggestedFileName: widget.suggestedFileName,
     );
   }
 

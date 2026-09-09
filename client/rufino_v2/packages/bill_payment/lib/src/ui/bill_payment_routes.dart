@@ -5,7 +5,8 @@ import 'package:rufino_core/rufino_core.dart';
 
 import '../bill_payment_permissions.dart';
 import 'bill_payment_pages.dart';
-import 'shared/document_picker.dart' show DocumentPicker, LinkOpener;
+import 'shared/document_picker.dart'
+    show DocumentPicker, DocumentSaver, LinkOpener;
 
 /// Route paths this module owns.
 ///
@@ -94,15 +95,17 @@ abstract final class BillPaymentRoutes {
 
 /// Builds the routes of this module.
 ///
-/// The shell supplies what belongs to it — where "home" is, and how to open the
-/// system file picker. The module supplies the screens. Neither knows the
-/// other's internals: escolher arquivo depende de plugin de plataforma
-/// (`file_picker`), e declará-lo aqui obrigaria todo consumidor do módulo a
-/// carregá-lo mesmo sem usar a anexação.
+/// The shell supplies what belongs to it — where "home" is, and how to reach
+/// the platform: abrir o seletor de arquivos, abrir um link e salvar um
+/// documento. The module supplies the screens. Neither knows the other's
+/// internals: os três dependem de plugin de plataforma (`file_picker`,
+/// `url_launcher`, `file_saver`), e declará-los aqui obrigaria todo consumidor
+/// do módulo a carregá-los mesmo sem usar.
 List<RouteBase> billPaymentRoutes({
   required String homeRoute,
   required DocumentPicker onPickDocument,
   required LinkOpener onOpenLink,
+  required DocumentSaver onSaveDocument,
 }) {
   return [
     GoRoute(
@@ -172,6 +175,11 @@ List<RouteBase> billPaymentRoutes({
       builder: (context, state) => BillArtifactPage(
         billId: state.pathParameters['id']!,
         backFallback: BillPaymentRoutes.billDetail(state.pathParameters['id']!),
+        onSaveDocument: onSaveDocument,
+        // O nome vem de quem navegou até aqui, que é a única tela que conhece
+        // o boleto. Numa recarga da página (web) ou num link direto ele não
+        // existe, e aí o nome do servidor serve — degradar é o certo.
+        suggestedFileName: state.extra as String?,
       ),
     ),
     GoRoute(
@@ -198,6 +206,8 @@ List<RouteBase> billPaymentRoutes({
       builder: (context, state) => BillReceiptPage(
         billId: state.pathParameters['id']!,
         backFallback: BillPaymentRoutes.billDetail(state.pathParameters['id']!),
+        onSaveDocument: onSaveDocument,
+        suggestedFileName: state.extra as String?,
       ),
     ),
     GoRoute(
@@ -211,14 +221,16 @@ List<RouteBase> billPaymentRoutes({
       builder: (context, state) => BillDetailPage(
         billId: state.pathParameters['id']!,
         backFallback: BillPaymentRoutes.bills,
-        onOpenArtifact: () => context.push(
+        onOpenArtifact: (suggestedFileName) => context.push(
           BillPaymentRoutes.billArtifact(state.pathParameters['id']!),
+          extra: suggestedFileName,
         ),
         onOpenEmail: () => context.push(
           BillPaymentRoutes.billEmail(state.pathParameters['id']!),
         ),
-        onOpenReceipt: () => context.push(
+        onOpenReceipt: (suggestedFileName) => context.push(
           BillPaymentRoutes.billReceipt(state.pathParameters['id']!),
+          extra: suggestedFileName,
         ),
       ),
     ),
@@ -248,6 +260,7 @@ List<RouteBase> billPaymentRoutes({
         itemId: state.pathParameters['id']!,
         backFallback:
             BillPaymentRoutes.captureItemDetail(state.pathParameters['id']!),
+        onSaveDocument: onSaveDocument,
       ),
     ),
     GoRoute(

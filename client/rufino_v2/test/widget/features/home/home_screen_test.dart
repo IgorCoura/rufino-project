@@ -132,6 +132,8 @@ void main() {
                 homeRoute: '/home',
                 onPickDocument: () async => null,
                 onOpenLink: (_) async => false,
+                onSaveDocument: ({required fileName, required bytes}) async =>
+                    true,
               ),
               TenantManagementModule(
                 client: _NeverCalledClient(),
@@ -307,10 +309,11 @@ class _UnusedFileSaver implements FileSaveService {
       const Result.success(FileSaveOutcome.saved);
 
   @override
-  Future<void> saveBytes({
+  Future<bool> saveBytes({
     required String fileName,
     required Uint8List bytes,
-  }) async {}
+  }) async =>
+      true;
 }
 
 class _UnusedScanner implements DocumentScannerService {
