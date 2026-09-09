@@ -207,10 +207,29 @@ public sealed class ReflectPaymentFailedOnBillHandler(
 }
 
 /// <summary>
-/// Pago → busca e guarda o comprovante. O arquivo é a evidência; falha transiente sobe para a
-/// reentrega do outbox retentar com backoff, e "sem comprovante" fica registrado, não escondido.
+/// Pago → busca e guarda o comprovante. O arquivo é a evidência, e a falha dele
+/// <strong>NÃO derruba o espelho do boleto</strong>.
 /// </summary>
-public sealed class CaptureReceiptOnPaymentPaidHandler(IMediator mediator)
+/// <remarks>
+/// <para>
+/// <strong>Aqui a falha transiente é ENGOLIDA, e a mudança é deliberada (2026-09-09).</strong>
+/// Até então ela subia para a reentrega do outbox — o que parecia certo e não era: o
+/// <c>OutboxProcessor</c> despacha TODOS os handlers de um evento dentro de UMA transação, e
+/// este handler roda depois do <see cref="ReflectPaymentPaidOnBillHandler"/>. Um
+/// <c>BLP.PMO21</c> aqui revertia a transação inteira — <strong>inclusive o boleto que já tinha
+/// espelhado</strong> —, e cinco tentativas depois a mensagem ia para dead-letter. O resultado
+/// era o pior desfecho possível: ordem <c>Paid</c>, boleto parado em <c>Scheduled</c>, em
+/// silêncio, com o dinheiro já fora da conta.
+/// </para>
+/// <para>
+/// <strong>O comprovante tem rede própria</strong>, e é melhor que o outbox para isto: a
+/// varredura <c>ClaimPaidMissingReceiptAsync</c> persegue ordem paga sem arquivo no balde com
+/// backoff INFINITO, enquanto o do outbox é finito. Estado de boleto não pode depender de um PDF.
+/// </para>
+/// </remarks>
+public sealed class CaptureReceiptOnPaymentPaidHandler(
+    IMediator mediator,
+    ILogger<CaptureReceiptOnPaymentPaidHandler> logger)
     : IDomainEventHandler<PaymentOrderPaidDomainEvent>
 {
     public async Task HandleAsync(
@@ -218,9 +237,20 @@ public sealed class CaptureReceiptOnPaymentPaidHandler(IMediator mediator)
     {
         ArgumentNullException.ThrowIfNull(domainEvent);
 
-        await mediator.Send(
-            new CapturePaymentReceiptCommand(domainEvent.TenantId.Value, domainEvent.PaymentOrderId.Value),
-            cancellationToken);
+        try
+        {
+            await mediator.Send(
+                new CapturePaymentReceiptCommand(domainEvent.TenantId.Value, domainEvent.PaymentOrderId.Value),
+                cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(
+                ex,
+                "Não foi possível capturar o comprovante da ordem {PaymentOrderId} agora; "
+                + "a varredura de comprovante segue tentando. O espelho do boleto NÃO é afetado.",
+                domainEvent.PaymentOrderId.Value);
+        }
     }
 }
 

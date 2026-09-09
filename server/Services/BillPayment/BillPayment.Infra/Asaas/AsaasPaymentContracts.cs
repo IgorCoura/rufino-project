@@ -161,6 +161,30 @@ internal static class AsaasPaymentStatusMap
         return reasons;
     }
 
+    /// <summary>
+    /// A URL do comprovante, sem o lixo que o provedor às vezes deixa na ponta.
+    /// </summary>
+    /// <remarks>
+    /// MEDIDO (2026-09-09): a URL de comprovante de transação Pix termina em <c>%0A</c> — a
+    /// quebra de linha do base64 do próprio provedor, percent-encoded. Ela é inofensiva na
+    /// maioria dos servidores e não vale arriscar: uma falha no download tem custo alto
+    /// (<c>BLP.PMO21</c> devolve o trabalho para a varredura de comprovante).
+    /// </remarks>
+    private static string? ReadReceiptUrl(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        var trimmed = raw.Trim();
+        while (trimmed.EndsWith("%0A", StringComparison.OrdinalIgnoreCase)
+            || trimmed.EndsWith("%0D", StringComparison.OrdinalIgnoreCase))
+        {
+            trimmed = trimmed[..^3].TrimEnd();
+        }
+
+        return trimmed.Length == 0 ? null : trimmed;
+    }
+
     public static ProviderPaymentSnapshot ToSnapshot(AsaasBillPaymentResponse body)
         => new(
             body.Id ?? string.Empty,
@@ -170,7 +194,7 @@ internal static class AsaasPaymentStatusMap
             AsaasHttp.ReadDate(body.PaymentDate),
             AsaasHttp.ReadMoney(body.Fee),
             ReadFailReasons(body.FailReasons),
-            body.TransactionReceiptUrl,
+            ReadReceiptUrl(body.TransactionReceiptUrl),
             AsaasHttp.ReadMoney(body.Value));
 
     public static ProviderPaymentSnapshot ToSnapshot(AsaasPixPaymentResponse body)
@@ -182,7 +206,7 @@ internal static class AsaasPaymentStatusMap
             AsaasHttp.ReadDate(body.EffectiveDate),
             AsaasHttp.ReadMoney(body.ChargedFeeValue),
             string.IsNullOrWhiteSpace(body.RefusalReason) ? [] : [body.RefusalReason],
-            body.TransactionReceiptUrl,
+            ReadReceiptUrl(body.TransactionReceiptUrl),
             AsaasHttp.ReadMoney(body.Value),
             body.TransferId,
             IsAuthorized(body.Status));

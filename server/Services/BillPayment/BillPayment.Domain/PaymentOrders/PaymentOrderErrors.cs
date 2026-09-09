@@ -32,6 +32,17 @@ public static class PaymentOrderErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
     /// <summary>
+    /// O id de <see cref="IncoherentProviderPayload"/>, para quem precisa ABSORVER um retrato
+    /// incoerente em vez de deixá-lo derrubar o caminho inteiro.
+    /// </summary>
+    /// <remarks>
+    /// Público porque a conciliação e o webhook fazem essa distinção num <c>when</c>: deixar o
+    /// PMO03 subir fazia a mesma ordem estourar a cada ciclo (conciliação) e devolver não-2xx ao
+    /// provedor (webhook), que interrompe a fila da conta após 15 falhas seguidas.
+    /// </remarks>
+    public const string INCOHERENT_PROVIDER_PAYLOAD_ID = $"{AGGREGATE_PREFIX}03";
+
+    /// <summary>
     /// O provedor mandou um retrato incoerente — pago sem data de pagamento. Fora de ordem é
     /// ignorado; incoerente é defeito e lança, para não gravar mentira na trilha.
     /// </summary>

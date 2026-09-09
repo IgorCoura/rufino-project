@@ -595,9 +595,9 @@ A Fase 1 inteira (verificação + aprovação) não movimenta dinheiro: a consul
 **Sprints 3.3 + 3.4 (servidor) — ✅ Concluídas (2026-09-02).** A verdade do provedor volta por dois caminhos, o comprovante vira arquivo, e o falhado reabre:
 
 - **Webhook** (`POST /webhooks/asaas/{tenantId}`, `WebhooksController`): **fora de `api/v1` de propósito** (o provedor não conhece tenant, e a teoria de erosão exige `{tenantId}` de toda rota lá), `[AllowAnonymous]` + **token POR TENANT** no cofre (`SecretKind.AsaasWebhookToken`), comparado em tempo constante — o token da INSTALAÇÃO foi REMOVIDO em 2026-09-08 (ADR-019): com uma conta Asaas por tenant, segredo compartilhado deixaria qualquer tenant forjar evento de qualquer outro. **O payload é AVISO, não verdade** (o provedor não assina o corpo): ele só resolve DE QUAL ORDEM se trata — `externalReference` no trilho boleto, `provider_transfer_id` no Pix, porque **não existe evento de transação Pix, só `TRANSFER_*`** — e o handler RELÊ a ordem no provedor antes de aplicar. Idempotente por `(tenant, event id)` via **`IPaymentWebhookLedger`** (tabela `payment_webhook_events`). Evento desconhecido/fora de ordem → 200 `Ignored`/`Unknown`/`Unverifiable`, nunca erro. **401 é o único não-2xx e vale SÓ PARA TOKEN ERRADO** (ADR-022): tenant sem webhook configurado passou a responder 200 `NotConfigured` em 2026-09-09, porque o provedor **só considera sucesso o HTTP 200** (201 e 204 já contam como falha) e **interrompe a fila SEQUENCIAL da conta após 15 falhas consecutivas**, descartando o represado em 14 dias — um desvínculo pausava a conta do cliente em quinze entregas.
-- **Conciliação** (`PaymentReconciliationBackgroundService`, **ligada por padrão**): varre ordens `Pending`/`BankProcessing` sem notícia além de `StaleAfter` (`ClaimStaleAwaitingProviderAsync`, que CARIMBA `sweep_attempted_at` na saída — anti-inanição) e reflete via `ReconcilePaymentOrderCommand` (gateway `GetAsync` → `ApplyProviderStatus` monotônica). Provedor que "não conhece mais" a própria ordem fica em log e na fila — descompasso raro exige gente.
+- **Conciliação** (`PaymentReconciliationBackgroundService`, **ligada por padrão**): varre ordens `Pending`/`BankProcessing` sem notícia além de `StaleAfter` (`ClaimStaleAwaitingProviderAsync`, que CARIMBA `sweep_attempted_at` na saída — anti-inanição) e reflete via `ReconcilePaymentOrderCommand` (gateway `GetAsync` → `ApplyProviderStatus` monotônica). Provedor que "não conhece mais" a própria ordem fica em log e na fila — descompasso raro exige gente. **Desde 2026-09-09**: `Unavailable` LOGA o motivo (o ramo era mudo, e o silêncio escondeu um pagamento por horas); retrato incoerente vira desfecho `Incoherent` com `LogError` **em vez de exceção** — deixá-la subir fazia a MESMA ordem estourar a cada ciclo, para sempre, porque a guarda do agregado lança antes de qualquer mutação e nada mudava na passagem seguinte; e o laço conta reincidência em memória, gritando após `BlockedStreakAlertThreshold` (3) ciclos seguidos sem conseguir conciliar a mesma ordem.
 - **Varredura de webhook** (`PaymentWebhookSweepBackgroundService` → `SweepPaymentWebhookCommand`, **ligada por padrão**, 30 min **e no arranque** — ADR-022): a reconciliação de **ASSINATURA**, irmã da conciliação de ORDEM. Por tenant com conta vinculada lê `GetHealthAsync` e decide: sem webhook → provisiona; `NotFound` → recria; desabilitado / fila interrompida / **URL diferente da esperada** → **cura com o MESMO token**; `penalizedRequestsCount` ≥ 5 → alerta; mudo além da tolerância **e com ordem viva** → alerta; provedor indisponível → **não faz nada** (recriar por não conseguir ler deixaria webhook órfão na conta do tenant). **Existe porque o outbox tem backoff FINITO** (5 tentativas, ~7,5 min): provedor fora do ar na hora do vínculo significava webhook nunca provisionado, em silêncio, para sempre. Sem claim e sem aluguel — o efeito é idempotente.
-- **Comprovante**: `CaptureReceiptOnPaymentPaidHandler` (segundo handler do `PaymentOrderPaidDomainEvent` — **registrar handler novo em `ApplicationDependencies` é obrigatório**, o dispatcher só resolve o que o DI conhece; esquecê-lo foi exatamente o defeito pego pelo teste) → `CapturePaymentReceiptCommand`: `GET` fresco no provedor (a URL é credencial ao portador e **nunca é persistida nem logada** — só o host), download via porta **`IPaymentReceiptFetcher`** (adapter `HttpPaymentReceiptFetcher`, cliente `asaas-receipt` sem retry — a retentativa é a reentrega do outbox via `BLP.PMO21`), gravação no balde e `AttachReceipt`. Servido por `GET /payments/{id}/receipt` (`bill:view`, 404 colapsado).
+- **Comprovante**: `CaptureReceiptOnPaymentPaidHandler` (segundo handler do `PaymentOrderPaidDomainEvent` — **registrar handler novo em `ApplicationDependencies` é obrigatório**, o dispatcher só resolve o que o DI conhece; esquecê-lo foi exatamente o defeito pego pelo teste) → `CapturePaymentReceiptCommand`: `GET` fresco no provedor (a URL é credencial ao portador e **nunca é persistida nem logada** — só o host), download via porta **`IPaymentReceiptFetcher`** (adapter `HttpPaymentReceiptFetcher`, cliente `asaas-receipt` sem retry). **A falha do comprovante NÃO derruba mais o espelho do boleto (2026-09-09)**: o `OutboxProcessor` despacha todos os handlers de um evento na MESMA transação, e este roda depois do espelho — o `BLP.PMO21` revertia a transação inteira, levando junto o boleto que já tinha virado `Paid`, e cinco tentativas depois ia para dead-letter (ordem `Paid`, boleto `Scheduled`, em silêncio). O handler de evento agora ENGOLE e registra; quem persegue o arquivo é a varredura `ClaimPaidMissingReceiptAsync`, com backoff INFINITO contra o finito do outbox. **Estado de boleto não depende de PDF** — o comando continua lançando, o que muda é quem o deixa passar, gravação no balde e `AttachReceipt`. Servido por `GET /payments/{id}/receipt` (`bill:view`, 404 colapsado).
 - **3.4**: `POST /bills/{id}/reopen` (`bill:approve`, `ReopenBillCommand`) — **só `Failed` reabre** (a guarda restringe a matriz de propósito: reabrir `Approved` descartaria aprovação vigente sem motivo de pagamento); a nova aprovação cria **ordem nova** (ADR-002). `REFUNDED` alerta pelo canal 2.7 (`NotifyPaymentRefundedHandler`). **Replay de dead-letter**: o roteiro operacional por SQL existe desde 2026-09-03 ([`13-dead-letter-replay.md`](BillPayment.Architecture/13-dead-letter-replay.md)); o endpoint administrativo segue no checklist.
 - **Testes**: `Payments/PaymentWebhookAndReceiptTests` (7 — 404 sem token, 401 token errado em tempo constante, o caminho `BILL_PAID` → espelho + comprovante servido, **a reentrega do mesmo evento sem segundo efeito** com uma linha só no ledger, referência desconhecida em 200, o falhado reabrindo com ordem NOVA, e reabrir `Approved` em 409 BIL34). `FakeReceiptFetcher` + `InMemoryAttachmentStorage` entraram no `WithPaymentChain`.
 
@@ -617,7 +617,7 @@ A Fase 1 inteira (verificação + aprovação) não movimenta dinheiro: a consul
 - **Corrida cancelar×submeter**: `CancelDraft` recusa com aluguel vigente (**PMO22**); quando o worker perde a corrida (conflito de `xmin` + ordem recarregada `Cancelled`), dispara **`CompensatePaymentSubmissionRaceCommand`** — consulta o provedor por `externalReference` e cancela lá (best-effort); recusa/indisponível → LogError + alerta operacional. Webhook loga `Warning` quando `PAID` chega em ordem terminal.
 - **Só recusa de domínio é permanente na submissão**: a classificação vive em **`PaymentSubmissionFailureHandling`** (Application, testável) — `DomainException` ≠ PMO18 é permanente; `DbUpdateException`/timeout/qualquer infra é **passageira** (a retentativa adota pela referência — anti pagamento-em-dobro). Não reintroduza "exceção desconhecida = Failed".
 - **Consentimento de execução imediata NUNCA é re-derivado por data**: `BillApprovedDomainEvent` carrega `AcknowledgedImmediateExecution` (o aceite como FOI dado no `Approve`); o handler de criação da ordem só grava consentimento com o flag. Boleto que vence esperando o outbox cai no fluxo normal `AwaitingConfirmation`.
-- **Webhook incoerente responde 200 `Incoherent`**: o PMO03 do payload é capturado no handler, a marca do ledger persiste no mesmo save, e o log grita — devolver non-2xx faria o Asaas reentregar para sempre e **represar a fila de webhooks da conta**. Exceções de infra continuam subindo (aí o retry é desejável). No domínio, `ApplyProviderStatus` não muta nada antes dessa guarda.
+- **Webhook incoerente responde 200 `Incoherent`**: o PMO03 da RELEITURA (não mais do payload — ADR-019) é capturado no handler, a marca do ledger persiste no mesmo save, e o log grita com o `RawStatus` — devolver non-2xx faria o Asaas reentregar para sempre e **represar a fila de webhooks da conta**. Exceções de infra continuam subindo (aí o retry é desejável). No domínio, `ApplyProviderStatus` não muta nada antes dessa guarda.
 - **Rascunho cancelado não deixa o Bill zumbi**: `Bill.ReturnToApprovalAfterScheduleCancellation` (Approved→AwaitingApproval, trilha preservada, limpa vínculo/data); o reflexo tem guarda anti-reentrega via `GetActiveByBillAsync` (ordem viva nova ⇒ ignora).
 - **A guarda de vencido (BIL35) avalia "hoje" no fuso da política** (`PaymentSchedulingOptions.ResolveTimeZone()`), não em UTC — entre 21h e meia-noite locais, UTC já virou o dia e a tela discordaria do servidor.
 
@@ -722,6 +722,53 @@ expectativa ou nome. Duas lacunas daquele trabalho foram corrigidas de passagem 
 verificação desta entrega: o `FakeAuthorizationServerClient` não conhecia os escopos
 `schedule`/`undo-decision`, e os testes de alçada de risco aprovavam **com data** sem pedir a
 alçada de agendamento.
+
+## 2026-09-09 (tarde) — Um espaço no lugar de um `T`, e um pagamento que ficou horas sem registro
+
+Boleto agendado, **pagamento executado no Asaas às 11:54:16**, e o app parado. O webhook não
+existia (era o incidente da manhã), então a rede era a conciliação — que rodava, reivindicava a
+ordem a cada 10 minutos, e não gravava nada.
+
+A linha do banco dava o formato do defeito antes da causa: `sweep_attempted_at` recente (a fila
+reivindicava), `updated_at` congelado no instante da submissão e `last_provider_sync_at` nulo.
+Como **toda leitura bem-sucedida carimba os dois, inclusive quando nada muda**, a leitura não
+estava acontecendo. Suspeitei de credencial e de 404 — as duas erradas. O log fechou:
+
+```
+GET https://api.asaas.com/v3/pix/transactions/cf8cce34-... → 200
+fail: PaymentReconciliationBackgroundService[0]
+```
+
+200 e exceção. O payload real trazia `"status":"DONE"` com
+`"effectiveDate":"2026-09-09 11:54:16"`, e **`DateOnly.TryParse` recusa data-hora com espaço**
+(aceita com `T` — medido). O campo virava `null`, `Paid` sem data batia em `BLP.PMO03`, e a guarda
+do agregado lança **antes de qualquer mutação**: nada gravado, nada mudava, mesma explosão no
+ciclo seguinte. Para sempre.
+
+**Três defeitos independentes numa linha só de código:**
+
+1. **O parser.** `ReadDate` agora aceita data-hora e reduz — **sem converter fuso**, porque o
+   provedor responde em Brasília e normalizar para UTC empurraria para o dia seguinte todo
+   pagamento depois das 21h. `ReadTimestamp` largou o `AssumeUniversal` pelo mesmo motivo: um QR
+   Pix expirando às 23:59:59 era lido como expirado três horas antes.
+2. **Quem deixa o PMO03 passar.** A guarda está certa; errado era ninguém absorvê-la.
+   Conciliação e webhook agora capturam → desfecho `Incoherent` + `LogError` com o `RawStatus`.
+   No webhook isso é mais que higiene: exceção vira não-2xx, e **15 seguidas pausam a fila da
+   conta**.
+3. **O bloqueio seguinte, que só apareceria depois.** Espelho do boleto e captura do comprovante
+   dividem UMA transação no outbox; o `BLP.PMO21` do comprovante revertia o espelho junto e
+   dead-letter em cinco tentativas. O handler de evento passou a engolir — o arquivo tem rede
+   própria, com backoff infinito.
+
+Mais: `Unavailable` na conciliação deixou de ser mudo (foi o silêncio que me custou duas
+hipóteses), o laço conta reincidência e grita após 3 ciclos, e a URL do comprovante é higienizada
+(a do Pix termina em `%0A`, a quebra de linha do base64 do provedor).
+
+**A lição que vale além deste caso:** parser de campo de fornecedor **aceita o formato mais
+largo e reduz**, nunca o contrário — e falha de leitura que vira `null` em vez de exceção só
+aparece camadas adiante, disfarçada de violação de invariante. As três entradas estão no
+`gotchas.md`.
+
 
 ## 2026-09-09 — O webhook que nunca chegou a existir: um `case` faltando e um mês de silêncio
 

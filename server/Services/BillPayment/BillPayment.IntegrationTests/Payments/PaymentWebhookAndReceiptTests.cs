@@ -158,6 +158,48 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
         Assert.Equal(FakeReceiptFetcher.DefaultReceipt, await receipt.Content.ReadAsByteArrayAsync(CancellationToken.None));
     }
 
+    // A REGRESSÃO DE 2026-09-09: o comprovante FALHA e o boleto espelha assim mesmo.
+    //
+    // O OutboxProcessor despacha TODOS os handlers de um evento dentro de UMA transação, e a
+    // captura do comprovante roda depois do espelho. Enquanto ela lançava BLP.PMO21, a transação
+    // inteira revertia — levando junto o boleto que já tinha virado Paid — e cinco tentativas
+    // depois a mensagem ia para dead-letter. Desfecho: ordem Paid, boleto parado em Scheduled,
+    // em silêncio, com o dinheiro fora da conta. Estado de boleto não depende de um PDF.
+    [Fact]
+    public async Task Webhook_Paid_WhenTheReceiptFetchFails_ShouldStillMirrorTheBill()
+    {
+        var (billId, orderId) = await SubmitOrderAsync();
+        _gateways.ScriptedGet = PaymentFetchResult.Found(new ProviderPaymentSnapshot(
+            "pay_fake_1", PaymentOrderStatus.Paid, "PAID",
+            null, DateOnly.FromDateTime(DateTime.UtcNow), null, [],
+            "https://www.asaas.com/comprovantes/000123"));
+
+        _receipts.Scripted = ReceiptFetchResult.Unavailable("http_503");
+
+        var response = await PostWebhookAsync(new
+        {
+            id = "evt_paid_no_receipt",
+            @event = "BILL_PAID",
+            bill = new { externalReference = orderId.ToString() },
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await DrainOutboxAsync();
+
+        Assert.Equal(PaymentOrderStatus.Paid, (await LoadOrderAsync(orderId)).Status);
+        Assert.Equal(BillStatus.Paid, (await LoadBillAsync(billId)).Status);
+
+        // O comprovante fica pendente — e é a varredura de comprovante que o persegue, com
+        // backoff INFINITO, ao contrário do outbox.
+        var order = await LoadOrderAsync(orderId);
+        Assert.True(string.IsNullOrEmpty(order.ReceiptStorageKey));
+        Assert.False(order.ReceiptUnavailable);
+
+        // E a mensagem do outbox foi processada: nada de dead-letter por causa de um PDF.
+        var deadLetters = await ExecuteDbContextAsync(db => db.OutboxDeadLetters.AsNoTracking().CountAsync());
+        Assert.Equal(0, deadLetters);
+    }
+
     // A idempotência por id de evento: a reentrega do mesmo evento não produz efeito nenhum.
     [Fact]
     public async Task Webhook_Redelivered_ShouldHaveNoSecondEffect()
@@ -190,6 +232,13 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
     public async Task Webhook_PaidWithoutAPaymentDate_ShouldAcknowledgeWithoutPoisoningRedelivery()
     {
         var (_, orderId) = await SubmitOrderAsync();
+
+        // A incoerência vem da RELEITURA, não do corpo do evento (ADR-019): o payload é aviso, e
+        // o que decide é o que o provedor responde quando a ordem é relida.
+        _gateways.ScriptedGet = PaymentFetchResult.Found(new ProviderPaymentSnapshot(
+            "pay_fake_1", PaymentOrderStatus.Paid, "PAID",
+            null, PaidAt: null, null, [], null));
+
         var payload = new
         {
             id = "evt_poison_1",

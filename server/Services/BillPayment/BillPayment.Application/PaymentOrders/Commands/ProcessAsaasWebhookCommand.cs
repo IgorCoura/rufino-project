@@ -69,6 +69,15 @@ public sealed class ProcessAsaasWebhookCommandHandler(
     /// </remarks>
     public const string OUTCOME_NOT_CONFIGURED = "NotConfigured";
 
+    /// <summary>
+    /// O provedor afirmou um retrato que não fecha (hoje: pago sem data de pagamento).
+    /// </summary>
+    /// <remarks>
+    /// <strong>É 200</strong>, e a marca do ledger persiste no mesmo save — devolver não-2xx
+    /// faria o provedor reentregar o mesmo evento para sempre e represar a fila da conta.
+    /// </remarks>
+    public const string OUTCOME_INCOHERENT = "Incoherent";
+
     private const string OUTCOME_APPLIED = "Applied";
     private const string OUTCOME_IGNORED = "Ignored";
     private const string OUTCOME_DUPLICATE = "Duplicate";
@@ -166,8 +175,27 @@ public sealed class ProcessAsaasWebhookCommandHandler(
 
         order.RecordProviderDiagnostics(snapshot.RawStatus, snapshot.Authorized, snapshot.TransferId, now);
 
-        var applied = order.ApplyProviderStatus(
-            snapshot.Status, snapshot.PaidAt, snapshot.Fee, snapshot.FailReasons, nowUtc, now);
+        bool applied;
+        try
+        {
+            applied = order.ApplyProviderStatus(
+                snapshot.Status, snapshot.PaidAt, snapshot.Fee, snapshot.FailReasons, nowUtc, now);
+        }
+        catch (DomainException ex) when (ex.Id == PaymentOrderErrors.INCOHERENT_PROVIDER_PAYLOAD_ID)
+        {
+            // 200, e a marca do ledger PERSISTE. Deixar o PMO03 subir daqui vira não-2xx, e o
+            // provedor interrompe a fila SEQUENCIAL da conta inteira depois de 15 falhas
+            // consecutivas — descartando o represado em 14 dias. Um retrato incoerente não vale
+            // o preço de calar a conta de um cliente; a conciliação continua vigiando a ordem.
+            logger.LogError(
+                ex,
+                "Webhook {EventName}: o provedor descreve a ordem {PaymentOrderId} como {RawStatus}, "
+                + "mas o retrato é incoerente e nada foi aplicado.",
+                request.EventName, order.Id.Value, snapshot.RawStatus);
+
+            await unitOfWork.SaveEntitiesAsync(cancellationToken);
+            return new ProcessAsaasWebhookResponse(OUTCOME_INCOHERENT);
+        }
 
         await unitOfWork.SaveEntitiesAsync(cancellationToken);
 
