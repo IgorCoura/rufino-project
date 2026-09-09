@@ -273,7 +273,7 @@
     },
     {
       "name": "Bill Decision Permission",
-      "description": "Aprovar e recusar boleto. Separada da operacao de proposito: quem importa nao decide. Agendar e cancelar sairam daqui em 2026-09-08 (ADR-018) para a Bill Scheduling Permission: aprovar autoriza, agendar manda pagar, e nem todo aprovador deve poder mandar pagar.",
+      "description": "Aprovar e recusar boleto. Separada da operacao de proposito: quem importa nao decide. Agendar e cancelar sairam daqui em 2026-09-08 (ADR-018) para a Bill Scheduling Permission: aprovar autoriza, agendar manda pagar.",
       "type": "scope",
       "logic": "POSITIVE",
       "decisionStrategy": "UNANIMOUS",

@@ -71,6 +71,43 @@ if ! python "$HERE/validate-realm.py" "$HERE/RufinoRealm/realm-import-2026-08-18
   echo "  quebraria a nuvem, onde não dá para recriar o realm."
   exit 1
 fi
+
+# O validador acima cobre o arquivo de REALM; os de autorização passavam batido, e foi
+# por ali que uma descrição de 261 caracteres chegou a este script (2026-09-08). O limite
+# é de coluna (varchar(255)) e estourá-lo derruba o ARRANQUE do Keycloak, não só o import.
+for authz in "$PM_AUTHZ" "$BP_AUTHZ"; do
+  if ! python - "$authz" <<'PYCHK'; then
+import json, sys
+
+caminho = sys.argv[1]
+longos = []
+
+def percorrer(no, trilha):
+    if isinstance(no, dict):
+        for chave, valor in no.items():
+            filho = f"{trilha}/{chave}"
+            if isinstance(valor, str) and chave in ("description", "displayName", "name") and len(valor) > 255:
+                longos.append(f"{filho} ({len(valor)} caracteres)")
+            percorrer(valor, filho)
+    elif isinstance(no, list):
+        for i, valor in enumerate(no):
+            percorrer(valor, f"{trilha}[{i}]")
+
+with open(caminho, encoding="utf-8") as arquivo:
+    percorrer(json.load(arquivo), "")
+
+if longos:
+    print(f"  texto acima de 255 caracteres em {caminho}:")
+    for item in longos:
+        print(f"    {item}")
+    sys.exit(1)
+PYCHK
+    echo
+    echo "✘ Descrição longa demais para as colunas do Keycloak. Encurte antes de migrar —"
+    echo "  o import morre com 'value too long' e leva o arranque do servidor junto."
+    exit 1
+  fi
+done
 echo
 
 # Renova o access token pelo refresh, quando ele existir. O access do Keycloak vale
@@ -294,10 +331,16 @@ BP_ID="$(client_uuid bill-payment-api)"
 if [[ -z "$BP_ID" ]]; then echo "   ✘ client bill-payment-api não encontrado"; exit 1; fi
 BP_ROLES="$(get "/clients/$BP_ID/roles")"
 
+# bill-scheduler e bill-approver-undo sao do ADR-018, e as policies do arquivo de
+# autorizacao os citam PELO NOME. Cria-los aqui, antes do passo 4, nao e zelo: importar
+# a autorizacao com o papel inexistente cria a policy com referencia vazia, que nega
+# tudo em silencio -- exatamente o que o cabecalho deste script adverte.
 for pair in \
   "bill-approver-attention:Alcada para aprovar boleto de risco Atencao." \
   "bill-approver-danger:Alcada para aprovar boleto de risco Perigo. Cobre Atencao." \
-  "bill-approver-extreme:Alcada para aprovar boleto de risco Extremo Perigo. Cobre Perigo e Atencao."
+  "bill-approver-extreme:Alcada para aprovar boleto de risco Extremo Perigo. Cobre Perigo e Atencao." \
+  "bill-scheduler:Manda pagar: agenda o boleto aprovado e cancela agendamento (ADR-018)." \
+  "bill-approver-undo:Desfaz recusa e cancelamento, devolvendo o boleto a fila de decisao (ADR-018)."
 do
   name="${pair%%:*}"; desc="${pair#*:}"
   if grep -q "\"name\" *: *\"$name\"" <<<"$BP_ROLES"; then skip "$name já existe"; else
@@ -331,6 +374,11 @@ if [[ $APPLY -eq 1 ]]; then
   if [[ -n "$approver_id" ]]; then
     holders="$(get "/clients/$BP_ID/roles/bill-approver/users" | python -c 'import json,sys;print(" ".join(u["id"] for u in json.load(sys.stdin)))')"
     scheduler_repr="$(get "/clients/$BP_ID/roles/bill-scheduler")"
+    # Sem o papel, o GET devolve o corpo do erro e o POST gravaria lixo no mapping.
+    if ! grep -q '"name" *: *"bill-scheduler"' <<<"$scheduler_repr"; then
+      echo "   x bill-scheduler nao existe; concessao pulada. Rode o passo 3 primeiro."
+      holders=""
+    fi
     for uid in $holders; do
       ja="$(get "/users/$uid/role-mappings/clients/$BP_ID" | python -c 'import json,sys;print(",".join(r["name"] for r in json.load(sys.stdin)))')"
       if grep -q "bill-scheduler" <<<"$ja"; then skip "usuario $uid ja tem bill-scheduler"; continue; fi
