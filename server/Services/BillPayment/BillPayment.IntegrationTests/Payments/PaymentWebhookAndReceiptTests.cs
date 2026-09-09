@@ -462,6 +462,64 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
         Assert.Equal(1, _receipts.Calls);
     }
 
+    // A REPESCAGEM DE 2026-09-09: ordem cujo comprovante ficou gravado como a PÁGINA do
+    // provedor (.html) volta para a captura, recebe o PDF, e a página antiga sai do balde.
+    // Sem isto, o acervo capturado antes do conserto continuaria abrindo a tela vazia — e com
+    // um blob órfão a mais por ordem repescada.
+    [Fact]
+    public async Task CaptureReceipt_WhenTheStoredReceiptIsTheProvidersPage_ShouldReplaceItWithThePdf()
+    {
+        var (_, orderId) = await SubmitOrderAsync();
+        await MarkPaidAsync(orderId);
+        ScriptReceiptUrl();
+
+        var storage = _host.Services.GetRequiredService<InMemoryAttachmentStorage>();
+
+        // O estado que o adapter antigo produzia: a página guardada como se fosse o comprovante.
+        _receipts.Scripted = ReceiptFetchResult.Fetched("<html>comprovante</html>"u8.ToArray(), "text/html");
+        Assert.Equal("Stored", await CaptureReceiptAsync(orderId));
+
+        var landingPageKey = (await LoadOrderAsync(orderId)).ReceiptStorageKey;
+        Assert.EndsWith(".html", landingPageKey, StringComparison.Ordinal);
+
+        // O adapter consertado passa a entregar o PDF que a página oferecia.
+        _receipts.Scripted = ReceiptFetchResult.Fetched(FakeReceiptFetcher.DefaultReceipt, "application/pdf");
+        Assert.Equal("Stored", await CaptureReceiptAsync(orderId));
+
+        var pdfKey = (await LoadOrderAsync(orderId)).ReceiptStorageKey;
+        Assert.EndsWith(".pdf", pdfKey, StringComparison.Ordinal);
+        Assert.False(storage.Contains(landingPageKey!), "a página antiga deveria ter saído do balde");
+
+        // E é o PDF que chega ao app — o content-type é o que a tela usa para decidir renderizar.
+        var receipt = await _client.GetAsync(
+            new Uri($"/api/v1/{TenantId}/payments/{orderId}/receipt", UriKind.Relative), CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, receipt.StatusCode);
+        Assert.Equal("application/pdf", receipt.Content.Headers.ContentType?.MediaType);
+    }
+
+    // Repescagem que não melhorou nada não regrava: o provedor devolveu a página de novo, e
+    // guardar outra cópia a cada ciclo da varredura só encheria o balde.
+    [Fact]
+    public async Task CaptureReceipt_WhenTheProviderStillServesThePage_ShouldKeepTheStoredCopy()
+    {
+        var (_, orderId) = await SubmitOrderAsync();
+        await MarkPaidAsync(orderId);
+        ScriptReceiptUrl();
+
+        var storage = _host.Services.GetRequiredService<InMemoryAttachmentStorage>();
+        _receipts.Scripted = ReceiptFetchResult.Fetched("<html>comprovante</html>"u8.ToArray(), "text/html");
+
+        Assert.Equal("Stored", await CaptureReceiptAsync(orderId));
+        var storedKey = (await LoadOrderAsync(orderId)).ReceiptStorageKey;
+        var blobs = storage.Count;
+
+        Assert.Equal("AlreadyStored", await CaptureReceiptAsync(orderId));
+
+        Assert.Equal(blobs, storage.Count);
+        Assert.Equal(storedKey, (await LoadOrderAsync(orderId)).ReceiptStorageKey);
+    }
+
     // O comprovante é do tenant: a MESMA pessoa com acesso a duas contas não alcança a ordem de
     // um tenant pela rota do outro — 404 colapsado, como toda negativa de artefato.
     [Fact]
@@ -633,6 +691,16 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
     /// Marca a ordem como paga SEM drenar o outbox — o teste então dirige a captura do
     /// comprovante pelo comando, deterministicamente, em vez de pela reentrega.
     /// </summary>
+    /// <summary>
+    /// O provedor oferecendo o comprovante — sem URL o comando toma o caminho de "sem
+    /// comprovante" e nunca chega ao fetcher.
+    /// </summary>
+    private void ScriptReceiptUrl()
+        => _gateways.ScriptedGet = PaymentFetchResult.Found(new ProviderPaymentSnapshot(
+            "pay_fake_1", PaymentOrderStatus.Paid, "PAID",
+            null, DateOnly.FromDateTime(DateTime.UtcNow), null, [],
+            "https://www.asaas.com/comprovantes/000123"));
+
     private async Task MarkPaidAsync(Guid orderId)
     {
         using var scope = _host.Services.CreateScope();

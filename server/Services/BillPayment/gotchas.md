@@ -176,6 +176,42 @@ no corpo.
 **Como pegar de novo:** ao ver `42P01 relation ... does not exist` num banco que "já funcionava", conte as tabelas antes de investigar conexão:
 `SELECT count(*) FROM information_schema.tables WHERE table_schema='bill_payment';` — hoje o modelo tem 12.
 
+## `transactionReceiptUrl` não é o comprovante — é a página dele
+
+**Quando:** 2026-09-09, relatado pelo usuário ("a visualização do comprovante não está funcionando").
+
+**O que aconteceu:** o campo se chama *comprovante*, a documentação do provedor o descreve como
+"Comprovante do pagamento de conta", e o `HttpPaymentReceiptFetcher` fazia o óbvio: `GET` na URL e
+grava o que vier. O que vem é **`text/html`** — a página web do comprovante, com CSS e script
+externos. Ela ia para o balde como `comprovante-{id}.html`, `GET /payments/{id}/receipt` a servia
+com `content-type: text/html`, e o app, que só renderiza `application/pdf` e `image/*`, caía no
+painel *"Este documento chegou em um formato que o app não exibe (text/html)"*. O arquivo de
+verdade estava a uma âncora de distância, dentro da própria página:
+`<a href="/transactionReceipt/pdf/{id}">Baixar pdf</a>` — `200`, `application/pdf`, A4 retrato,
+**uma página**, 27 KB, sem autenticação.
+
+**Por que é traiçoeiro:** **não tem sintoma no servidor.** O download funciona, o balde grava, a
+ordem recebe `ReceiptStorageKey`, `hasReceipt` fica verdadeiro, o endpoint responde `200` com
+bytes de verdade, e os 739 testes de integração passam — inclusive o que afirma "o comprovante é
+servido", porque o dublê `FakeReceiptFetcher` sempre devolveu PDF. **A suíte nunca exercitou o
+tipo que o provedor de fato manda.** O único lugar onde o defeito aparece é a tela do usuário, e
+lá ele aparece como uma frase sobre formato — que lê como limitação do app, não como captura
+errada. O doc `04-integrations.md` já registrava a dúvida ("o que a sonda ainda precisa medir: se
+serve PDF ou página") e a dúvida sobreviveu sete dias em produção.
+
+**Regra:** **campo de provedor com nome de arquivo pode ser uma PÁGINA sobre o arquivo** — meça o
+`content-type` antes de tratar o corpo como documento, e nunca deixe o dublê de teste ser o único
+lugar que decide qual tipo o adapter recebe. Quando o dublê é mais bem-comportado que o provedor,
+a suíte verde afirma menos do que parece. É o mesmo padrão que este BC já registrou duas vezes
+com outro nome ("medir com uma ferramenta e executar com outra", `pdftotext` × PdfPig): aqui a
+divergência não estava entre duas ferramentas de leitura, e sim entre **o que o teste entrega ao
+adapter e o que a rede entrega**.
+
+**Como pegar de novo:** o precedente estava a três seções daqui, na entrada da cobrança da Asaas
+sem anexo — *"a página responde 200 sem autenticação e traz um `href` para o PDF"*. A mesma forma,
+no mesmo provedor, resolvida um mês antes do outro lado do sistema. Ao integrar campo novo que
+promete documento, procure primeiro se o BC já descobriu que aquele host serve página com âncora.
+
 ## Serviço compatível com S3 recusa a assinatura quando falta a região
 
 **Quando:** 2026-08-11, ao configurar o balde de anexos pela primeira vez.

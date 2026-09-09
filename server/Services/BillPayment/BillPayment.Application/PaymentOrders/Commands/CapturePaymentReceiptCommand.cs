@@ -61,7 +61,14 @@ public sealed class CapturePaymentReceiptCommandHandler(
             return new CapturePaymentReceiptResponse(request.PaymentOrderId, OUTCOME_SKIPPED);
         }
 
-        if (!string.IsNullOrEmpty(order.ReceiptStorageKey))
+        // Chave terminada em .html é a PÁGINA do provedor gravada no lugar do arquivo
+        // (LandingPageReceipt): conta como "ainda não guardado", para a captura ser refeita e
+        // render o PDF. É o que repesca o acervo capturado antes de 2026-09-09.
+        var landingPageKey = LandingPageReceipt.WasStoredAt(order.ReceiptStorageKey)
+            ? order.ReceiptStorageKey
+            : null;
+
+        if (!string.IsNullOrEmpty(order.ReceiptStorageKey) && landingPageKey is null)
             return new CapturePaymentReceiptResponse(request.PaymentOrderId, OUTCOME_ALREADY_STORED);
 
         var profile = await payerProfiles.GetByTenantAsync(tenantId, cancellationToken);
@@ -100,6 +107,21 @@ public sealed class CapturePaymentReceiptCommandHandler(
         }
 
         var fileName = ReceiptFileName(order, receipt.ContentType);
+
+        // Repescagem que não melhorou nada não regrava: o provedor devolveu a página de novo
+        // (parou de publicar o link do arquivo, ou mudou o layout). Guardar outra cópia da mesma
+        // página a cada ciclo da varredura só encheria o balde — a que já está lá serve igual, e
+        // a ordem continua na fila para o dia em que o PDF voltar a ser alcançável.
+        if (landingPageKey is not null
+            && fileName.EndsWith(LandingPageReceipt.EXTENSION, StringComparison.Ordinal))
+        {
+            logger.LogWarning(
+                "O comprovante da ordem {PaymentOrderId} continua vindo como página; a cópia guardada foi mantida.",
+                order.Id.Value);
+
+            return new CapturePaymentReceiptResponse(request.PaymentOrderId, OUTCOME_ALREADY_STORED);
+        }
+
         var storageKey = await storage.StoreAsync(
             tenantId, fileName, receipt.ContentType, receipt.Content!.Value, cancellationToken);
 
@@ -116,6 +138,12 @@ public sealed class CapturePaymentReceiptCommandHandler(
             await storage.RemoveAsync(tenantId, storageKey, CancellationToken.None);
             throw;
         }
+
+        // Só DEPOIS do save: apagar antes deixaria a ordem apontando para o vazio se o save
+        // falhasse. Falhar aqui não desfaz nada — o comprovante novo já está gravado e é o que
+        // vale; o que sobra é um blob a menos para o dia da purga.
+        if (landingPageKey is not null)
+            await DiscardLandingPageAsync(tenantId, landingPageKey, order.Id.Value);
 
         return new CapturePaymentReceiptResponse(request.PaymentOrderId, OUTCOME_STORED);
     }
@@ -137,6 +165,26 @@ public sealed class CapturePaymentReceiptCommandHandler(
         }
 
         return new CapturePaymentReceiptResponse(request.PaymentOrderId, OUTCOME_NO_RECEIPT);
+    }
+
+    /// <summary>
+    /// Apaga a página que ocupava o lugar do comprovante, agora que o arquivo de verdade está
+    /// guardado. Best-effort e nunca propaga: o blob a mais é desperdício de espaço, e derrubar
+    /// uma captura bem-sucedida por causa dele trocaria um problema pequeno por um grande.
+    /// </summary>
+    private async Task DiscardLandingPageAsync(TenantId tenantId, string storageKey, Guid paymentOrderId)
+    {
+        try
+        {
+            await storage.RemoveAsync(tenantId, storageKey, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "A página antiga do comprovante da ordem {PaymentOrderId} não pôde ser apagada do balde.",
+                paymentOrderId);
+        }
     }
 
     private static string ReceiptFileName(PaymentOrder order, string? contentType)

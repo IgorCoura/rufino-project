@@ -180,7 +180,23 @@ Endpoint próprio, **fora de `api/v1`** — o Asaas não conhece nosso `tenantId
 
 ### Comprovante (fase 3)
 
-`GET /v3/bill/{id}` devolve **`transactionReceiptUrl`** ("Comprovante do pagamento de conta" — confirmado na documentação em 2026-09-02). Quando a ordem chega a `Paid`, um passo assíncrono baixa o comprovante com a chave do tenant e o grava no `IAttachmentStorage` (chave prefixada por tenant), carimbando `ReceiptStorageKey` na ordem. **O arquivo é a evidência, não a URL**: a URL do provedor é credencial ao portador e pode expirar — nunca entra em log (só o host) e não é o que a nossa API devolve. O que a sonda de sandbox ainda precisa medir: se a URL exige autenticação, se serve PDF ou página, e o equivalente no trilho Pix.
+`GET /v3/bill/{id}` devolve **`transactionReceiptUrl`** ("Comprovante do pagamento de conta" — confirmado na documentação em 2026-09-02). Quando a ordem chega a `Paid`, um passo assíncrono baixa o comprovante com a chave do tenant e o grava no `IAttachmentStorage` (chave prefixada por tenant), carimbando `ReceiptStorageKey` na ordem. **O arquivo é a evidência, não a URL**: a URL do provedor é credencial ao portador e pode expirar — nunca entra em log (só o host) e não é o que a nossa API devolve.
+
+**MEDIDO em 2026-09-09** (sonda manual com `curl` sobre um `transactionReceiptUrl` real do trilho **Pix**, tirado de um pagamento de produção — as três perguntas que estavam em aberto aqui):
+
+| Pergunta | Resposta medida |
+|---|---|
+| A URL exige autenticação? | **Não.** `200` sem credencial nenhuma — é capability URL, como as de boleto (doc 09). |
+| Serve PDF ou página? | **Página.** `text/html`, renderizada no servidor, com CSS/JS externos do próprio provedor. |
+| Há como chegar ao arquivo? | **Sim**, por uma âncora dentro dela: `<a href="/transactionReceipt/pdf/{id}">Baixar pdf</a>`, **relativa**. |
+| E o arquivo? | `200`, `application/pdf`, `Content-Disposition: attachment`, também **sem autenticação**. |
+| Geometria do PDF | `/MediaBox [0 0 595 842]` = **A4 retrato**; `/Count 1` = **uma página**; 27 KB; texto vetorial. |
+
+Duas consequências, e a primeira é um defeito que viveu desde a sprint 3.3: o adapter gravava **a página** no balde (`comprovante-{id}.html`), a API a servia com `content-type: text/html`, e o app — que só renderiza PDF e imagem — mostrava "formato que o app não exibe". Ninguém percebia no servidor, porque grava, responde `200` e `hasReceipt` fica verdadeiro. O `HttpPaymentReceiptFetcher` passou a **atravessar a página até o arquivo** (`AsaasReceiptPdfLink`, um salto, mesmo host e mesma porta, PDF confirmado pelo `%PDF-` e não pelo cabeçalho).
+
+A segunda: **não é preciso renderizar HTML→PDF**. O A4 retrato em uma página já vem pronto do provedor, vetorial e leve — pôr Chromium na imagem do BillPayment (o precedente é o PeopleManagement) custaria ~500 MB, exigiria abrir mão do `USER $APP_UID` não-root e entregaria um PDF pior.
+
+**O trilho boleto ainda não foi medido** — a página dele pode não ter a mesma âncora. O fallback cobre: sem link, a página continua sendo guardada, exatamente como antes.
 
 ### Saldo
 
