@@ -40,26 +40,37 @@ internal sealed class AsaasWebhookProvisioner(
     private const int AUTH_TOKEN_BYTES = 32;
 
     /// <summary>
+    /// A versão da API a que este webhook responde. A documentação a lista como obrigatória; a
+    /// sonda de 2026-09-08 passou sem ela (o provedor assume 3), mas depender de um default não
+    /// documentado é apostar que ele não muda.
+    /// </summary>
+    private const int API_VERSION = 3;
+
+    /// <summary>
     /// Os eventos que este BC consome, <strong>todos verificados como válidos na sonda</strong>.
     /// </summary>
     /// <remarks>
     /// A família <c>TRANSFER_*</c> é o que cobre o trilho Pix: o provedor não emite evento de
     /// transação Pix, e a saída aparece como transferência. Sem ela, cancelar um Pix no painel
     /// não chegaria aqui — foi exatamente o sintoma relatado em 2026-09-08.
-    /// <c>TRANSFER_IN_BANK_ACCOUNT</c> está fora porque o provedor a recusa como inválida.
+    /// <c>TRANSFER_IN_BANK_ACCOUNT</c> está fora porque o provedor a recusa como inválida — o
+    /// nome real do estado intermediário é <c>TRANSFER_IN_BANK_PROCESSING</c>, e ele entrou aqui
+    /// em 2026-09-09 junto com <c>TRANSFER_CREATED</c>: assinar o ciclo inteiro custa o mesmo e
+    /// o handler já ignora com 200 o que não sabe aplicar.
     /// </remarks>
     private static readonly string[] SUBSCRIBED_EVENTS =
     [
         "BILL_CREATED", "BILL_PENDING", "BILL_BANK_PROCESSING", "BILL_PAID",
         "BILL_CANCELLED", "BILL_FAILED", "BILL_REFUNDED",
-        "TRANSFER_PENDING", "TRANSFER_BLOCKED", "TRANSFER_CANCELLED",
-        "TRANSFER_DONE", "TRANSFER_FAILED",
+        "TRANSFER_CREATED", "TRANSFER_PENDING", "TRANSFER_IN_BANK_PROCESSING",
+        "TRANSFER_BLOCKED", "TRANSFER_CANCELLED", "TRANSFER_DONE", "TRANSFER_FAILED",
     ];
 
     public async Task<WebhookProvisioningResult> EnsureAsync(
         CredentialRef? credential,
         string callbackUrl,
         string notificationEmail,
+        string? authToken,
         CancellationToken cancellationToken)
     {
         var (http, reasonCode, _) = await clientProvider
@@ -82,21 +93,33 @@ internal sealed class AsaasWebhookProvisioner(
                 : WebhookProvisioningResult.Refused(listFailure.ReasonCode);
         }
 
-        var authToken = GenerateAuthToken();
+        // Token nulo é ROTAÇÃO (gera um novo); token vindo de fora é CURA (mantém o do cofre).
+        // O provedor exige o campo nas duas operações, então não há caminho "PUT sem token" —
+        // omiti-lo apagaria o token do webhook e mudaria todo evento seguinte para 401.
+        var effectiveToken = string.IsNullOrWhiteSpace(authToken) ? GenerateAuthToken() : authToken;
+
         var payload = new
         {
             name = WEBHOOK_NAME,
             url = callbackUrl,
             email = notificationEmail,
             enabled = true,
+
+            // `false` aqui é o que REATIVA a fila pausada: é a rota oficial de reativação por API,
+            // e o mesmo PUT que conserta URL e habilitação também a destrava.
             interrupted = false,
-            authToken,
+            apiVersion = API_VERSION,
+            authToken = effectiveToken,
             sendType = "SEQUENTIALLY",
             events = SUBSCRIBED_EVENTS,
         };
 
+        // Procura pela URL esperada e, não achando, pelo NOME desta instalação: um webhook que
+        // ficou apontando para o domínio antigo tem de ser corrigido, não duplicado — e a conta
+        // do provedor aceita só dez.
         var current = existing!.Data?.Find(w =>
-            string.Equals(w.Url, callbackUrl, StringComparison.OrdinalIgnoreCase));
+            string.Equals(w.Url, callbackUrl, StringComparison.OrdinalIgnoreCase))
+            ?? existing.Data?.Find(w => string.Equals(w.Name, WEBHOOK_NAME, StringComparison.Ordinal));
 
         var (body, failure) = current?.Id is { } id
             ? await http.PutAsync<AsaasWebhookResponse>($"{WEBHOOKS_PATH}/{id}", payload, logger, cancellationToken)
@@ -111,7 +134,7 @@ internal sealed class AsaasWebhookProvisioner(
 
         return string.IsNullOrWhiteSpace(body!.Id)
             ? WebhookProvisioningResult.Refused("missing_webhook_id")
-            : WebhookProvisioningResult.Provisioned(body.Id, authToken);
+            : WebhookProvisioningResult.Provisioned(body.Id, effectiveToken);
     }
 
     public async Task<WebhookHealthResult> GetHealthAsync(
@@ -136,7 +159,10 @@ internal sealed class AsaasWebhookProvisioner(
         }
 
         return WebhookHealthResult.Healthy(
-            body!.Enabled ?? false, body.Interrupted ?? false, body.PenalizedRequestsCount ?? 0);
+            body!.Enabled ?? false,
+            body.Interrupted ?? false,
+            body.PenalizedRequestsCount ?? 0,
+            body.Url);
     }
 
     public async Task<bool> RemoveAsync(
@@ -175,6 +201,10 @@ internal sealed class AsaasWebhookResponse
 {
     [JsonPropertyName("id")]
     public string? Id { get; set; }
+
+    /// <summary>Como o webhook aparece no painel do provedor — é por ele que adotamos o nosso.</summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
 
     [JsonPropertyName("url")]
     public string? Url { get; set; }

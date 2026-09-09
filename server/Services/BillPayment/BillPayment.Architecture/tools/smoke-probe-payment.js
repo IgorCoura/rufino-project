@@ -219,6 +219,10 @@ async function main() {
     email: 'probe@example.invalid',
     enabled: false,
     interrupted: false,
+    // `apiVersion` é documentado como obrigatório. A sonda de 2026-09-08 passou sem ele (o
+    // provedor assume 3), e desde 2026-09-09 o adapter o manda explícito — a sonda manda o
+    // mesmo, senão mede um contrato que o código não usa.
+    apiVersion: 3,
     authToken: probeToken,
     sendType: 'SEQUENTIALLY',
     events: ['BILL_PAID', 'BILL_CANCELLED', 'TRANSFER_DONE', 'TRANSFER_CANCELLED'],

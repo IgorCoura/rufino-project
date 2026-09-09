@@ -2,6 +2,7 @@ namespace BillPayment.Application.Queries.PaymentOrders;
 
 using System.Data.Common;
 using BillPayment.Domain.PaymentOrders;
+using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -166,6 +167,23 @@ internal sealed class PaymentOrderWorkQueries(BillPaymentDbContext context, Time
                 Bind(command, "@refunded", PaymentOrderStatus.Refunded.Id);
             },
             cancellationToken);
+    }
+
+    public async Task<int> CountAwaitingProviderAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = TenantId.From(tenantId);
+
+        // Os mesmos dois status que a conciliação persegue: são exatamente as ordens cujo
+        // desfecho só chega por webhook ou por polling. EF simples basta — é uma contagem, sem
+        // claim, sem RETURNING e sem xmin.
+        return await context.PaymentOrders
+            .AsNoTracking()
+            .CountAsync(
+                o => o.TenantId == tenant
+                    && (o.Status == PaymentOrderStatus.Pending || o.Status == PaymentOrderStatus.BankProcessing),
+                cancellationToken);
     }
 
     private async Task<IReadOnlyList<PendingPaymentSubmission>> ClaimSweepAsync(

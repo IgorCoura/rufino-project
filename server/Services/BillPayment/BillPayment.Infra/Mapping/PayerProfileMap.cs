@@ -75,6 +75,10 @@ internal sealed class PayerProfileMap : IEntityTypeConfiguration<PayerProfile>
 
         builder.Property(e => e.LastWebhookEventAt).HasColumnName("last_webhook_event_at");
 
+        // O relógio da rotação do token. Nulo em toda linha anterior a 2026-09-09 — e é isso
+        // que faz a varredura rotacionar o webhook antigo na primeira passagem.
+        builder.Property(e => e.AsaasWebhookRotatedAt).HasColumnName("asaas_webhook_rotated_at");
+
         builder.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
 

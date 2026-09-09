@@ -160,12 +160,41 @@ public sealed class PayerProfile : AggregateRoot<PayerProfileId>
     /// </summary>
     public DateTime? LastWebhookEventAt { get; private set; }
 
+    /// <summary>
+    /// Quando o token deste webhook foi gerado pela última vez. É o relógio da rotação — e
+    /// também a referência de "desde quando esperamos notícia" enquanto nenhum evento chegou.
+    /// </summary>
+    public DateTime? AsaasWebhookRotatedAt { get; private set; }
+
+    /// <summary>Vincula o webhook com um token NOVO — ou seja, uma rotação.</summary>
     public void LinkAsaasWebhook(CredentialRef webhookRef, string providerWebhookId, DateTime occurredAt)
     {
         if (string.IsNullOrWhiteSpace(providerWebhookId))
             throw PayerProfileErrors.AsaasWebhookIdRequired();
 
         AsaasWebhookRef = webhookRef ?? throw PayerProfileErrors.AsaasWebhookTokenRequired();
+        AsaasWebhookId = providerWebhookId.Trim();
+        AsaasWebhookRotatedAt = occurredAt;
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>
+    /// O webhook foi consertado no provedor <strong>sem trocar o token</strong> — fila reativada,
+    /// reabilitado, ou URL corrigida.
+    /// </summary>
+    /// <remarks>
+    /// Existe separado do <see cref="LinkAsaasWebhook"/> porque a varredura passa de meia em meia
+    /// hora: se curar fosse rotacionar, o token trocaria o dia inteiro, e cada troca é uma janela
+    /// em que uma falha entre gravar no provedor e gravar no cofre deixa o webhook mudo e
+    /// irrecuperável — o <c>GET</c> do provedor não devolve o token.
+    /// </remarks>
+    public void ConfirmAsaasWebhook(string providerWebhookId, DateTime occurredAt)
+    {
+        if (string.IsNullOrWhiteSpace(providerWebhookId))
+            throw PayerProfileErrors.AsaasWebhookIdRequired();
+        if (AsaasWebhookRef is null)
+            throw PayerProfileErrors.AsaasWebhookTokenRequired();
+
         AsaasWebhookId = providerWebhookId.Trim();
         UpdatedAt = occurredAt;
     }
@@ -175,7 +204,41 @@ public sealed class PayerProfile : AggregateRoot<PayerProfileId>
         AsaasWebhookRef = null;
         AsaasWebhookId = null;
         LastWebhookEventAt = null;
+        AsaasWebhookRotatedAt = null;
         UpdatedAt = occurredAt;
+    }
+
+    /// <summary>
+    /// O token deste webhook já passou da validade combinada?
+    /// </summary>
+    /// <remarks>
+    /// Rotação por calendário é higiene, não urgência: o token do provedor não expira sozinho.
+    /// Webhook sem carimbo de rotação é anterior a esta conta de tempo — rotaciona na primeira
+    /// passagem, e a partir dali o relógio existe.
+    /// </remarks>
+    public bool IsWebhookRotationDue(DateTime nowUtc, TimeSpan interval)
+    {
+        if (!HasWebhook)
+            return false;
+
+        return AsaasWebhookRotatedAt is not { } rotatedAt || rotatedAt.Add(interval) <= nowUtc;
+    }
+
+    /// <summary>
+    /// O webhook está mudo há tempo demais? <strong>Silêncio não é prova de defeito</strong> —
+    /// quem decide se isso importa é quem sabe se há ordem viva esperando notícia.
+    /// </summary>
+    /// <remarks>
+    /// A referência é o último evento recebido e, na falta dele, o provisionamento: um webhook
+    /// recém-criado que nunca recebeu nada não está mudo, está novo.
+    /// </remarks>
+    public bool IsWebhookSilentSince(DateTime nowUtc, TimeSpan tolerance)
+    {
+        if (!HasWebhook)
+            return false;
+
+        return (LastWebhookEventAt ?? AsaasWebhookRotatedAt) is { } reference
+            && reference.Add(tolerance) <= nowUtc;
     }
 
     /// <summary>Marca que o provedor deu sinal de vida. Monotônica: evento atrasado não regride.</summary>

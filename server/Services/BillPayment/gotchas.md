@@ -2,6 +2,54 @@
 
 Registro de correções e lições aprendidas neste BC (ver regra em CLAUDE.md → Self-Correction).
 
+## Lista de tipos mantida à mão é falha silenciosa esperando a vez dela
+
+**Quando:** 2026-09-09, descoberto pelo usuário ("o webhook não aparece no painel do Asaas").
+
+**O que aconteceu:** `BillPaymentDbContext.DrainDomainEvents` movia eventos para o outbox com um
+`switch` de **um `case` por Aggregate Root**, porque `AggregateRoot<TId>` é genérico e não tinha
+base não-genérica. O `PayerProfile` nunca entrou na lista. O `AsaasAccountLinkedDomainEvent`
+ficava acumulado no agregado e era descartado no fim do escopo — **nenhum webhook foi provisionado
+por um mês**, sem uma linha de erro em lugar nenhum.
+
+**Por que é traiçoeiro:** o comentário logo acima do `switch` **advertia exatamente isso**
+("acrescente o novo agregado aqui ao criá-lo, senão ele emite eventos que ninguém publica e a
+falha é silenciosa"). A advertência estava certa e não adiantou nada: quem escreveu o
+`PayerProfile` não passou por aquele arquivo. E o modo de falha não tem sintoma — o agregado
+grava, a API responde 200, o teste passa. Só o efeito remoto (o webhook) nunca acontece.
+
+**Regra:** **comentário não é mecanismo.** Quando a correção de um bug é "lembrar de editar outro
+arquivo", a correção está errada — troque a lista por uma pergunta que o compilador ou o runtime
+responda sozinho. Aqui virou a interface não-genérica `IHasDomainEvents`, e o dreno pergunta
+`is IHasDomainEvents`. Vale para qualquer lista de tipos no código: registro de handler, mapa de
+conversão, `switch` sobre agregado.
+
+**Como pegar de novo:** `DomainEventDrainErosionTests` varre o assembly do Domain por reflexão e
+falha se algum Aggregate Root concreto não for drenável, ou se algum tipo passar a acumular
+`IDomainEvent` fora da base. Ao criar uma lista de tipos nova, escreva o teste de erosão **junto**.
+
+## No Asaas, só HTTP 200 é sucesso — e 15 falhas seguidas pausam a conta inteira
+
+**Quando:** 2026-09-09, ao revisar o webhook (ADR-022).
+
+**O que aconteceu:** o `WebhooksController` devolvia **401** quando o tenant não tinha webhook
+configurado — o que acontece logo depois de um desvínculo, enquanto o provedor ainda esvazia a
+fila dele. A documentação do provedor é explícita: **qualquer resposta que não seja 200 conta
+como falha** (201 e 204 inclusive), e **15 falhas consecutivas interrompem a fila SEQUENCIAL da
+conta**. Fila interrompida = nenhum evento de nenhuma ordem chega, e o represado **é apagado em
+14 dias**.
+
+**Por que é traiçoeiro:** o 401 era deliberado e o raciocínio por trás dele estava certo para o
+caso que ele tinha em mente (token forjado). O erro foi a guarda cobrir **dois** casos com uma
+resposta só: "token errado" e "não tenho webhook" não são a mesma coisa — o segundo é o próprio
+provedor fazendo o trabalho dele.
+
+**Regra:** num endpoint de webhook, **não-2xx é uma decisão de negócio, não um reflexo**. Só
+devolva erro quando represar a fila for o desfecho desejado. Tudo mais — evento desconhecido,
+fora de ordem, tenant sem configuração, releitura impossível — sai em 200 com desfecho nomeado
+no corpo.
+
+
 ## Object Mother com `??` engole a invariante que o teste queria provar
 
 **Quando:** 2026-07-31, sprint 1.1 (`TrustedOrigin`).

@@ -56,6 +56,19 @@ public sealed class ProcessAsaasWebhookCommandHandler(
 {
     public const string OUTCOME_UNAUTHORIZED = "Unauthorized";
 
+    /// <summary>
+    /// Chegou evento para um tenant que não tem webhook nosso — tipicamente porque a conta dele
+    /// acabou de ser desvinculada e o provedor ainda tem entregas na fila.
+    /// </summary>
+    /// <remarks>
+    /// <strong>É 200, e a diferença para o 401 é de vida ou morte da fila.</strong> O provedor
+    /// só considera sucesso o HTTP 200 e interrompe a fila SEQUENCIAL da conta depois de 15
+    /// falhas consecutivas — evento represado ali é descartado em 14 dias. Devolver 401 para
+    /// "não tenho webhook" faria um desvínculo pausar a conta do cliente em quinze entregas, e
+    /// nada disso é forjadura: é o provedor esvaziando a fila dele.
+    /// </remarks>
+    public const string OUTCOME_NOT_CONFIGURED = "NotConfigured";
+
     private const string OUTCOME_APPLIED = "Applied";
     private const string OUTCOME_IGNORED = "Ignored";
     private const string OUTCOME_DUPLICATE = "Duplicate";
@@ -69,9 +82,23 @@ public sealed class ProcessAsaasWebhookCommandHandler(
         var tenantId = TenantId.From(request.TenantId);
 
         var profile = await payerProfiles.GetByTenantAsync(tenantId, cancellationToken);
-        if (profile is null || !profile.HasWebhook)
-            return new ProcessAsaasWebhookResponse(OUTCOME_UNAUTHORIZED);
 
+        // Sem webhook cadastrado não há segredo com que conferir — e não conferir significa não
+        // aplicar nada. Mas o desfecho é 200: ver OUTCOME_NOT_CONFIGURED.
+        if (profile is null || !profile.HasWebhook)
+        {
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation(
+                    "Webhook {EventName} recebido para um tenant sem webhook configurado; absorvido sem efeito.",
+                    request.EventName);
+            }
+
+            return new ProcessAsaasWebhookResponse(OUTCOME_NOT_CONFIGURED);
+        }
+
+        // O 401 sobrou para o que ele sempre quis dizer: alguém apresentou o token ERRADO de um
+        // webhook que existe. Represar a fila de quem tenta forjar é o comportamento certo.
         if (!await IsTokenValidAsync(profile, request.PresentedToken, cancellationToken))
             return new ProcessAsaasWebhookResponse(OUTCOME_UNAUTHORIZED);
 
