@@ -97,6 +97,16 @@ if (builder.Configuration.GetValue<bool?>($"{PaymentReconciliationOptions.Sectio
 builder.Services.Configure<PaymentWebhookOptions>(
     builder.Configuration.GetSection(PaymentWebhookOptions.SectionName));
 
+// A reconciliação de ASSINATURA — confere no provedor se o webhook de cada tenant existe e está
+// entregando, e conserta o que não estiver. Ligada por padrão pelo mesmo motivo da conciliação:
+// o outbox tem backoff FINITO, e sem esta varredura esgotá-lo significava webhook nunca mais
+// provisionado, em silêncio (foi o que aconteceu entre 2026-09-08 e 2026-09-09).
+builder.Services.Configure<PaymentWebhookSweepOptions>(
+    builder.Configuration.GetSection(PaymentWebhookSweepOptions.SectionName));
+
+if (builder.Configuration.GetValue<bool?>($"{PaymentWebhookSweepOptions.SectionName}:Enabled") ?? true)
+    builder.Services.AddHostedService<PaymentWebhookSweepBackgroundService>();
+
 var app = builder.Build();
 
 // Migrações, não EnsureCreatedAsync. A diferença não é estilística: EnsureCreated decide por

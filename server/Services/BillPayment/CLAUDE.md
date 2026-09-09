@@ -34,7 +34,7 @@ O design rationale do BC vive em `BillPayment.Architecture/`. O ponto de entrada
 | [`14-auditoria-ingestao-email.md`](BillPayment.Architecture/14-auditoria-ingestao-email.md) | **Segurança:** auditoria de 2026-09-03 da ingestão por e-mail — 33 achados com arquivo:linha, todos **abertos**; o status vive na seção "Auditoria da ingestão por e-mail" do checklist abaixo |
 | [`adr/`](BillPayment.Architecture/adr/) | ADR-001 a ADR-020 — o **porquê** de cada decisão estrutural |
 
-**Antes de propor mudança estrutural, leia o ADR correspondente.** Decisões já fechadas e greppáveis: Asaas como provedor de consulta *e* pagamento (ADR-001), com **uma conta por tenant, trazida pelo próprio tenant** (ADR-016 — o desenho de subconta criada pela plataforma do doc 07 foi substituído); `Bill` e `PaymentOrder` como Aggregates separados (ADR-002); verificação como entidade com evidência e quatro resultados, não booleano (ADR-003); pagador **não** é verificável por fonte oficial, mas **bloqueia quando contradiz** (ADR-004); confiança é do remetente, não da caixa (ADR-005); só Microsoft Graph; **Gmail entra por encaminhamento**, sem adapter (ADR-006); nenhum pagamento sem `UserId` autorizando (ADR-007); fonte compartilhada = uma `CaptureSource` por tenant, isolamento por construção (ADR-008); **sem cofre por ora — env vars + `secrets.json`**, envelope encryption no Postgres permanece (ADR-009); **QR Pix é o trilho preferencial**, divergência entre QR e código de barras bloqueia (ADR-010); **IA extrai candidatos, DV + consulta oficial decidem** (ADR-011); **DDA está fora** — portais depois de esgotar fatura digital, **sem evasão de anti-bot** (ADR-012); **Gemini atrás de porta agnóstica** (ADR-013); **o sistema sabe o que espera receber e avisa quando não recebeu** (ADR-014); **a validação classifica Seguro/Atenção/Perigo e NUNCA rejeita — quem decide é o humano, e Perigo exige aceite explícito gravado na trilha** (ADR-015); **a conta Asaas é do tenant, trazida e provada por ele — sem chave-plataforma e sem fallback global**, com webhook, saldo e whitelist por conta (ADR-016); **política de agendamento: submissão só das 9h às 18h e vencido exige confirmação explícita gravada na trilha** (ADR-017, com as 24h de antecedência REMOVIDAS pelo ADR-021); **aprovar e agendar são DOIS atos com alçadas diferentes, cancelar agendamento devolve a `Approved`, e recusa/cancelamento se desfazem com revalidação automática** (ADR-018); **webhook POR TENANT, com o payload tratado como aviso e a ordem RELIDA no provedor** (ADR-019); **a expectativa entra na validação como a 14ª verificação e a régua de risco endurece — o que era Atenção virou Perigo, e só expectativa, prazo e nome do beneficiário ficam com teto de Atenção** (ADR-020); **a antecedência de 24h sai, a janela vira 9h–18h e ela só bloqueia "pagar hoje" — porque é sobre a hora da SUBMISSÃO, não a do pagamento, que é do Asaas — com a tela oferecendo quatro datas prontas resolvidas pelo servidor** (ADR-021).
+**Antes de propor mudança estrutural, leia o ADR correspondente.** Decisões já fechadas e greppáveis: Asaas como provedor de consulta *e* pagamento (ADR-001), com **uma conta por tenant, trazida pelo próprio tenant** (ADR-016 — o desenho de subconta criada pela plataforma do doc 07 foi substituído); `Bill` e `PaymentOrder` como Aggregates separados (ADR-002); verificação como entidade com evidência e quatro resultados, não booleano (ADR-003); pagador **não** é verificável por fonte oficial, mas **bloqueia quando contradiz** (ADR-004); confiança é do remetente, não da caixa (ADR-005); só Microsoft Graph; **Gmail entra por encaminhamento**, sem adapter (ADR-006); nenhum pagamento sem `UserId` autorizando (ADR-007); fonte compartilhada = uma `CaptureSource` por tenant, isolamento por construção (ADR-008); **sem cofre por ora — env vars + `secrets.json`**, envelope encryption no Postgres permanece (ADR-009); **QR Pix é o trilho preferencial**, divergência entre QR e código de barras bloqueia (ADR-010); **IA extrai candidatos, DV + consulta oficial decidem** (ADR-011); **DDA está fora** — portais depois de esgotar fatura digital, **sem evasão de anti-bot** (ADR-012); **Gemini atrás de porta agnóstica** (ADR-013); **o sistema sabe o que espera receber e avisa quando não recebeu** (ADR-014); **a validação classifica Seguro/Atenção/Perigo e NUNCA rejeita — quem decide é o humano, e Perigo exige aceite explícito gravado na trilha** (ADR-015); **a conta Asaas é do tenant, trazida e provada por ele — sem chave-plataforma e sem fallback global**, com webhook, saldo e whitelist por conta (ADR-016); **política de agendamento: submissão só das 9h às 18h e vencido exige confirmação explícita gravada na trilha** (ADR-017, com as 24h de antecedência REMOVIDAS pelo ADR-021); **aprovar e agendar são DOIS atos com alçadas diferentes, cancelar agendamento devolve a `Approved`, e recusa/cancelamento se desfazem com revalidação automática** (ADR-018); **webhook POR TENANT, com o payload tratado como aviso e a ordem RELIDA no provedor** (ADR-019); **a expectativa entra na validação como a 14ª verificação e a régua de risco endurece — o que era Atenção virou Perigo, e só expectativa, prazo e nome do beneficiário ficam com teto de Atenção** (ADR-020); **a antecedência de 24h sai, a janela vira 9h–18h e ela só bloqueia "pagar hoje" — porque é sobre a hora da SUBMISSÃO, não a do pagamento, que é do Asaas — com a tela oferecendo quatro datas prontas resolvidas pelo servidor** (ADR-021); **o dreno de eventos deixa de ter lista de tipos, existe varredura periódica que reconcilia a ASSINATURA do webhook no provedor, curar NÃO troca o token e a rotação é trimestral** (ADR-022).
 
 ### Três regras que não podem erodir
 
@@ -594,9 +594,10 @@ A Fase 1 inteira (verificação + aprovação) não movimenta dinheiro: a consul
 
 **Sprints 3.3 + 3.4 (servidor) — ✅ Concluídas (2026-09-02).** A verdade do provedor volta por dois caminhos, o comprovante vira arquivo, e o falhado reabre:
 
-- **Webhook** (`POST /webhooks/asaas/{tenantId}`, `WebhooksController`): **fora de `api/v1` de propósito** (o provedor não conhece tenant, e a teoria de erosão exige `{tenantId}` de toda rota lá), `[AllowAnonymous]` + **token POR TENANT** no cofre (`SecretKind.AsaasWebhookToken`), comparado em tempo constante — o token da INSTALAÇÃO foi REMOVIDO em 2026-09-08 (ADR-019): com uma conta Asaas por tenant, segredo compartilhado deixaria qualquer tenant forjar evento de qualquer outro. **O payload é AVISO, não verdade** (o provedor não assina o corpo): ele só resolve DE QUAL ORDEM se trata — `externalReference` no trilho boleto, `provider_transfer_id` no Pix, porque **não existe evento de transação Pix, só `TRANSFER_*`** — e o handler RELÊ a ordem no provedor antes de aplicar. Idempotente por `(tenant, event id)` via **`IPaymentWebhookLedger`** (tabela `payment_webhook_events`). Evento desconhecido/fora de ordem → 200 `Ignored`/`Unknown`/`Unverifiable`, nunca erro (falhar represa a fila SEQUENCIAL da conta inteira, que o provedor interrompe após falhas repetidas). **401 é o único não-2xx**, e é deliberado: token errado não é evento nosso para absorver.
-- **Conciliação** (`PaymentReconciliationBackgroundService`, **ligada por padrão**): varre ordens `Pending`/`BankProcessing` sem notícia além de `StaleAfter` (`ClaimStaleAwaitingProviderAsync`, que CARIMBA `sweep_attempted_at` na saída — anti-inanição) e reflete via `ReconcilePaymentOrderCommand` (gateway `GetAsync` → `ApplyProviderStatus` monotônica). Provedor que "não conhece mais" a própria ordem fica em log e na fila — descompasso raro exige gente.
-- **Comprovante**: `CaptureReceiptOnPaymentPaidHandler` (segundo handler do `PaymentOrderPaidDomainEvent` — **registrar handler novo em `ApplicationDependencies` é obrigatório**, o dispatcher só resolve o que o DI conhece; esquecê-lo foi exatamente o defeito pego pelo teste) → `CapturePaymentReceiptCommand`: `GET` fresco no provedor (a URL é credencial ao portador e **nunca é persistida nem logada** — só o host), download via porta **`IPaymentReceiptFetcher`** (adapter `HttpPaymentReceiptFetcher`, cliente `asaas-receipt` sem retry — a retentativa é a reentrega do outbox via `BLP.PMO21`), gravação no balde e `AttachReceipt`. Servido por `GET /payments/{id}/receipt` (`bill:view`, 404 colapsado).
+- **Webhook** (`POST /webhooks/asaas/{tenantId}`, `WebhooksController`): **fora de `api/v1` de propósito** (o provedor não conhece tenant, e a teoria de erosão exige `{tenantId}` de toda rota lá), `[AllowAnonymous]` + **token POR TENANT** no cofre (`SecretKind.AsaasWebhookToken`), comparado em tempo constante — o token da INSTALAÇÃO foi REMOVIDO em 2026-09-08 (ADR-019): com uma conta Asaas por tenant, segredo compartilhado deixaria qualquer tenant forjar evento de qualquer outro. **O payload é AVISO, não verdade** (o provedor não assina o corpo): ele só resolve DE QUAL ORDEM se trata — `externalReference` no trilho boleto, `provider_transfer_id` no Pix, porque **não existe evento de transação Pix, só `TRANSFER_*`** — e o handler RELÊ a ordem no provedor antes de aplicar. Idempotente por `(tenant, event id)` via **`IPaymentWebhookLedger`** (tabela `payment_webhook_events`). Evento desconhecido/fora de ordem → 200 `Ignored`/`Unknown`/`Unverifiable`, nunca erro. **401 é o único não-2xx e vale SÓ PARA TOKEN ERRADO** (ADR-022): tenant sem webhook configurado passou a responder 200 `NotConfigured` em 2026-09-09, porque o provedor **só considera sucesso o HTTP 200** (201 e 204 já contam como falha) e **interrompe a fila SEQUENCIAL da conta após 15 falhas consecutivas**, descartando o represado em 14 dias — um desvínculo pausava a conta do cliente em quinze entregas.
+- **Conciliação** (`PaymentReconciliationBackgroundService`, **ligada por padrão**): varre ordens `Pending`/`BankProcessing` sem notícia além de `StaleAfter` (`ClaimStaleAwaitingProviderAsync`, que CARIMBA `sweep_attempted_at` na saída — anti-inanição) e reflete via `ReconcilePaymentOrderCommand` (gateway `GetAsync` → `ApplyProviderStatus` monotônica). Provedor que "não conhece mais" a própria ordem fica em log e na fila — descompasso raro exige gente. **Desde 2026-09-09**: `Unavailable` LOGA o motivo (o ramo era mudo, e o silêncio escondeu um pagamento por horas); retrato incoerente vira desfecho `Incoherent` com `LogError` **em vez de exceção** — deixá-la subir fazia a MESMA ordem estourar a cada ciclo, para sempre, porque a guarda do agregado lança antes de qualquer mutação e nada mudava na passagem seguinte; e o laço conta reincidência em memória, gritando após `BlockedStreakAlertThreshold` (3) ciclos seguidos sem conseguir conciliar a mesma ordem.
+- **Varredura de webhook** (`PaymentWebhookSweepBackgroundService` → `SweepPaymentWebhookCommand`, **ligada por padrão**, 30 min **e no arranque** — ADR-022): a reconciliação de **ASSINATURA**, irmã da conciliação de ORDEM. Por tenant com conta vinculada lê `GetHealthAsync` e decide: sem webhook → provisiona; `NotFound` → recria; desabilitado / fila interrompida / **URL diferente da esperada** → **cura com o MESMO token**; `penalizedRequestsCount` ≥ 5 → alerta; mudo além da tolerância **e com ordem viva** → alerta; provedor indisponível → **não faz nada** (recriar por não conseguir ler deixaria webhook órfão na conta do tenant). **Existe porque o outbox tem backoff FINITO** (5 tentativas, ~7,5 min): provedor fora do ar na hora do vínculo significava webhook nunca provisionado, em silêncio, para sempre. Sem claim e sem aluguel — o efeito é idempotente.
+- **Comprovante**: `CaptureReceiptOnPaymentPaidHandler` (segundo handler do `PaymentOrderPaidDomainEvent` — **registrar handler novo em `ApplicationDependencies` é obrigatório**, o dispatcher só resolve o que o DI conhece; esquecê-lo foi exatamente o defeito pego pelo teste) → `CapturePaymentReceiptCommand`: `GET` fresco no provedor (a URL é credencial ao portador e **nunca é persistida nem logada** — só o host), download via porta **`IPaymentReceiptFetcher`** (adapter `HttpPaymentReceiptFetcher`, cliente `asaas-receipt` sem retry). **A falha do comprovante NÃO derruba mais o espelho do boleto (2026-09-09)**: o `OutboxProcessor` despacha todos os handlers de um evento na MESMA transação, e este roda depois do espelho — o `BLP.PMO21` revertia a transação inteira, levando junto o boleto que já tinha virado `Paid`, e cinco tentativas depois ia para dead-letter (ordem `Paid`, boleto `Scheduled`, em silêncio). O handler de evento agora ENGOLE e registra; quem persegue o arquivo é a varredura `ClaimPaidMissingReceiptAsync`, com backoff INFINITO contra o finito do outbox. **Estado de boleto não depende de PDF** — o comando continua lançando, o que muda é quem o deixa passar, gravação no balde e `AttachReceipt`. Servido por `GET /payments/{id}/receipt` (`bill:view`, 404 colapsado).
 - **3.4**: `POST /bills/{id}/reopen` (`bill:approve`, `ReopenBillCommand`) — **só `Failed` reabre** (a guarda restringe a matriz de propósito: reabrir `Approved` descartaria aprovação vigente sem motivo de pagamento); a nova aprovação cria **ordem nova** (ADR-002). `REFUNDED` alerta pelo canal 2.7 (`NotifyPaymentRefundedHandler`). **Replay de dead-letter**: o roteiro operacional por SQL existe desde 2026-09-03 ([`13-dead-letter-replay.md`](BillPayment.Architecture/13-dead-letter-replay.md)); o endpoint administrativo segue no checklist.
 - **Testes**: `Payments/PaymentWebhookAndReceiptTests` (7 — 404 sem token, 401 token errado em tempo constante, o caminho `BILL_PAID` → espelho + comprovante servido, **a reentrega do mesmo evento sem segundo efeito** com uma linha só no ledger, referência desconhecida em 200, o falhado reabrindo com ordem NOVA, e reabrir `Approved` em 409 BIL34). `FakeReceiptFetcher` + `InMemoryAttachmentStorage` entraram no `WithPaymentChain`.
 
@@ -616,7 +617,7 @@ A Fase 1 inteira (verificação + aprovação) não movimenta dinheiro: a consul
 - **Corrida cancelar×submeter**: `CancelDraft` recusa com aluguel vigente (**PMO22**); quando o worker perde a corrida (conflito de `xmin` + ordem recarregada `Cancelled`), dispara **`CompensatePaymentSubmissionRaceCommand`** — consulta o provedor por `externalReference` e cancela lá (best-effort); recusa/indisponível → LogError + alerta operacional. Webhook loga `Warning` quando `PAID` chega em ordem terminal.
 - **Só recusa de domínio é permanente na submissão**: a classificação vive em **`PaymentSubmissionFailureHandling`** (Application, testável) — `DomainException` ≠ PMO18 é permanente; `DbUpdateException`/timeout/qualquer infra é **passageira** (a retentativa adota pela referência — anti pagamento-em-dobro). Não reintroduza "exceção desconhecida = Failed".
 - **Consentimento de execução imediata NUNCA é re-derivado por data**: `BillApprovedDomainEvent` carrega `AcknowledgedImmediateExecution` (o aceite como FOI dado no `Approve`); o handler de criação da ordem só grava consentimento com o flag. Boleto que vence esperando o outbox cai no fluxo normal `AwaitingConfirmation`.
-- **Webhook incoerente responde 200 `Incoherent`**: o PMO03 do payload é capturado no handler, a marca do ledger persiste no mesmo save, e o log grita — devolver non-2xx faria o Asaas reentregar para sempre e **represar a fila de webhooks da conta**. Exceções de infra continuam subindo (aí o retry é desejável). No domínio, `ApplyProviderStatus` não muta nada antes dessa guarda.
+- **Webhook incoerente responde 200 `Incoherent`**: o PMO03 da RELEITURA (não mais do payload — ADR-019) é capturado no handler, a marca do ledger persiste no mesmo save, e o log grita com o `RawStatus` — devolver non-2xx faria o Asaas reentregar para sempre e **represar a fila de webhooks da conta**. Exceções de infra continuam subindo (aí o retry é desejável). No domínio, `ApplyProviderStatus` não muta nada antes dessa guarda.
 - **Rascunho cancelado não deixa o Bill zumbi**: `Bill.ReturnToApprovalAfterScheduleCancellation` (Approved→AwaitingApproval, trilha preservada, limpa vínculo/data); o reflexo tem guarda anti-reentrega via `GetActiveByBillAsync` (ordem viva nova ⇒ ignora).
 - **A guarda de vencido (BIL35) avalia "hoje" no fuso da política** (`PaymentSchedulingOptions.ResolveTimeZone()`), não em UTC — entre 21h e meia-noite locais, UTC já virou o dia e a tela discordaria do servidor.
 
@@ -721,6 +722,113 @@ expectativa ou nome. Duas lacunas daquele trabalho foram corrigidas de passagem 
 verificação desta entrega: o `FakeAuthorizationServerClient` não conhecia os escopos
 `schedule`/`undo-decision`, e os testes de alçada de risco aprovavam **com data** sem pedir a
 alçada de agendamento.
+
+## 2026-09-09 (tarde) — Um espaço no lugar de um `T`, e um pagamento que ficou horas sem registro
+
+Boleto agendado, **pagamento executado no Asaas às 11:54:16**, e o app parado. O webhook não
+existia (era o incidente da manhã), então a rede era a conciliação — que rodava, reivindicava a
+ordem a cada 10 minutos, e não gravava nada.
+
+A linha do banco dava o formato do defeito antes da causa: `sweep_attempted_at` recente (a fila
+reivindicava), `updated_at` congelado no instante da submissão e `last_provider_sync_at` nulo.
+Como **toda leitura bem-sucedida carimba os dois, inclusive quando nada muda**, a leitura não
+estava acontecendo. Suspeitei de credencial e de 404 — as duas erradas. O log fechou:
+
+```
+GET https://api.asaas.com/v3/pix/transactions/cf8cce34-... → 200
+fail: PaymentReconciliationBackgroundService[0]
+```
+
+200 e exceção. O payload real trazia `"status":"DONE"` com
+`"effectiveDate":"2026-09-09 11:54:16"`, e **`DateOnly.TryParse` recusa data-hora com espaço**
+(aceita com `T` — medido). O campo virava `null`, `Paid` sem data batia em `BLP.PMO03`, e a guarda
+do agregado lança **antes de qualquer mutação**: nada gravado, nada mudava, mesma explosão no
+ciclo seguinte. Para sempre.
+
+**Três defeitos independentes numa linha só de código:**
+
+1. **O parser.** `ReadDate` agora aceita data-hora e reduz — **sem converter fuso**, porque o
+   provedor responde em Brasília e normalizar para UTC empurraria para o dia seguinte todo
+   pagamento depois das 21h. `ReadTimestamp` largou o `AssumeUniversal` pelo mesmo motivo: um QR
+   Pix expirando às 23:59:59 era lido como expirado três horas antes.
+2. **Quem deixa o PMO03 passar.** A guarda está certa; errado era ninguém absorvê-la.
+   Conciliação e webhook agora capturam → desfecho `Incoherent` + `LogError` com o `RawStatus`.
+   No webhook isso é mais que higiene: exceção vira não-2xx, e **15 seguidas pausam a fila da
+   conta**.
+3. **O bloqueio seguinte, que só apareceria depois.** Espelho do boleto e captura do comprovante
+   dividem UMA transação no outbox; o `BLP.PMO21` do comprovante revertia o espelho junto e
+   dead-letter em cinco tentativas. O handler de evento passou a engolir — o arquivo tem rede
+   própria, com backoff infinito.
+
+Mais: `Unavailable` na conciliação deixou de ser mudo (foi o silêncio que me custou duas
+hipóteses), o laço conta reincidência e grita após 3 ciclos, e a URL do comprovante é higienizada
+(a do Pix termina em `%0A`, a quebra de linha do base64 do provedor).
+
+**A lição que vale além deste caso:** parser de campo de fornecedor **aceita o formato mais
+largo e reduz**, nunca o contrário — e falha de leitura que vira `null` em vez de exceção só
+aparece camadas adiante, disfarçada de violação de invariante. As três entradas estão no
+`gotchas.md`.
+
+
+## 2026-09-09 — O webhook que nunca chegou a existir: um `case` faltando e um mês de silêncio
+
+O usuário relatou que **nada aparecia no painel do Asaas** — nem webhook cadastrado, nem log de
+entrega — mesmo depois de trocar a chave da conta, que é o gesto que dispara o provisionamento.
+
+**Duas causas independentes, e as duas precisavam cair.**
+
+### Causa 1: o evento era descartado antes do outbox
+
+`DrainDomainEvents` movia eventos para `outbox_messages` com **um `case` por Aggregate Root**.
+Havia `case` para `Bill`, `BillExpectation`, `CaptureItem` e `PaymentOrder`; **não havia para
+`PayerProfile`** — o único outro agregado que emite evento. O `AsaasAccountLinkedDomainEvent`
+ficava na lista interna do agregado e morria no fim do escopo. **Zero linhas no outbox, zero
+exceções, zero logs.**
+
+O comentário logo acima do `switch` advertia exatamente esse risco. **Não bastou, e não tinha
+como bastar**: lista mantida por memória humana falha por definição. A correção não foi
+acrescentar o `case` — foi **eliminar a lista**: `AggregateRoot<TId>` implementa
+`IHasDomainEvents` (base não-genérica) e o dreno pergunta `is IHasDomainEvents`. Agregado novo
+entra sozinho. `DomainEventDrainErosionTests` (3 testes por reflexão) falha se a lista voltar por
+outra porta.
+
+**Nenhum teste cobria o caminho**: `ProvisionPaymentWebhookCommand` e `IPaymentWebhookProvisioner`
+não apareciam em teste nenhum. Agora aparecem em 11 testes de integração.
+
+### Causa 2: `PublicBaseUrl` vazia
+
+Segundo bloqueio, que apareceria logo em seguida. Continua sendo pré-requisito de ambiente.
+
+### O que mais estava quebrado ao redor (ADR-022)
+
+- **O outbox tem backoff FINITO** (5 tentativas, ~7,5 min). Provedor fora do ar na hora do vínculo
+  = webhook nunca provisionado, **para sempre**. Daí a varredura periódica ser obrigatória, e não
+  um luxo.
+- `GetHealthAsync` e `RemoveAsync` implementados e **nunca chamados**; `LastWebhookEventAt`
+  gravado e **nunca lido**. A "varredura de saúde" citada em três comentários nunca existiu.
+- **Desvincular a conta deixava tudo para trás**: webhook vivo na conta do cliente, token órfão
+  no cofre, e `HasWebhook` verdadeiro com `AsaasAccountRef` nulo — todo evento passava no token e
+  morria na releitura, em laço.
+- **O 401 deliberado era armadilha**: o Asaas só aceita **HTTP 200** e interrompe a fila
+  sequencial da conta em **15 falhas consecutivas**, descartando o represado em 14 dias.
+
+### O molde do PeopleManagement: mecanismo sim, política não
+
+O `refresh-webhook-job` da ZapSign rotaciona **diariamente** porque o webhook de lá carrega um
+`Bearer` do Keycloak no header, e esse token expira (`accessTokenLifespan` = 300 s no realm —
+*a verificar se o client do service account sobrescreve*). O `authToken` do Asaas **não expira**.
+Copiamos o mecanismo (criar-antes-de-apagar, rollback, rodar no arranque); a rotação virou
+**trimestral**, porque cada rotação é uma janela de webhook mudo irrecuperável — o `GET` do
+provedor nunca devolve o token.
+
+**Entregue**: `IHasDomainEvents` + dreno por interface, `SweepPaymentWebhookCommand` +
+`PaymentWebhookSweepBackgroundService`, `EnsureAsync(authToken)` separando cura de rotação,
+`ConfirmAsaasWebhook`/`AsaasWebhookRotatedAt`/`IsWebhookRotationDue`/`IsWebhookSilentSince` no
+agregado, desvínculo que derruba o webhook no provedor, `GET`/`POST` de inspeção e
+reprovisionamento, `apiVersion: 3` + dois eventos `TRANSFER_*` que faltavam, uma migração
+(`PaymentWebhookRotationClock`) e o
+[`ADR-022`](BillPayment.Architecture/adr/ADR-022-varredura-de-webhook-e-rotacao-de-token.md).
+
 
 ## 2026-09-08 — Aprovar ≠ agendar, reversão de decisão, trilha do boleto, e o webhook que nunca existiu
 
@@ -1665,6 +1773,7 @@ apagar o registro do alerta.
 - [x] **Chave do Asaas por tenant (subconta)** — **feito em 2026-08-31.** A chave entra por tenant (`PUT /payer-profile/asaas-account`, com prova no provedor), vive cifrada em `tenant_secrets` e é resolvida por chamada; a chave global da instalação deixou de existir. O que resta é operacional: cada tenant precisa colar a própria chave (e a whitelist de IP do provedor vale por subconta).
 - [ ] **Rotação da master key do cofre** — `EnvelopeSecretVault` decifra sempre com a chave única de `Secrets:MasterKey`; `KekVersion` é gravado, mas não há como manter a chave anterior nem re-envelopar. Trocar a chave hoje torna TODAS as linhas de `tenant_secrets` ilegíveis. Escrever a rotina de re-envelope (ler com a antiga, gravar com a nova) antes do primeiro cliente externo.
 - [ ] **Whitelist de IP no Asaas** — a chave da Fase 1 exige permissão de saque via API (achado da sprint 1.0), então ela pode pagar contas se vazar. A whitelist é o mecanismo do provedor para limitar o estrago **e dispensar a autorização de ação crítica** (o código no celular). **Não é opcional.** Três coisas medidas em 2026-09-08 que mudam a execução deste item: (a) **não há API pública para autorizar a ação crítica** — `/criticalActions` e `/myAccount/criticalActionConfigs` respondem 404, então trazer o código para dentro do app NÃO é opção; (b) o IP a cadastrar é o de **SAÍDA** do container (confira de dentro dele, e **também o IPv6** — se a VPS tiver IPv6 e o container resolver `api.asaas.com` por AAAA, a whitelist de IPv4 bloqueia tudo com erro que parece "chave sem permissão"); (c) é **por conta** (ADR-016), então CADA tenant cadastra o nosso IP na conta dele, e trocar de VPS quebra todos de uma vez. Enquanto não estiver feito, o pagamento fica em `AWAITING_CRITICAL_ACTION_AUTHORIZATION` — agora **visível** na tela, em vez de aparecer como "aceito pelo provedor".
+- [ ] **`PaymentWebhook__PublicBaseUrl` + `PaymentWebhook__NotificationEmail` no ambiente** — **continua sendo o único pré-requisito de ambiente do webhook** (ADR-022). Sem ele, provisionamento E varredura saem por `Skipped` com log de aviso. Depois de configurar, confira pelo endpoint de inspeção `GET /api/v1/{tenantId}/payer-profile/asaas-webhook` (`delivering: true`) em vez de esperar um boleto andar.
 - [ ] **`PaymentWebhook__PublicBaseUrl` + `PaymentWebhook__NotificationEmail` no ambiente** — o token deixou de ser configuração (ADR-019): ele é gerado por tenant no provisionamento e vive cifrado no cofre. **Sem `PublicBaseUrl` nenhum webhook é provisionado** e a instalação depende só da conciliação (funciona, com atraso de até `StaleAfter`). O provisionamento em si é automático, disparado ao vincular a chave Asaas do tenant.
 - [ ] **Replay de dead-letter do outbox — endpoint administrativo** — com a fase 3 uma mensagem de aprovação morta na dead-letter é um pagamento que nunca acontece. O endpoint exige escopo novo no realm e segue por fazer; **o roteiro operacional por SQL está documentado** em [`13-dead-letter-replay.md`](BillPayment.Architecture/13-dead-letter-replay.md) (identificar → corrigir a causa → reemitir → conferir), com a análise de idempotência handler a handler.
 - [x] **Sonda de fumaça do decode Pix em produção** — **feita em 2026-08-06: VERDE.** `receiver.cpfCnpj`, nome, nome fantasia, ISPB, valor, vencimento e `expirationDate` voltaram. Três achados registrados no [doc 12](BillPayment.Architecture/12-official-lookup-coverage.md): o **pagador NÃO vem mascarado** (abre decisão sobre o ADR-004), seis campos fora da documentação (`description` foi mapeado), e o Pix **cobre o buraco da arrecadação** — devolve o documento do beneficiário que o código de barras não devolve.

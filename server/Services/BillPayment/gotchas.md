@@ -2,6 +2,128 @@
 
 Registro de correções e lições aprendidas neste BC (ver regra em CLAUDE.md → Self-Correction).
 
+## `DateOnly.TryParse` recusa o formato de data-hora do Asaas, e a falha vira `null`, não exceção
+
+**Quando:** 2026-09-09, relatado pelo usuário ("o pagamento saiu no Asaas e o boleto não mudou").
+
+**O que aconteceu:** `AsaasHttp.ReadDate` era `DateOnly.TryParse(raw, InvariantCulture, None)`.
+O provedor serializa data-hora como `"2026-09-09 11:54:16"` — **e `DateOnly` recusa string com
+parte de hora**. Uma transação Pix `DONE` chegava com `effectiveDate` preenchido, o parser
+devolvia `null`, e `Paid` + `PaidAt == null` batia na invariante `BLP.PMO03` do agregado. A
+guarda do domínio lança **antes de qualquer mutação**, então nada era gravado — nem a marca de
+sincronização — e a passagem seguinte da conciliação encontrava exatamente o mesmo estado.
+**A mesma ordem estourou a cada 10 minutos por horas**, com o dinheiro já fora da conta.
+
+**Por que é traiçoeiro:** três coisas se somam.
+1. **A falha de leitura não é exceção.** É um `null` silencioso que só vira problema três
+   camadas adiante, como violação de invariante de domínio — longe demais da causa para o log
+   apontar de volta.
+2. **O sintoma parecia de outra família.** A linha do banco mostrava `sweep_attempted_at` recente
+   (a fila reivindicava) com `updated_at` velho e `last_provider_sync_at` nulo. Isso levou a
+   suspeitar de credencial e de 404 antes do log revelar `200` seguido de `fail:`.
+3. **`DateOnly.TryParse` aceita `"2026-09-09T11:54:16"`** (com `T`) e recusa a mesma data com
+   espaço. Um teste escrito com o formato ISO passaria e não cobriria nada.
+
+**Regra:** parser de campo de fornecedor **aceita o formato mais largo e reduz**, nunca o
+contrário. `ReadDate` tenta `DateOnly` e cai para `DateTime` pegando a parte da data — **sem
+converter fuso**: o Asaas responde em horário de Brasília, e normalizar para UTC empurraria para
+o dia seguinte todo pagamento efetivado depois das 21h. Pelo mesmo motivo, `ReadTimestamp`
+deixou de usar `AssumeUniversal`: instante sem deslocamento é hora do PROVEDOR, e tratar
+`"23:59:59"` como UTC dava a um QR Pix expiração três horas mais cedo.
+
+**Como pegar de novo:** `AsaasDateParsingTests` fixa a matriz de formatos com o valor real que
+quebrou. Ao mapear campo de data novo, confira se ele **pode** vir com hora — no Asaas,
+`dateCreated`, `effectiveDate` e `expirationDate` vêm.
+
+## Retrato incoerente do provedor não pode LANÇAR de dentro de varredura nem de webhook
+
+**Quando:** 2026-09-09, junto com o defeito acima.
+
+**O que aconteceu:** `BLP.PMO03` subia do `ApplyProviderStatus` para o
+`ReconcilePaymentOrderCommandHandler` e para o `ProcessAsaasWebhookCommandHandler`, e nenhum dos
+dois o capturava. Na conciliação virava mais uma linha de erro genérica no laço —
+indistinguível de um soluço passageiro — e a ordem nunca avançava. No webhook seria pior:
+exceção vira **não-2xx**, e o provedor interrompe a fila SEQUENCIAL da conta após 15 falhas
+consecutivas.
+
+**Por que é traiçoeiro:** a guarda está CERTA — gravar "pago" sem data seria mentir na trilha.
+O erro não é lançar, é **quem deixa passar**. Uma invariante de agregado protege uma transação;
+um laço de varredura e um endpoint de webhook são processos de longa duração cujo dever é
+absorver e seguir.
+
+**Regra:** em varredura e em webhook, **erro de domínio previsível vira desfecho nomeado, com log
+alto** — nunca exceção solta. E o log precisa carregar o `RawStatus`: é ele que diz o que o
+provedor afirmou e não conseguimos registrar.
+
+## Handlers do mesmo evento compartilham UMA transação e UM orçamento de retentativa
+
+**Quando:** 2026-09-09, encontrado ao revisar o caminho depois do conserto acima.
+
+**O que aconteceu:** `PaymentOrderPaidDomainEvent` tem dois handlers — espelhar o boleto e
+capturar o comprovante — e o `OutboxProcessor` despacha **os dois dentro da mesma transação**.
+A captura lançava `BLP.PMO21` em falha transiente do download, o que revertia a transação
+inteira **incluindo o espelho já aplicado**; cinco tentativas depois a mensagem ia para
+dead-letter. Desfecho: ordem `Paid`, boleto parado em `Scheduled`, em silêncio.
+
+**Por que é traiçoeiro:** lançar para "devolver o trabalho ao outbox" é o padrão correto **para
+o último handler da lista**, e some como opção assim que existe um handler antes dele. A ordem
+de registro no DI vira, sem aviso, uma dependência de transação.
+
+**Regra:** handler que produz **evidência** (arquivo, notificação, relatório) nunca derruba o
+handler que produz **estado**. Se a evidência tem rede própria — e a do comprovante tem, a
+varredura `ClaimPaidMissingReceiptAsync`, com backoff INFINITO contra o finito do outbox — ele
+engole e registra. Antes de fazer um handler de evento lançar, pergunte quem mais está na mesma
+transação.
+
+
+## Lista de tipos mantida à mão é falha silenciosa esperando a vez dela
+
+**Quando:** 2026-09-09, descoberto pelo usuário ("o webhook não aparece no painel do Asaas").
+
+**O que aconteceu:** `BillPaymentDbContext.DrainDomainEvents` movia eventos para o outbox com um
+`switch` de **um `case` por Aggregate Root**, porque `AggregateRoot<TId>` é genérico e não tinha
+base não-genérica. O `PayerProfile` nunca entrou na lista. O `AsaasAccountLinkedDomainEvent`
+ficava acumulado no agregado e era descartado no fim do escopo — **nenhum webhook foi provisionado
+por um mês**, sem uma linha de erro em lugar nenhum.
+
+**Por que é traiçoeiro:** o comentário logo acima do `switch` **advertia exatamente isso**
+("acrescente o novo agregado aqui ao criá-lo, senão ele emite eventos que ninguém publica e a
+falha é silenciosa"). A advertência estava certa e não adiantou nada: quem escreveu o
+`PayerProfile` não passou por aquele arquivo. E o modo de falha não tem sintoma — o agregado
+grava, a API responde 200, o teste passa. Só o efeito remoto (o webhook) nunca acontece.
+
+**Regra:** **comentário não é mecanismo.** Quando a correção de um bug é "lembrar de editar outro
+arquivo", a correção está errada — troque a lista por uma pergunta que o compilador ou o runtime
+responda sozinho. Aqui virou a interface não-genérica `IHasDomainEvents`, e o dreno pergunta
+`is IHasDomainEvents`. Vale para qualquer lista de tipos no código: registro de handler, mapa de
+conversão, `switch` sobre agregado.
+
+**Como pegar de novo:** `DomainEventDrainErosionTests` varre o assembly do Domain por reflexão e
+falha se algum Aggregate Root concreto não for drenável, ou se algum tipo passar a acumular
+`IDomainEvent` fora da base. Ao criar uma lista de tipos nova, escreva o teste de erosão **junto**.
+
+## No Asaas, só HTTP 200 é sucesso — e 15 falhas seguidas pausam a conta inteira
+
+**Quando:** 2026-09-09, ao revisar o webhook (ADR-022).
+
+**O que aconteceu:** o `WebhooksController` devolvia **401** quando o tenant não tinha webhook
+configurado — o que acontece logo depois de um desvínculo, enquanto o provedor ainda esvazia a
+fila dele. A documentação do provedor é explícita: **qualquer resposta que não seja 200 conta
+como falha** (201 e 204 inclusive), e **15 falhas consecutivas interrompem a fila SEQUENCIAL da
+conta**. Fila interrompida = nenhum evento de nenhuma ordem chega, e o represado **é apagado em
+14 dias**.
+
+**Por que é traiçoeiro:** o 401 era deliberado e o raciocínio por trás dele estava certo para o
+caso que ele tinha em mente (token forjado). O erro foi a guarda cobrir **dois** casos com uma
+resposta só: "token errado" e "não tenho webhook" não são a mesma coisa — o segundo é o próprio
+provedor fazendo o trabalho dele.
+
+**Regra:** num endpoint de webhook, **não-2xx é uma decisão de negócio, não um reflexo**. Só
+devolva erro quando represar a fila for o desfecho desejado. Tudo mais — evento desconhecido,
+fora de ordem, tenant sem configuração, releitura impossível — sai em 200 com desfecho nomeado
+no corpo.
+
+
 ## Object Mother com `??` engole a invariante que o teste queria provar
 
 **Quando:** 2026-07-31, sprint 1.1 (`TrustedOrigin`).

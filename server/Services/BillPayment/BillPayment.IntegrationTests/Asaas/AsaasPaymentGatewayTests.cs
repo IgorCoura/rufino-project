@@ -380,6 +380,75 @@ public sealed class AsaasPaymentGatewayTests
         => await BuildBillGateway(handler)
             .FindByExternalReferenceAsync(TenantCredential, ExternalReference, CancellationToken.None);
 
+    // A REGRESSÃO DE 2026-09-09, com o corpo real que o provedor devolveu. Uma transação Pix
+    // paga chegava com `effectiveDate` em formato de data-hora, o parser a recusava, e "pago sem
+    // data de pagamento" derrubava a conciliação daquela ordem a cada ciclo, para sempre.
+    [Fact]
+    public async Task PixGetAsync_WhenDoneWithADateTimeEffectiveDate_ShouldCarryThePaymentDate()
+    {
+        var handler = StubHttpMessageHandler.Ok("""
+            {
+              "id": "cf8cce34-f2e1-4791-9153-55d6b60358c3",
+              "transferId": "b2343548-92ae-4c56-8ce9-7400c82824e5",
+              "status": "DONE",
+              "value": 342.43,
+              "chargedFeeValue": 0,
+              "scheduledDate": null,
+              "effectiveDate": "2026-09-09 11:54:16",
+              "externalReference": null,
+              "description": "RUF:01a086a7-7dcc-792e-bf4f-4ac3a1862c2e",
+              "transactionReceiptUrl": "https://www.asaas.com/comprovantes/h/UElY%0A"
+            }
+            """);
+
+        var result = await PixGetAsync(handler);
+
+        Assert.True(result.IsFound);
+        Assert.Equal(PaymentOrderStatus.Paid, result.Snapshot!.Status);
+
+        // O que faltava: sem esta data, o agregado recusa o retrato com BLP.PMO03.
+        Assert.Equal(new DateOnly(2026, 9, 9), result.Snapshot.PaidAt);
+        Assert.Equal("b2343548-92ae-4c56-8ce9-7400c82824e5", result.Snapshot.TransferId);
+    }
+
+    // O provedor termina a URL do comprovante com o %0A do base64 dele. Ela vai para um GET, e
+    // uma falha ali custa uma volta inteira da varredura de comprovante.
+    [Fact]
+    public async Task PixGetAsync_ShouldStripTheEncodedNewlineFromTheReceiptUrl()
+    {
+        var handler = StubHttpMessageHandler.Ok("""
+            {
+              "id": "pix_9",
+              "status": "DONE",
+              "effectiveDate": "2026-09-09 11:54:16",
+              "transactionReceiptUrl": "https://www.asaas.com/comprovantes/h/UElY%0A"
+            }
+            """);
+
+        var result = await PixGetAsync(handler);
+
+        Assert.Equal("https://www.asaas.com/comprovantes/h/UElY", result.Snapshot!.ReceiptUrl);
+    }
+
+    // O mesmo vale para o trilho boleto: `paymentDate` corre o mesmo risco de vir com hora.
+    [Fact]
+    public async Task GetAsync_WhenPaidWithADateTimePaymentDate_ShouldCarryThePaymentDate()
+    {
+        var handler = StubHttpMessageHandler.Ok("""
+            {
+              "id": "pay_123",
+              "status": "PAID",
+              "value": 615.07,
+              "paymentDate": "2026-09-09 08:12:00"
+            }
+            """);
+
+        var result = await GetAsync(handler);
+
+        Assert.Equal(PaymentOrderStatus.Paid, result.Snapshot!.Status);
+        Assert.Equal(new DateOnly(2026, 9, 9), result.Snapshot.PaidAt);
+    }
+
     private static async Task<PaymentFetchResult> GetAsync(StubHttpMessageHandler handler)
         => await BuildBillGateway(handler).GetAsync(TenantCredential, "pay_123", CancellationToken.None);
 

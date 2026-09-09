@@ -38,16 +38,23 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
     private readonly FakeLookupServices _lookups;
     private readonly FakePaymentGateways _gateways;
     private readonly FakeReceiptFetcher _receipts;
+    private readonly FakePaymentWebhookProvisioner _provisioner;
     private readonly HttpClient _client;
 
     public PaymentWebhookAndReceiptTests(IntegrationTestWebAppFactory factory) : base(factory)
     {
-        _host = factory.WithPaymentChain()
-            .WithWebHostBuilder(builder => builder.UseSetting("PaymentWebhook:Token", WebhookToken));
+        _host = factory.WithPaymentChain();
 
         _lookups = _host.Services.GetRequiredService<FakeLookupServices>();
         _gateways = _host.Services.GetRequiredService<FakePaymentGateways>();
         _receipts = _host.Services.GetRequiredService<FakeReceiptFetcher>();
+        _provisioner = _host.Services.GetRequiredService<FakePaymentWebhookProvisioner>();
+
+        // O token da INSTALAÇÃO deixou de existir em 2026-09-08 (ADR-019): cada conta tem o seu,
+        // gerado no provisionamento. Aqui ele é ARMADO para que o teste possa apresentá-lo no
+        // header — no fluxo real ele só existe cifrado no cofre.
+        _provisioner.NextEnsure = WebhookProvisioningResult.Provisioned("wh_teste", WebhookToken);
+
         _client = _host.CreateClient().Authenticated();
     }
 
@@ -56,17 +63,38 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
         _lookups.Reset();
         _gateways.Reset();
         _receipts.Reset();
+        _provisioner.Reset();
         _client.Dispose();
         _host.Dispose();
     }
 
-    // Sem token configurado o webhook nem existe: um caminho anônimo aberto para mexer em
-    // ordens de pagamento seria pior que não ter webhook.
+    // Tenant sem webhook provisionado responde 200 `NotConfigured`, e isso é DELIBERADO
+    // (ADR-022): o provedor só considera sucesso o HTTP 200 e interrompe a fila SEQUENCIAL da
+    // conta após 15 falhas consecutivas, descartando o represado em 14 dias. Devolver erro aqui
+    // faria um desvínculo pausar a conta do cliente em quinze entregas — e nenhuma delas é
+    // forjadura: é o provedor esvaziando a fila dele.
     [Fact]
-    public async Task Webhook_WithoutAConfiguredToken_ShouldRespond404()
+    public async Task Webhook_ForATenantWithoutAWebhook_ShouldAbsorbWith200()
     {
-        using var bare = Factory.WithPaymentChain();
-        using var client = bare.CreateClient();
+        using var client = _host.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            new Uri($"/webhooks/asaas/{TenantId}", UriKind.Relative),
+            new { id = "evt_1", @event = "BILL_PAID" },
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(
+            "NotConfigured",
+            await response.Content.ReadAsStringAsync(CancellationToken.None),
+            StringComparison.Ordinal);
+    }
+
+    // Rota sem tenant não existe: o webhook é POR CONTA desde o ADR-019.
+    [Fact]
+    public async Task Webhook_WithoutATenantInTheRoute_ShouldRespond404()
+    {
+        using var client = _host.CreateClient();
 
         var response = await client.PostAsJsonAsync(
             new Uri("/webhooks/asaas", UriKind.Relative),
@@ -76,10 +104,14 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    // Token errado é 401 — validado em tempo constante, antes de olhar o corpo.
+    // Token errado num tenant que TEM webhook é 401 — validado em tempo constante, antes de
+    // olhar o corpo. É o único não-2xx que sobrou, e represar a fila de quem tenta forjar evento
+    // de pagamento é exatamente o desfecho desejado.
     [Fact]
     public async Task Webhook_WithTheWrongToken_ShouldRespond401()
     {
+        await LinkPaymentAccountAsync();
+
         var response = await PostWebhookAsync(
             new { id = "evt_2", @event = "BILL_PAID" }, token: "token-errado");
 
@@ -126,6 +158,48 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
         Assert.Equal(FakeReceiptFetcher.DefaultReceipt, await receipt.Content.ReadAsByteArrayAsync(CancellationToken.None));
     }
 
+    // A REGRESSÃO DE 2026-09-09: o comprovante FALHA e o boleto espelha assim mesmo.
+    //
+    // O OutboxProcessor despacha TODOS os handlers de um evento dentro de UMA transação, e a
+    // captura do comprovante roda depois do espelho. Enquanto ela lançava BLP.PMO21, a transação
+    // inteira revertia — levando junto o boleto que já tinha virado Paid — e cinco tentativas
+    // depois a mensagem ia para dead-letter. Desfecho: ordem Paid, boleto parado em Scheduled,
+    // em silêncio, com o dinheiro fora da conta. Estado de boleto não depende de um PDF.
+    [Fact]
+    public async Task Webhook_Paid_WhenTheReceiptFetchFails_ShouldStillMirrorTheBill()
+    {
+        var (billId, orderId) = await SubmitOrderAsync();
+        _gateways.ScriptedGet = PaymentFetchResult.Found(new ProviderPaymentSnapshot(
+            "pay_fake_1", PaymentOrderStatus.Paid, "PAID",
+            null, DateOnly.FromDateTime(DateTime.UtcNow), null, [],
+            "https://www.asaas.com/comprovantes/000123"));
+
+        _receipts.Scripted = ReceiptFetchResult.Unavailable("http_503");
+
+        var response = await PostWebhookAsync(new
+        {
+            id = "evt_paid_no_receipt",
+            @event = "BILL_PAID",
+            bill = new { externalReference = orderId.ToString() },
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await DrainOutboxAsync();
+
+        Assert.Equal(PaymentOrderStatus.Paid, (await LoadOrderAsync(orderId)).Status);
+        Assert.Equal(BillStatus.Paid, (await LoadBillAsync(billId)).Status);
+
+        // O comprovante fica pendente — e é a varredura de comprovante que o persegue, com
+        // backoff INFINITO, ao contrário do outbox.
+        var order = await LoadOrderAsync(orderId);
+        Assert.True(string.IsNullOrEmpty(order.ReceiptStorageKey));
+        Assert.False(order.ReceiptUnavailable);
+
+        // E a mensagem do outbox foi processada: nada de dead-letter por causa de um PDF.
+        var deadLetters = await ExecuteDbContextAsync(db => db.OutboxDeadLetters.AsNoTracking().CountAsync());
+        Assert.Equal(0, deadLetters);
+    }
+
     // A idempotência por id de evento: a reentrega do mesmo evento não produz efeito nenhum.
     [Fact]
     public async Task Webhook_Redelivered_ShouldHaveNoSecondEffect()
@@ -158,6 +232,13 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
     public async Task Webhook_PaidWithoutAPaymentDate_ShouldAcknowledgeWithoutPoisoningRedelivery()
     {
         var (_, orderId) = await SubmitOrderAsync();
+
+        // A incoerência vem da RELEITURA, não do corpo do evento (ADR-019): o payload é aviso, e
+        // o que decide é o que o provedor responde quando a ordem é relida.
+        _gateways.ScriptedGet = PaymentFetchResult.Found(new ProviderPaymentSnapshot(
+            "pay_fake_1", PaymentOrderStatus.Paid, "PAID",
+            null, PaidAt: null, null, [], null));
+
         var payload = new
         {
             id = "evt_poison_1",
@@ -272,7 +353,7 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
     [InlineData("{}")]
     public async Task Webhook_WithoutAnIdOrEvent_ShouldRespond400(string payload)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/webhooks/asaas", UriKind.Relative))
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"/webhooks/asaas/{TenantId}", UriKind.Relative))
         {
             Content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json"),
         };
@@ -489,11 +570,16 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
             new LinkAsaasAccountRequest("$aact_test_chave_do_tenant"),
             CancellationToken.None);
         link.EnsureSuccessStatusCode();
+
+        // O vínculo só ENFILEIRA o provisionamento; quem o executa é o outbox. Sem esta drenagem
+        // o tenant fica sem webhook e todo evento entrante responde 200 NotConfigured — que é
+        // exatamente o estado em que a instalação ficou por um mês, sem ninguém notar.
+        await DrainOutboxAsync();
     }
 
     private async Task<HttpResponseMessage> PostWebhookAsync<T>(T payload, string? token = null)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/webhooks/asaas", UriKind.Relative))
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"/webhooks/asaas/{TenantId}", UriKind.Relative))
         {
             Content = JsonContent.Create(payload),
         };

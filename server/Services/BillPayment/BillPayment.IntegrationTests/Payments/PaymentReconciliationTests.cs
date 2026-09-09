@@ -116,6 +116,48 @@ public sealed class PaymentReconciliationTests : BaseIntegrationTest, IDisposabl
         Assert.Equal(PaymentOrderStatus.Pending, (await LoadOrderAsync(orderId)).Status);
     }
 
+    // A REGRESSÃO DE 2026-09-09: retrato incoerente (pago sem data) é ABSORVIDO com desfecho
+    // nomeado, não lançado. Deixar o BLP.PMO03 subir fazia a MESMA ordem estourar a cada ciclo,
+    // para sempre — a guarda do agregado lança antes de qualquer mutação, então nada era gravado
+    // e a passagem seguinte encontrava exatamente o mesmo estado.
+    [Fact]
+    public async Task Reconcile_WithAnIncoherentSnapshot_ShouldAbsorbInsteadOfThrowing()
+    {
+        var (_, orderId) = await SubmitOrderAsync();
+        _gateways.ScriptedGet = PaymentFetchResult.Found(new ProviderPaymentSnapshot(
+            "pay_fake_1", PaymentOrderStatus.Paid, "PAID",
+            null, PaidAt: null, null, [], null));
+
+        var outcome = await ReconcileAsync(orderId);
+
+        Assert.Equal("Incoherent", outcome);
+
+        // Nada gravado, e a ordem CONTINUA na fila: sem carimbo de sincronização, ela não some
+        // por uma hora fingindo que foi conferida.
+        var order = await LoadOrderAsync(orderId);
+        Assert.Equal(PaymentOrderStatus.Pending, order.Status);
+        Assert.Null(order.LastProviderSyncAt);
+    }
+
+    // E o caminho feliz do mesmo cenário depois do conserto do parser: DONE com data-hora vira
+    // Paid, com a data que o provedor afirmou.
+    [Fact]
+    public async Task Reconcile_WhenTheProviderReportsPaid_ShouldMirrorTheDateItStated()
+    {
+        var (_, orderId) = await SubmitOrderAsync();
+        _gateways.ScriptedGet = PaymentFetchResult.Found(new ProviderPaymentSnapshot(
+            "pay_fake_1", PaymentOrderStatus.Paid, "PAID",
+            null, new DateOnly(2026, 9, 9), null, [], null));
+
+        var outcome = await ReconcileAsync(orderId);
+
+        Assert.Equal("Applied", outcome);
+        var order = await LoadOrderAsync(orderId);
+        Assert.Equal(PaymentOrderStatus.Paid, order.Status);
+        Assert.Equal(new DateOnly(2026, 9, 9), order.PaidAt);
+        Assert.NotNull(order.LastProviderSyncAt);
+    }
+
     // Ordem que não espera desfecho do provedor (Draft, sem ProviderOrderId) é pulada SEM tocar
     // a rede — conciliar rascunho consultaria o provedor por algo que nunca foi submetido.
     [Fact]

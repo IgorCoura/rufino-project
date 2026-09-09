@@ -110,6 +110,7 @@ public static class ApplicationDependencies
         services.AddScoped<IBillReadingSource, BillReadingSource>();
         services.AddScoped<IPayeeQueries, PayeeQueries>();
         services.AddScoped<IPayerProfileQueries, PayerProfileQueries>();
+        services.AddScoped<IPayerProfileWorkQueries, PayerProfileWorkQueries>();
         services.AddScoped<ICaptureSourceQueries, CaptureSourceQueries>();
         services.AddScoped<ICaptureItemQueries, CaptureItemQueries>();
         services.AddScoped<ICaptureItemWorkQueries, CaptureItemWorkQueries>();

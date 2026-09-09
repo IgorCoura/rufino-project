@@ -107,9 +107,14 @@ public sealed class BillPaymentDbContext : DbContext, IUnitOfWork
     /// Move os eventos acumulados nos agregados rastreados para <c>outbox_messages</c>.
     /// </summary>
     /// <remarks>
-    /// Um <c>case</c> por Aggregate Root porque <c>AggregateRoot&lt;TId&gt;</c> é genérico e não
-    /// tem base não-genérica comum — **acrescente o novo agregado aqui ao criá-lo**, senão
-    /// ele emite eventos que ninguém publica e a falha é silenciosa.
+    /// <para>
+    /// <strong>A pergunta é <c>is IHasDomainEvents</c>, e nunca uma lista de tipos.</strong> Até
+    /// 2026-09-09 havia um <c>case</c> por Aggregate Root, porque <c>AggregateRoot&lt;TId&gt;</c>
+    /// é genérico e não tinha base não-genérica. O <c>PayerProfile</c> ficou de fora da lista e o
+    /// <c>AsaasAccountLinkedDomainEvent</c> foi descartado em silêncio por um mês: nenhum webhook
+    /// foi provisionado, sem um único erro em lugar nenhum. A base não-genérica existe para que
+    /// agregado novo entre sozinho — <strong>não reintroduza a lista</strong>.
+    /// </para>
     /// <para>
     /// O drain acontece depois do <c>DetectChanges</c> e antes do <c>SaveChanges</c>: os
     /// eventos precisam já estar no ChangeTracker para serem gravados na mesma transação.
@@ -121,24 +126,11 @@ public sealed class BillPaymentDbContext : DbContext, IUnitOfWork
 
         foreach (var entry in ChangeTracker.Entries())
         {
-            var drained = entry.Entity switch
-            {
-                AggregateRoot<BillId> aggregate => aggregate.PullDomainEvents(),
-                AggregateRoot<BillExpectationId> aggregate => aggregate.PullDomainEvents(),
+            if (entry.Entity is not IHasDomainEvents aggregate)
+                continue;
 
-                // O CaptureItem passou a emitir em 2026-08-27 (travou / destravou), e é ele que
-                // liga a captura à expectativa. Sem este case os dois eventos seriam acumulados
-                // no agregado e descartados no fim do escopo — exatamente a falha silenciosa que
-                // o comentário acima adverte.
-                AggregateRoot<CaptureItemId> aggregate => aggregate.PullDomainEvents(),
-
-                // A PaymentOrder emite os eventos que o Bill espelha (ADR-002) — sem este case,
-                // um pagamento aceito nunca viraria Scheduled no boleto, em silêncio.
-                AggregateRoot<PaymentOrderId> aggregate => aggregate.PullDomainEvents(),
-                _ => null,
-            };
-
-            if (drained is { Count: > 0 })
+            var drained = aggregate.PullDomainEvents();
+            if (drained.Count > 0)
                 events.AddRange(drained);
         }
 

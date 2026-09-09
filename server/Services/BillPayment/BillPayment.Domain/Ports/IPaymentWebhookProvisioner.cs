@@ -20,13 +20,21 @@ using BillPayment.Domain.Secrets;
 public interface IPaymentWebhookProvisioner
 {
     /// <summary>
-    /// Garante que existe um webhook apontando para <paramref name="callbackUrl"/>, com token
-    /// novo. Idempotente: existindo um para a mesma URL, atualiza em vez de duplicar.
+    /// Garante que existe um webhook apontando para <paramref name="callbackUrl"/>, habilitado e
+    /// com a fila corrente. Idempotente: existindo um para a mesma URL, atualiza em vez de duplicar.
     /// </summary>
+    /// <param name="authToken">
+    /// O token a gravar no provedor. <c>null</c> gera um novo — <strong>é a rotação</strong>.
+    /// Passar o token vigente (resolvido do cofre) é o caminho de CURA: reativa a fila, reabilita
+    /// e corrige a URL sem trocar o segredo. A distinção importa porque o provedor não devolve o
+    /// token em leitura nenhuma: cada rotação é uma janela em que uma falha entre gravar lá e
+    /// gravar no cofre deixa o webhook mudo sem conserto que não seja recriá-lo.
+    /// </param>
     Task<WebhookProvisioningResult> EnsureAsync(
         CredentialRef? credential,
         string callbackUrl,
         string notificationEmail,
+        string? authToken,
         CancellationToken cancellationToken);
 
     /// <summary>Lê o estado do webhook — é daqui que sai o sinal de fila interrompida.</summary>
@@ -74,19 +82,35 @@ public sealed record WebhookProvisioningResult(
 /// <param name="PenalizedRequestsCount">
 /// Quantas entregas o provedor já contou como falhas. Crescendo, a interrupção é o próximo passo.
 /// </param>
+/// <param name="Url">
+/// Para onde o provedor está entregando HOJE. Comparada com a URL que esta instalação espera, é
+/// o que denuncia webhook apontando para um endereço antigo — mudança de domínio não avisa.
+/// </param>
 public sealed record WebhookHealthResult(
     bool Found,
     bool Enabled,
     bool Interrupted,
     int PenalizedRequestsCount,
+    string? Url,
     string? ReasonCode)
 {
-    public static WebhookHealthResult Healthy(bool enabled, bool interrupted, int penalizedRequestsCount)
-        => new(Found: true, enabled, interrupted, penalizedRequestsCount, null);
+    /// <summary>Encontrado e entregando: habilitado, fila corrente e apontando para onde deve.</summary>
+    public bool IsDelivering(string expectedUrl)
+        => Found
+            && Enabled
+            && !Interrupted
+            && string.Equals(Url, expectedUrl, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Não deu para saber — provedor fora do ar, credencial irresolvível.</summary>
+    public bool IsUnavailable => !Found && ReasonCode is not null;
+
+    public static WebhookHealthResult Healthy(
+        bool enabled, bool interrupted, int penalizedRequestsCount, string? url)
+        => new(Found: true, enabled, interrupted, penalizedRequestsCount, url, null);
 
     public static WebhookHealthResult NotFound()
-        => new(Found: false, false, false, 0, null);
+        => new(Found: false, false, false, 0, null, null);
 
     public static WebhookHealthResult Unavailable(string reasonCode)
-        => new(Found: false, false, false, 0, reasonCode);
+        => new(Found: false, false, false, 0, null, reasonCode);
 }

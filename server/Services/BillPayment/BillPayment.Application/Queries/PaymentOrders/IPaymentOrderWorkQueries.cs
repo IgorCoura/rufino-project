@@ -53,4 +53,17 @@ public interface IPaymentOrderWorkQueries
         DateTimeOffset agedBefore,
         int limit,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Quantas ordens deste tenant esperam desfecho do provedor agora.
+    /// </summary>
+    /// <remarks>
+    /// É o que separa "o webhook está mudo" de "o webhook está morto": sem ordem viva, silêncio é
+    /// o esperado e alertar seria ruído diário; com ordem viva, silêncio é dinheiro parado sem
+    /// ninguém sabendo. Recebe <c>TenantId</c> porque a pergunta é sobre UM tenant — ao
+    /// contrário das varreduras vizinhas, que atravessam a instalação inteira.
+    /// </remarks>
+    Task<int> CountAwaitingProviderAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken = default);
 }

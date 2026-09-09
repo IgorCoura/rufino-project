@@ -10,6 +10,16 @@ public static class PayerProfileErrors
 {
     private const string AGGREGATE_PREFIX = "BLP.PRF";
 
+    /// <summary>
+    /// O id de <see cref="AsaasProviderUnreachable"/>, para quem precisa distinguir
+    /// "provedor fora do ar" (retentável, silencioso) de qualquer outra recusa.
+    /// </summary>
+    /// <remarks>
+    /// Público porque a varredura de webhook faz exatamente essa distinção num <c>when</c>, e
+    /// comparar com a string crua deixaria a constante duplicada longe de onde ela é definida.
+    /// </remarks>
+    public const string ASAAS_PROVIDER_UNREACHABLE_ID = $"{AGGREGATE_PREFIX}13";
+
     public static DomainException PrimaryTaxIdRequired(
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
@@ -170,6 +180,25 @@ public static class PayerProfileErrors
         => new(
             id: $"{AGGREGATE_PREFIX}15",
             messageTemplate: "O webhook do provedor precisa de um token de autenticação.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    /// <summary>
+    /// Pediram para reprovisionar o webhook de um tenant que não tem conta de provedor vinculada.
+    /// </summary>
+    /// <remarks>
+    /// Distinto do <see cref="AsaasKeyRequired"/> de propósito: lá a chave veio em branco no
+    /// formulário; aqui a operação inteira não faz sentido, e dizer "informe a chave" mandaria
+    /// quem opera procurar um campo que não está na tela.
+    /// </remarks>
+    public static DomainException AsaasAccountNotLinked(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}16",
+            messageTemplate: "Este tenant ainda não vinculou uma conta de pagamento; não há webhook a provisionar.",
             parameters: Array.Empty<object>(),
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);

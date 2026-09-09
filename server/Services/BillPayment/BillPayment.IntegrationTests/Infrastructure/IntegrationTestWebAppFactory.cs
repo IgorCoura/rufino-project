@@ -239,34 +239,54 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
     /// determinísticos — para os testes da fase 3, que jamais podem bater no provedor real.
     /// </summary>
     public WebApplicationFactory<Program> WithPaymentChain()
-        => WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        => WithWebHostBuilder(builder =>
         {
-            services.AddSingleton<FakeLookupServices>();
-            services.RemoveAll<IBillLookupService>();
-            services.RemoveAll<IPixLookupService>();
-            services.AddSingleton<IBillLookupService>(sp => sp.GetRequiredService<FakeLookupServices>());
-            services.AddSingleton<IPixLookupService>(sp => sp.GetRequiredService<FakeLookupServices>());
+            // O webhook do tenant faz parte da cadeia desde o ADR-019: sem endereço público e sem
+            // provisionador, nenhum tenant chega a ter webhook e todo evento entrante responderia
+            // "não configurado". A varredura fica desligada — os testes a acionam na mão.
+            builder.UseSetting("PaymentWebhook:PublicBaseUrl", TestWebhookBaseUrl);
+            builder.UseSetting("PaymentWebhook:NotificationEmail", "ops@rufino.test");
+            builder.UseSetting("PaymentWebhookSweep:Enabled", "false");
 
-            services.AddSingleton<FakePaymentAccountVerifier>();
-            services.RemoveAll<IPaymentAccountVerifier>();
-            services.AddSingleton<IPaymentAccountVerifier>(sp => sp.GetRequiredService<FakePaymentAccountVerifier>());
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddSingleton<FakePaymentWebhookProvisioner>();
+                services.RemoveAll<IPaymentWebhookProvisioner>();
+                services.AddSingleton<IPaymentWebhookProvisioner>(
+                    sp => sp.GetRequiredService<FakePaymentWebhookProvisioner>());
 
-            services.AddSingleton<FakePaymentGateways>();
-            services.RemoveAll<IBillPaymentGateway>();
-            services.RemoveAll<IPixPaymentGateway>();
-            services.AddSingleton<IBillPaymentGateway>(sp => sp.GetRequiredService<FakePaymentGateways>());
-            services.AddSingleton<IPixPaymentGateway>(sp => sp.GetRequiredService<FakePaymentGateways>());
+                ConfigurePaymentChain(services);
+            });
+        });
 
-            // O comprovante e o balde: o fluxo Paid → comprovante guardado precisa de um
-            // armazenamento que funcione — o não-configurado da fábrica compartilhada falha alto.
-            services.AddSingleton<FakeReceiptFetcher>();
-            services.RemoveAll<IPaymentReceiptFetcher>();
-            services.AddSingleton<IPaymentReceiptFetcher>(sp => sp.GetRequiredService<FakeReceiptFetcher>());
+    private static void ConfigurePaymentChain(IServiceCollection services)
+    {
+        services.AddSingleton<FakeLookupServices>();
+        services.RemoveAll<IBillLookupService>();
+        services.RemoveAll<IPixLookupService>();
+        services.AddSingleton<IBillLookupService>(sp => sp.GetRequiredService<FakeLookupServices>());
+        services.AddSingleton<IPixLookupService>(sp => sp.GetRequiredService<FakeLookupServices>());
 
-            services.AddSingleton<InMemoryAttachmentStorage>();
-            services.RemoveAll<IAttachmentStorage>();
-            services.AddSingleton<IAttachmentStorage>(sp => sp.GetRequiredService<InMemoryAttachmentStorage>());
-        }));
+        services.AddSingleton<FakePaymentAccountVerifier>();
+        services.RemoveAll<IPaymentAccountVerifier>();
+        services.AddSingleton<IPaymentAccountVerifier>(sp => sp.GetRequiredService<FakePaymentAccountVerifier>());
+
+        services.AddSingleton<FakePaymentGateways>();
+        services.RemoveAll<IBillPaymentGateway>();
+        services.RemoveAll<IPixPaymentGateway>();
+        services.AddSingleton<IBillPaymentGateway>(sp => sp.GetRequiredService<FakePaymentGateways>());
+        services.AddSingleton<IPixPaymentGateway>(sp => sp.GetRequiredService<FakePaymentGateways>());
+
+        // O comprovante e o balde: o fluxo Paid → comprovante guardado precisa de um
+        // armazenamento que funcione — o não-configurado da fábrica compartilhada falha alto.
+        services.AddSingleton<FakeReceiptFetcher>();
+        services.RemoveAll<IPaymentReceiptFetcher>();
+        services.AddSingleton<IPaymentReceiptFetcher>(sp => sp.GetRequiredService<FakeReceiptFetcher>());
+
+        services.AddSingleton<InMemoryAttachmentStorage>();
+        services.RemoveAll<IAttachmentStorage>();
+        services.AddSingleton<IAttachmentStorage>(sp => sp.GetRequiredService<InMemoryAttachmentStorage>());
+    }
 
     /// <summary>
     /// Host irmão com a prova da chave Asaas determinística — para os testes do vínculo da
@@ -279,6 +299,47 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
             services.RemoveAll<IPaymentAccountVerifier>();
             services.AddSingleton<IPaymentAccountVerifier>(sp => sp.GetRequiredService<FakePaymentAccountVerifier>());
         }));
+
+    /// <summary>
+    /// Host irmão com a prova da chave <strong>e o provisionador de webhook</strong> falsos, e
+    /// com <c>PublicBaseUrl</c> configurada.
+    /// </summary>
+    /// <remarks>
+    /// A URL pública entra aqui de propósito: sem ela o provisionamento sai por <c>Skipped</c> e
+    /// o teste passaria sem provar nada — que é exatamente o segundo bloqueio encontrado em
+    /// 2026-09-09, depois do evento que nunca chegava ao outbox.
+    /// </remarks>
+    /// <param name="publicBaseUrl">
+    /// Vazio reproduz a instalação sem endereço público — o segundo bloqueio de 2026-09-09, em
+    /// que o evento chegava mas o provisionamento saía por <c>Skipped</c>.
+    /// </param>
+    public WebApplicationFactory<Program> WithFakeWebhookProvisioner(
+        string publicBaseUrl = TestWebhookBaseUrl)
+        => WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("PaymentWebhook:PublicBaseUrl", publicBaseUrl);
+            builder.UseSetting("PaymentWebhook:NotificationEmail", "ops@rufino.test");
+
+            // O serviço de varredura é acionado pelos testes na mão, comando a comando: ligado,
+            // ele dispararia ciclos no meio das asserções e a suíte ficaria não-determinística.
+            builder.UseSetting("PaymentWebhookSweep:Enabled", "false");
+
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddSingleton<FakePaymentAccountVerifier>();
+                services.RemoveAll<IPaymentAccountVerifier>();
+                services.AddSingleton<IPaymentAccountVerifier>(
+                    sp => sp.GetRequiredService<FakePaymentAccountVerifier>());
+
+                services.AddSingleton<FakePaymentWebhookProvisioner>();
+                services.RemoveAll<IPaymentWebhookProvisioner>();
+                services.AddSingleton<IPaymentWebhookProvisioner>(
+                    sp => sp.GetRequiredService<FakePaymentWebhookProvisioner>());
+            });
+        });
+
+    /// <summary>A base pública que os testes de webhook usam; a URL de callback deriva dela.</summary>
+    public const string TestWebhookBaseUrl = "https://billpayment.test";
 
     /// <summary>
     /// Host irmão com a leitura de caixa trocada por uma que sempre concede acesso.

@@ -168,4 +168,50 @@ public sealed class PayerProfileController(
 
         return OkResponse(result);
     }
+
+    /// <summary>
+    /// O estado do webhook deste tenant, conferido AO VIVO no provedor.
+    /// </summary>
+    /// <remarks>
+    /// Existe porque o modo de falha do webhook é o silêncio: sem esta tela, "não chega evento"
+    /// e "nunca houve webhook" são indistinguíveis de fora. Nada de segredo sai daqui — só o
+    /// fato de o webhook existir, estar habilitado e apontar para o endereço certo.
+    /// </remarks>
+    [HttpGet("asaas-webhook")]
+    [ProtectedResource("payer-profile", "view")]
+    public async Task<ActionResult<InspectPaymentWebhookResponse>> InspectAsaasWebhook(
+        [FromRoute] Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new InspectPaymentWebhookCommand(tenantId), cancellationToken);
+        return OkResponse(result);
+    }
+
+    /// <summary>
+    /// Recria o webhook do tenant no provedor, com token novo.
+    /// </summary>
+    /// <remarks>
+    /// A varredura periódica já conserta sozinha o que dá para consertar; este endpoint é a
+    /// alavanca manual para quando não dá para esperar o ciclo, ou para quando o token do cofre
+    /// caiu fora de sincronia com o do provedor — o único defeito que a varredura não consegue
+    /// DIAGNOSTICAR, porque o provedor não devolve o token em leitura nenhuma. Rotaciona sempre,
+    /// de propósito: é justamente o segredo que se quer reconstruir dos dois lados.
+    /// </remarks>
+    [HttpPost("asaas-webhook/reprovision")]
+    [ProtectedResource("payer-profile", "manage")]
+    public async Task<ActionResult<ProvisionPaymentWebhookResponse>> ReprovisionAsaasWebhook(
+        [FromRoute] Guid tenantId,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var command = new ProvisionPaymentWebhookCommand(tenantId, RotateToken: true);
+        var identified = new IdentifiedCommand<ProvisionPaymentWebhookCommand, ProvisionPaymentWebhookResponse>(
+            command, EnsureRequestId(requestId));
+
+        SendingCommandLog(tenantId, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, tenantId, command, identified.Id);
+
+        return OkResponse(result);
+    }
 }

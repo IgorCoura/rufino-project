@@ -255,6 +255,28 @@ internal static class AsaasHttp
             _ => "transport_error",
         };
 
+    /// <summary>
+    /// O fuso em que o provedor responde. <strong>Constante do integrador, não do servidor</strong>
+    /// — em contêiner o fuso da máquina é quase sempre UTC, e usá-lo deslocaria toda leitura.
+    /// </summary>
+    /// <remarks>
+    /// Mesmo par IANA/Windows do <c>PaymentSchedulingOptions</c>: o id IANA funciona nos dois
+    /// sistemas desde o .NET 6 (ICU), e o fallback cobre a máquina Windows sem ICU.
+    /// </remarks>
+    private static readonly TimeZoneInfo ProviderTimeZone = ResolveProviderTimeZone();
+
+    private static TimeZoneInfo ResolveProviderTimeZone()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time");
+        }
+    }
+
     public static decimal? ReadDecimal(string? raw)
         => decimal.TryParse(raw, NumberStyles.Number, CultureInfo.InvariantCulture, out var value) ? value : null;
 
@@ -264,13 +286,78 @@ internal static class AsaasHttp
         return value is null ? null : new Money(value.Value, Currency.BRL);
     }
 
+    /// <summary>
+    /// A data que o provedor afirmou, aceitando também os campos que vêm com hora.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>O provedor serializa data-hora como <c>"yyyy-MM-dd HH:mm:ss"</c>, e
+    /// <c>DateOnly.TryParse</c> RECUSA esse formato</strong> — medido em 2026-09-09. Só isso já
+    /// custou um pagamento: o <c>effectiveDate</c> de uma transação Pix <c>DONE</c> virava
+    /// <c>null</c>, e "pago sem data de pagamento" é <c>BLP.PMO03</c>, que derrubava a
+    /// conciliação daquela ordem a cada ciclo, para sempre. O defeito é invisível porque a falha
+    /// de leitura não é exceção: é um <c>null</c> que só vira problema três camadas adiante.
+    /// </para>
+    /// <para>
+    /// <strong>A parte da data é tomada SEM converter fuso</strong>, e isso é deliberado: o
+    /// provedor responde em horário de Brasília sem deslocamento explícito, e normalizar para UTC
+    /// empurraria para o dia seguinte todo pagamento efetivado depois das 21h. A data que vale é a
+    /// que ele afirmou. Quando o texto TRAZ deslocamento, ele é respeitado e a data é a do próprio
+    /// instante informado.
+    /// </para>
+    /// </remarks>
     public static DateOnly? ReadDate(string? raw)
-        => DateOnly.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var value) ? value : null;
+    {
+        if (DateOnly.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+            return date;
 
-    public static DateTimeOffset? ReadTimestamp(string? raw)
-        => DateTimeOffset.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var value)
-            ? value
+        return DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var moment)
+            ? DateOnly.FromDateTime(moment)
             : null;
+    }
+
+    /// <summary>
+    /// Um instante do provedor. Texto sem deslocamento é lido como <strong>hora de Brasília</strong>.
+    /// </summary>
+    /// <remarks>
+    /// <c>AssumeUniversal</c> estava errado pelo mesmo motivo do <see cref="ReadDate"/>: o provedor
+    /// responde no fuso dele, então tratar <c>"23:59:59"</c> como UTC dava a um QR Pix uma
+    /// expiração <strong>três horas mais cedo</strong> que a real.
+    /// </remarks>
+    public static DateTimeOffset? ReadTimestamp(string? raw)
+    {
+        // AssumeLocal seria o fuso da MÁQUINA — em contêiner, quase sempre UTC. O fuso do
+        // provedor é uma constante do integrador, não do servidor onde isto roda.
+        if (!DateTimeOffset.TryParse(
+                raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var withOffset))
+        {
+            return null;
+        }
+
+        if (withOffset.Offset != TimeSpan.Zero || HasExplicitOffset(raw))
+            return withOffset;
+
+        var unspecified = DateTime.SpecifyKind(withOffset.DateTime, DateTimeKind.Unspecified);
+        return new DateTimeOffset(unspecified, ProviderTimeZone.GetUtcOffset(unspecified));
+    }
+
+    /// <summary>
+    /// O texto declara fuso? Sem isso, um instante que por acaso caia num deslocamento zero
+    /// seria confundido com um instante sem fuso e deslocado de novo.
+    /// </summary>
+    private static bool HasExplicitOffset(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return false;
+
+        var trimmed = raw.TrimEnd();
+        if (trimmed.EndsWith('Z') || trimmed.EndsWith('z'))
+            return true;
+
+        // Um '+' ou '-' depois da parte da hora — nunca o hífen das datas, que vem antes dela.
+        var timeAt = trimmed.IndexOf(':', StringComparison.Ordinal);
+        return timeAt >= 0 && trimmed.IndexOfAny(['+', '-'], timeAt) >= 0;
+    }
 
     /// <summary>
     /// O código do banco aceitando as duas formas plausíveis, porque a resposta preenchida
