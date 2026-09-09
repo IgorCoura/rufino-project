@@ -120,6 +120,7 @@ public static class ApplicationDependencies
         services.AddScoped<IPaymentQueries, PaymentQueries>();
         services.AddScoped<IPaymentOrderWorkQueries, PaymentOrderWorkQueries>();
         services.AddScoped<IPaymentSchedulePreviewQueries, PaymentSchedulePreviewQueries>();
+        services.AddScoped<IScheduleOptionQueries, ScheduleOptionQueries>();
 
         return services;
     }

@@ -371,6 +371,7 @@ void main() {
         effectiveDate: DateTime(2026, 9, 11),
         slid: true,
         immediate: false,
+        afterDueDate: false,
       );
 
       await pumpDetail(tester);
@@ -399,6 +400,7 @@ void main() {
         effectiveDate: DateTime(2026, 9, 10),
         slid: false,
         immediate: false,
+        afterDueDate: false,
       );
 
       await pumpDetail(tester);
@@ -414,7 +416,8 @@ void main() {
     });
 
     // A prévia é informativa: sem ela a folha funciona exatamente como
-    // antes — nada de linha, e o Autorizar segue habilitado.
+    // antes — nada de linha, e o Autorizar segue habilitado. Vale para as
+    // duas fontes: as sugestões prontas e a prévia da data livre.
     testWidgets('a preview failure draws nothing and never blocks the '
         'authorization', (tester) async {
       repository.detail = billDetail(
@@ -423,6 +426,7 @@ void main() {
         lastConsultedAt: DateTime.now(),
       );
       repository.previewShouldFail = true;
+      repository.scheduleOptionsShouldFail = true;
 
       await pumpDetail(tester);
       await tester.ensureVisible(find.text('Aprovar e agendar…'));
@@ -456,6 +460,7 @@ void main() {
         effectiveDate: DateTime(2026, 9, 1),
         slid: false,
         immediate: true,
+        afterDueDate: false,
       );
 
       await pumpDetail(tester);
@@ -475,6 +480,163 @@ void main() {
         find.widgetWithText(FilledButton, 'Autorizar e agendar'),
       );
       expect(authorize.onPressed, isNull);
+    });
+  });
+
+  group('approve sheet — as quatro sugestões (ADR-021)', () {
+    BillDetail approvableBill() => billDetail(
+          status: BillStatuses.awaitingApproval,
+          dueDate: DateTime.now().add(const Duration(days: 30)),
+          lastConsultedAt: DateTime.now(),
+        );
+
+    Future<void> openSheet(WidgetTester tester) async {
+      await pumpDetail(tester);
+      await tester.ensureVisible(find.text('Aprovar e agendar…'));
+      await tester.tap(find.text('Aprovar e agendar…'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a folha oferece as quatro datas do servidor e a livre',
+        (tester) async {
+      repository.detail = approvableBill();
+
+      await openSheet(tester);
+
+      expect(find.text('Pagar hoje'), findsOneWidget);
+      expect(find.text('Amanhã'), findsOneWidget);
+      expect(find.text('Um dia antes do vencimento'), findsOneWidget);
+      expect(find.text('No dia do vencimento'), findsOneWidget);
+      expect(find.text('Outra data…'), findsOneWidget);
+    });
+
+    // A mais conservadora que couber: pagar no vencimento é o que o boleto
+    // pede, e agendar hoje sem ninguém pedir seria a folha decidindo pressa.
+    testWidgets('a seleção inicial é o dia do vencimento', (tester) async {
+      repository.detail = approvableBill();
+      repository.scheduleOptionsToday = DateTime(2026, 6, 20);
+
+      await openSheet(tester);
+      await tester.tap(find.widgetWithText(FilledButton, 'Autorizar e agendar'));
+      await tester.pumpAndSettle();
+
+      // 20/06 + 10 dias = a data de OnDueDate no fake.
+      expect(repository.lastApproveScheduleFor, DateTime(2026, 6, 30));
+    });
+
+    // Indisponível NÃO some: some sem explicação vira "por que não posso
+    // pagar hoje?". O motivo do servidor aparece no lugar da data.
+    testWidgets('uma sugestão indisponível fica desabilitada com o motivo',
+        (tester) async {
+      repository.detail = approvableBill();
+      repository.scheduleOptions = [
+        const ScheduleOptionPreview(
+          kind: ScheduleOptionKind.today,
+          available: false,
+          unavailableReason: ScheduleUnavailableReasons.outsideWindow,
+        ),
+        ScheduleOptionPreview(
+          kind: ScheduleOptionKind.tomorrow,
+          available: true,
+          date: DateTime(2026, 6, 21),
+          preview: SchedulePreview(
+            requestedDate: DateTime(2026, 6, 21),
+            effectiveDate: DateTime(2026, 6, 21),
+            slid: false,
+            immediate: false,
+            afterDueDate: false,
+          ),
+        ),
+      ];
+
+      await openSheet(tester);
+
+      expect(
+        find.text('fora do horário de envio dos pagamentos'),
+        findsOneWidget,
+      );
+      final today = tester.widget<RadioListTile<ScheduleOptionKind>>(
+        find.widgetWithText(
+          RadioListTile<ScheduleOptionKind>,
+          'Pagar hoje',
+        ),
+      );
+      expect(today.enabled, isFalse);
+
+      // E a folha escolhe sozinha a única que sobrou.
+      await tester.tap(find.widgetWithText(FilledButton, 'Autorizar e agendar'));
+      await tester.pumpAndSettle();
+      expect(repository.lastApproveScheduleFor, DateTime(2026, 6, 21));
+    });
+
+    // Pagar depois do vencimento é AVISO, nunca bloqueio: a conta atrasada é
+    // justamente a que o produto precisa saber pagar.
+    testWidgets('data posterior ao vencimento avisa sobre encargos sem travar',
+        (tester) async {
+      repository.detail = approvableBill();
+      repository.schedulePreview = SchedulePreview(
+        requestedDate: DateTime(2026, 6, 30),
+        effectiveDate: DateTime(2026, 6, 30),
+        slid: false,
+        immediate: false,
+        afterDueDate: true,
+      );
+
+      await openSheet(tester);
+
+      expect(
+        find.textContaining('Esta data é posterior ao vencimento'),
+        findsOneWidget,
+      );
+      final authorize = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Autorizar e agendar'),
+      );
+      expect(authorize.onPressed, isNotNull);
+    });
+
+    // O irmão das 18h do cinto do BIL35: a janela fechou entre abrir a folha
+    // e confirmar. A recusa relê as sugestões NO LUGAR — "pagar hoje" cai
+    // sozinho e o formulário sobrevive.
+    testWidgets('uma recusa BIL40 relê as sugestões sem fechar a folha',
+        (tester) async {
+      repository.detail = approvableBill();
+      repository.scriptedApproveRefusals.add(
+        const BillPaymentRuleException(
+          'Não é mais possível pagar hoje.',
+          code: 'BLP.BIL40',
+        ),
+      );
+
+      await openSheet(tester);
+      await tester.tap(find.widgetWithText(FilledButton, 'Autorizar e agendar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Autorizar e agendar pagamento'), findsOneWidget);
+      expect(
+        find.textContaining('O horário de envio dos pagamentos fechou'),
+        findsOneWidget,
+      );
+      expect(
+        repository.calls.where((c) => c == 'getScheduleOptions:bill-1').length,
+        2,
+      );
+    });
+
+    // Perder as sugestões custa conveniência; perder a folha custa o
+    // pagamento. Sem elas resta o seletor livre, e o Autorizar continua de pé.
+    testWidgets('sugestões indisponíveis deixam a folha no seletor livre',
+        (tester) async {
+      repository.detail = approvableBill();
+      repository.scheduleOptionsShouldFail = true;
+
+      await openSheet(tester);
+
+      expect(find.text('Pagar hoje'), findsNothing);
+      expect(find.text('Outra data…'), findsOneWidget);
+      final authorize = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Autorizar e agendar'),
+      );
+      expect(authorize.onPressed, isNotNull);
     });
   });
 }

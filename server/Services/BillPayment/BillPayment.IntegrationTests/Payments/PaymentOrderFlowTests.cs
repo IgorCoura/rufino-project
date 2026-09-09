@@ -520,8 +520,97 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
         Assert.Equal(HttpStatusCode.NotFound, otherTenant.StatusCode);
     }
 
+    // As quatro sugestões da folha (ADR-021), pelo endpoint que a desenha inteira. Nada aqui
+    // afirma se HOJE está disponível: isso depende do relógio real da suíte e seria flaky —
+    // o que se afirma é a coerência (disponível XOR motivo) e as datas derivadas do vencimento.
+    [Fact]
+    public async Task ScheduleOptions_OnABillDueInTheFuture_ShouldResolveTheFourSuggestions()
+    {
+        var billId = await ImportAndValidateAsync(FutureDueSnapshot());
+
+        // O vencimento vem do BOLETO, nunca do relógio deste processo: o servidor resolve "hoje"
+        // em America/Sao_Paulo e, das ~21h à meia-noite locais, o dia UTC daqui já virou. Ancorar
+        // a asserção no UTC local seria reproduzir no teste o bug que o desenho existe para evitar.
+        var due = (await LoadBillAsync(billId)).DueDate!.Value;
+
+        var options = await _client.GetFromJsonAsync<List<ScheduleOptionContract>>(
+            BillsRoute($"{billId}/schedule-options"), CancellationToken.None);
+
+        Assert.NotNull(options);
+        Assert.Equal(
+            ["Today", "Tomorrow", "DayBeforeDue", "OnDueDate"],
+            options!.Select(o => o.Option));
+
+        // Disponível traz data e prévia; indisponível traz motivo e nenhuma das duas. O contrário
+        // seria a tela oferecendo um botão que o servidor recusaria.
+        foreach (var option in options)
+        {
+            Assert.Equal(option.Available, option.Date is not null);
+            Assert.Equal(option.Available, option.Preview is not null);
+            Assert.Equal(option.Available, option.UnavailableReason is null);
+        }
+
+        var onDueDate = options.Single(o => o.Option == "OnDueDate");
+        Assert.Equal(due, onDueDate.Date);
+        Assert.False(onDueDate.Preview!.AfterDueDate);
+
+        var dayBeforeDue = options.Single(o => o.Option == "DayBeforeDue");
+        Assert.Equal(due.AddDays(-1), dayBeforeDue.Date);
+
+        // Amanhã nunca fica indisponível, e num boleto que vence daqui a 20 dias ele cai bem
+        // antes da véspera. Sem data absoluta: a relação é o que o servidor promete.
+        var tomorrow = options.Single(o => o.Option == "Tomorrow");
+        Assert.True(tomorrow.Available);
+        Assert.True(tomorrow.Date < dayBeforeDue.Date);
+    }
+
+    // Vencido: as duas sugestões ancoradas no vencimento apontam para o passado e somem com o
+    // motivo dito. Quem está em cima da hora usa "pagar hoje", que segue na lista.
+    [Fact]
+    public async Task ScheduleOptions_OnAnOverdueBill_ShouldRefuseTheDueDateSuggestions()
+    {
+        var billId = await ImportAndValidateAsync(OverdueSnapshot());
+
+        var options = await _client.GetFromJsonAsync<List<ScheduleOptionContract>>(
+            BillsRoute($"{billId}/schedule-options"), CancellationToken.None);
+
+        Assert.NotNull(options);
+
+        foreach (var option in options!.Where(o => o.Option is "DayBeforeDue" or "OnDueDate"))
+        {
+            Assert.False(option.Available);
+            Assert.Equal("in_the_past", option.UnavailableReason);
+            Assert.Null(option.Date);
+        }
+
+        // Amanhã continua ofertável — e a prévia dele já avisa que sai depois do vencimento.
+        var tomorrow = options.Single(o => o.Option == "Tomorrow");
+        Assert.True(tomorrow.Available);
+        Assert.True(tomorrow.Preview!.Immediate);
+    }
+
+    // O boleto de um tenant não responde pela rota do outro, nem para listar sugestões de data.
+    [Fact]
+    public async Task ScheduleOptions_ThroughAnotherTenant_ShouldNotBeFound()
+    {
+        var billId = await ImportAndValidateAsync(FutureDueSnapshot());
+
+        var otherTenant = await _client.GetAsync(
+            new Uri($"/api/v1/{TestTenants.Secondary}/bills/{billId}/schedule-options", UriKind.Relative),
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.NotFound, otherTenant.StatusCode);
+    }
+
     private sealed record SchedulePreviewContract(
-        DateOnly RequestedDate, DateOnly EffectiveDate, bool Slid, bool Immediate);
+        DateOnly RequestedDate, DateOnly EffectiveDate, bool Slid, bool Immediate, bool AfterDueDate);
+
+    private sealed record ScheduleOptionContract(
+        string Option,
+        DateOnly? Date,
+        SchedulePreviewContract? Preview,
+        bool Available,
+        string? UnavailableReason);
 
     private static DateOnly NextSaturdayAtLeastAWeekAhead()
     {

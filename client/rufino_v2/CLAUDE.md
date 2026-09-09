@@ -1328,12 +1328,33 @@ Coisas que não podem erodir:
   `acknowledgeImmediateExecution: true` (`BLP.BIL35` sem ele). Ordem retida em
   `AwaitingConfirmation` mostra o botão "Confirmar pagamento imediato" na seção de execução.
 - **A prévia da data efetiva é INFORMATIVA e nunca bloqueia a aprovação.** O sheet de
-  aprovar consulta `GET /bills/{id}/schedule-preview?date=` (`SchedulePreview`) ao abrir e a
-  cada troca de data, e mostra "Pagamento será executado em \<data\>" com "(deslizou do dia
-  pedido)" quando a política empurrou — a conta é do servidor (ADR-017), o cliente não a
-  reimplementa. Falha/latência da prévia não desenha nada e o Autorizar segue funcionando;
-  resposta obsoleta (data mudou de novo) é descartada. Prévia com `immediate: true` revela a
-  caixa de aceite do vencido mesmo que o relógio local discorde.
+  aprovar mostra "Pagamento será executado em \<data\>" com "(deslizou do dia pedido)" quando a
+  política empurrou — a conta é do servidor (ADR-017/ADR-021), o cliente não a reimplementa.
+  Falha/latência da prévia não desenha nada e o Autorizar segue funcionando; resposta obsoleta
+  (data mudou de novo) é descartada. Prévia com `immediate: true` revela a caixa de aceite do
+  vencido mesmo que o relógio local discorde. Prévia com `afterDueDate: true` mostra o aviso de
+  encargos — **aviso, nunca bloqueio**: a conta atrasada é justamente a que precisa ser paga.
+- **A folha oferece QUATRO datas prontas + a data livre, e nenhuma delas é calculada aqui
+  (ADR-021 do BC).** `GET /bills/{id}/schedule-options` devolve `Today`/`Tomorrow`/
+  `DayBeforeDue`/`OnDueDate` já resolvidas (`ScheduleOptionPreview`: data, prévia,
+  `available`, `unavailableReason`) numa chamada só — uma por sugestão obrigaria o cliente a
+  derivar as datas para pedi-las, e derivar dia no cliente é o que o descompasso de fuso quebra.
+  **Sugestão indisponível NÃO some**: fica desabilitada com o motivo traduzido
+  (`ScheduleUnavailableReasons.label`), porque uma opção que some sem explicação vira "por que
+  não posso pagar no vencimento?". A seleção inicial é a mais conservadora que couber
+  (vencimento → véspera → amanhã → hoje). "Outra data…" abre o `showDatePicker` de sempre e cai
+  no `schedule-preview?date=`; opção desconhecida do servidor degrada para
+  `ScheduleOptionKind.unknown` e simplesmente não desenha tile. Falha ao carregar as sugestões
+  deixa a folha só com o seletor livre — perder as sugestões custa conveniência, perder a folha
+  custa o pagamento.
+- **Os quatro rádios vivem num `RadioGroup<ScheduleOptionKind>`** (o `groupValue`/`onChanged`
+  de `RadioListTile` está deprecado desde o Flutter 3.32), e o "Outra data…" é um `ListTile`
+  com o pino desenhado à mão: um rádio de valor nulo dentro do grupo confundiria "sem escolha"
+  com "escolhi outra data".
+- **Recusa `BLP.BIL40` relê as sugestões NO LUGAR.** É o irmão das 18h do cinto abaixo: a janela
+  de envio pode fechar entre abrir a folha e confirmar. A recusa recarrega
+  `getScheduleOptions` (o "Pagar hoje" cai sozinho), mostra o aviso em vermelho e mantém o
+  formulário — fechar o sheet perderia tudo por causa de um relógio que andou um minuto.
 - **Recusa `BLP.BIL35` do servidor revela a caixa NO LUGAR, sem fechar o sheet.** É o cinto
   do descompasso de relógio (UTC × local na virada do dia): a aprovação roda dentro do sheet
   (`_ApproveSheet`, widget com estado próprio — o `TextEditingController` precisa sobreviver

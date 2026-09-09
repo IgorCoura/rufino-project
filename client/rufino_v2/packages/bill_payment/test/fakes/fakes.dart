@@ -965,6 +965,16 @@ class FakeBillRepository implements BillRepository {
   /// Makes only the preview fail — the sheet must keep working without it.
   bool previewShouldFail = false;
 
+  /// The suggestions served by [getScheduleOptions]; null builds the usual
+  /// four, all available, anchored on [scheduleOptionsToday].
+  List<ScheduleOptionPreview>? scheduleOptions;
+
+  /// The day the default suggestions are anchored on.
+  DateTime scheduleOptionsToday = DateTime(2026, 6, 20);
+
+  /// Makes only the suggestions fail — the sheet must fall back to the picker.
+  bool scheduleOptionsShouldFail = false;
+
   /// Rule refusals scripted for the next [approveBill] calls, consumed in
   /// order — lets a test refuse once (`BLP.BIL35`) and accept the retry.
   final List<BillPaymentRuleException> scriptedApproveRefusals = [];
@@ -1102,15 +1112,46 @@ class FakeBillRepository implements BillRepository {
   ) async {
     calls.add('previewSchedule:$id');
     if (previewShouldFail || _shouldFail) return _fail();
-    return Result.success(
-      schedulePreview ??
-          SchedulePreview(
-            requestedDate: date,
-            effectiveDate: date,
-            slid: false,
-            immediate: false,
-          ),
-    );
+    return Result.success(schedulePreview ?? _previewOf(date));
+  }
+
+  @override
+  Future<Result<List<ScheduleOptionPreview>>> getScheduleOptions(
+    String id,
+  ) async {
+    calls.add('getScheduleOptions:$id');
+    if (scheduleOptionsShouldFail || _shouldFail) return _fail();
+    return Result.success(scheduleOptions ?? _defaultScheduleOptions());
+  }
+
+  SchedulePreview _previewOf(DateTime date) => SchedulePreview(
+        requestedDate: date,
+        effectiveDate: date,
+        slid: false,
+        immediate: false,
+        afterDueDate: false,
+      );
+
+  List<ScheduleOptionPreview> _defaultScheduleOptions() {
+    final today = scheduleOptionsToday;
+    final dates = {
+      ScheduleOptionKind.today: today,
+      ScheduleOptionKind.tomorrow: today.add(const Duration(days: 1)),
+      ScheduleOptionKind.dayBeforeDue: today.add(const Duration(days: 9)),
+      ScheduleOptionKind.onDueDate: today.add(const Duration(days: 10)),
+    };
+
+    return [
+      for (final entry in dates.entries)
+        ScheduleOptionPreview(
+          kind: entry.key,
+          available: true,
+          date: entry.value,
+          // [schedulePreview] vale para qualquer data: é o que o servidor
+          // responderia, e as sugestões nascem dele como a prévia do seletor.
+          preview: schedulePreview ?? _previewOf(entry.value),
+        ),
+    ];
   }
 
   @override

@@ -4,6 +4,7 @@ using BillPayment.Domain.Bills.Checks;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Lookups;
 using BillPayment.Domain.Payees;
+using BillPayment.Domain.PaymentOrders;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 
@@ -568,15 +569,23 @@ public sealed class Bill : AggregateRoot<BillId>
     /// mais o calendário.
     /// </para>
     /// </remarks>
+    /// <param name="sameDay">
+    /// O veredito do <c>PaymentSchedulingService</c> sobre hoje ainda servir como data de
+    /// pagamento neste instante (ADR-021). Só é consultado quando <paramref name="scheduleFor"/>
+    /// é hoje — nenhuma data futura depende da hora.
+    /// </param>
     public void Schedule(
         UserId requestedBy,
         DateOnly scheduleFor,
         ApprovalPolicy policy,
         DateOnly today,
+        SameDayScheduling sameDay,
         DateTime occurredAt,
         bool acknowledgeImmediateExecution = false,
         string? requesterName = null)
     {
+        ArgumentNullException.ThrowIfNull(sameDay);
+
         ArgumentNullException.ThrowIfNull(policy);
 
         if (Status != BillStatus.Approved)
@@ -589,7 +598,7 @@ public sealed class Bill : AggregateRoot<BillId>
             throw BillErrors.AlreadyScheduled();
 
         EnsureSnapshotIsFresh(policy, occurredAt);
-        EnsureScheduleDateIsAllowed(scheduleFor, today);
+        EnsureScheduleDateIsAllowed(scheduleFor, today, sameDay);
         EnsureImmediateExecutionIsAcknowledged(today, acknowledgeImmediateExecution);
 
         ScheduledFor = scheduleFor;
@@ -939,13 +948,19 @@ public sealed class Bill : AggregateRoot<BillId>
         throw BillErrors.OverdueRequiresImmediateAcknowledgment(due);
     }
 
-    private void EnsureScheduleDateIsAllowed(DateOnly scheduleFor, DateOnly today)
+    private void EnsureScheduleDateIsAllowed(DateOnly scheduleFor, DateOnly today, SameDayScheduling sameDay)
     {
         if (scheduleFor < today)
             throw BillErrors.ScheduleDateInThePast(scheduleFor, today);
 
         if (Lookup?.MinimumScheduleDate is { } minimum && scheduleFor < minimum)
             throw BillErrors.ScheduleDateBeforeProviderMinimum(scheduleFor, minimum);
+
+        // Só HOJE depende da hora (ADR-021), e por isso o veredito entra por parâmetro em vez de
+        // ser calculado aqui: o agregado não conhece relógio nem calendário bancário. Datas
+        // futuras não passam por esta porta.
+        if (scheduleFor == today && !sameDay.Allowed)
+            throw BillErrors.SameDaySchedulingUnavailable(sameDay.ReasonCode);
     }
 
     private void RecomputeDueDate()

@@ -2,6 +2,7 @@ namespace BillPayment.Domain.Bills;
 
 using System.IO;
 using System.Runtime.CompilerServices;
+using BillPayment.Domain.PaymentOrders;
 using BillPayment.Domain.SeedWork;
 
 // BC: BLP (BillPayment) — Aggregate: BIL (Bill)
@@ -271,6 +272,31 @@ public static class BillErrors
             messageTemplate: "A data de pagamento {0} é anterior à primeira data que o provedor aceita ({1}).",
             parameters: new object[] { scheduleFor, minimum },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    /// <summary>
+    /// ADR-021: escolheram HOJE, e hoje já não dá. É a única data que depende da hora — fora da
+    /// janela de submissão a fila só falaria com o provedor na próxima abertura, quando "hoje"
+    /// já é ontem. Recusar na escolha é honesto; aceitar e deslizar um dia calado não é.
+    /// </summary>
+    public static DomainException SameDaySchedulingUnavailable(
+        string? reasonCode,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}40",
+            messageTemplate: "Não é mais possível pagar hoje ({0}). Escolha outra data.",
+            parameters: new object[] { DescribeSameDayRefusal(reasonCode) },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    private static string DescribeSameDayRefusal(string? reasonCode) => reasonCode switch
+    {
+        SameDayScheduling.OUTSIDE_WINDOW => "fora do horário de envio dos pagamentos",
+        SameDayScheduling.NOT_A_WORKING_DAY => "hoje não é dia útil",
+        SameDayScheduling.PROVIDER_MINIMUM => "o provedor ainda não aceita esta data",
+        _ => "indisponível agora",
+    };
 
     /// <summary>
     /// Invariante 6. O retrato envelhece — valor de boleto vencido muda todo dia —, e aprovar

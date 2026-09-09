@@ -162,6 +162,7 @@ void main() {
         effectiveDate: DateTime(2026, 9, 11),
         slid: true,
         immediate: false,
+        afterDueDate: false,
       );
       viewModel = build();
       await viewModel.load();

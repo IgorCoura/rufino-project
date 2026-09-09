@@ -26,6 +26,7 @@ public sealed class BillsController(
     IBillQueries queries,
     ICapturedMessageQueries capturedMessages,
     IPaymentSchedulePreviewQueries schedulePreviews,
+    IScheduleOptionQueries scheduleOptions,
     IRptCache rptCache,
     ILogger<BillsController> logger) : BaseController(logger)
 {
@@ -216,6 +217,27 @@ public sealed class BillsController(
 
         var preview = await schedulePreviews.PreviewAsync(tenantId, id, date.Value, cancellationToken);
         return preview is null ? NotFound() : OkResponse(preview);
+    }
+
+    /// <summary>
+    /// As quatro datas prontas da folha de agendar (ADR-021): hoje, amanhã, a véspera do
+    /// vencimento e o próprio vencimento — já resolvidas, com a prévia de cada uma e o motivo
+    /// de quem não pode ser escolhida. Leitura pura — nada muda.
+    /// </summary>
+    /// <remarks>
+    /// Uma chamada desenha a folha inteira. É de propósito: fossem quatro prévias, a tela teria
+    /// de derivar as datas para pedi-las, e derivar dia no cliente é exatamente o que o
+    /// descompasso de fuso quebra.
+    /// </remarks>
+    [HttpGet("{id:guid}/schedule-options")]
+    [ProtectedResource("bill", "view")]
+    public async Task<ActionResult<IReadOnlyList<ScheduleOptionDto>>> GetScheduleOptions(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
+    {
+        var options = await scheduleOptions.ListAsync(tenantId, id, cancellationToken);
+        return options is null ? NotFound() : OkResponse(options);
     }
 
     /// <summary>

@@ -2,6 +2,7 @@ namespace BillPayment.Application.Queries.Bills;
 
 using BillPayment.Application.PaymentOrders.Commands;
 using BillPayment.Domain.Bills;
+using BillPayment.Domain.PaymentOrders;
 using BillPayment.Domain.Ports;
 using BillPayment.Domain.Services;
 using BillPayment.Domain.SharedKernel;
@@ -13,15 +14,60 @@ using Microsoft.Extensions.Options;
 /// O que o sheet de aprovar mostra ANTES de aprovar: a data em que a submissão realmente
 /// ocorreria para a data pedida.
 /// </summary>
+/// <remarks>
+/// Serve a data LIVRE do seletor. As quatro sugestões prontas da folha vêm do
+/// <see cref="IScheduleOptionQueries"/>, que aplica quatro vezes o mesmo <see cref="For"/>.
+/// </remarks>
 /// <param name="RequestedDate">A data que o aprovador escolheu.</param>
 /// <param name="EffectiveDate">A data que a política/calendário produziria de fato.</param>
-/// <param name="Slid">A efetiva difere da pedida — piso do provedor, antecedência ou dia útil.</param>
+/// <param name="Slid">A efetiva difere da pedida — piso do provedor ou dia útil.</param>
 /// <param name="Immediate">O boleto está vencido: execução imediata, sem data futura (ADR-017).</param>
+/// <param name="AfterDueDate">
+/// A data efetiva cai depois do vencimento: o pagamento sai em atraso e pode render encargos.
+/// É aviso, nunca bloqueio — pagar atrasado é justamente o que o produto precisa saber fazer.
+/// Falso quando <paramref name="Immediate"/>, que já diz a mesma coisa com mais precisão.
+/// </param>
 public sealed record SchedulePreviewDto(
     DateOnly RequestedDate,
     DateOnly EffectiveDate,
     bool Slid,
-    bool Immediate);
+    bool Immediate,
+    bool AfterDueDate)
+{
+    /// <summary>
+    /// A conta, sem I/O — o mesmo <see cref="PaymentSchedulingService"/> da fila, para que a
+    /// prévia do seletor livre e as quatro sugestões da folha nunca divirjam da submissão.
+    /// </summary>
+    public static SchedulePreviewDto For(
+        DateOnly requestedDate,
+        DateOnly? dueDate,
+        DateOnly? minimumScheduleDate,
+        DateTime nowLocal,
+        PaymentSchedulingPolicy policy,
+        IWorkingDayCalendar calendar)
+    {
+        var resolution = PaymentSchedulingService.Resolve(
+            requestedDate, dueDate, minimumScheduleDate, nowLocal, policy, calendar);
+
+        // Imediato: não há data futura — a efetiva é "hoje" no fuso da política, sem deslize
+        // (o que há a comunicar é a execução na hora, não uma data que mudou).
+        if (resolution.RequiresImmediateExecution)
+        {
+            return new SchedulePreviewDto(
+                requestedDate, DateOnly.FromDateTime(nowLocal),
+                Slid: false, Immediate: true, AfterDueDate: false);
+        }
+
+        var effective = resolution.EffectiveDate!.Value;
+
+        return new SchedulePreviewDto(
+            requestedDate,
+            effective,
+            Slid: effective != requestedDate,
+            Immediate: false,
+            AfterDueDate: dueDate is { } due && effective > due);
+    }
+}
 
 public interface IPaymentSchedulePreviewQueries
 {
@@ -66,22 +112,8 @@ internal sealed class PaymentSchedulePreviewQueries(
         var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(
             clock.GetUtcNow().UtcDateTime, scheduling.ResolveTimeZone());
 
-        var resolution = PaymentSchedulingService.Resolve(
-            requestedDate,
-            facts.DueDate,
-            facts.MinimumScheduleDate,
-            nowLocal,
-            scheduling.ToPolicy(),
-            calendar);
-
-        // Imediato: não há data futura — a efetiva é "hoje" no fuso da política, sem deslize
-        // (o que há a comunicar é a execução na hora, não uma data que mudou).
-        return resolution.RequiresImmediateExecution
-            ? new SchedulePreviewDto(requestedDate, DateOnly.FromDateTime(nowLocal), Slid: false, Immediate: true)
-            : new SchedulePreviewDto(
-                requestedDate,
-                resolution.EffectiveDate!.Value,
-                Slid: resolution.EffectiveDate!.Value != requestedDate,
-                Immediate: false);
+        return SchedulePreviewDto.For(
+            requestedDate, facts.DueDate, facts.MinimumScheduleDate,
+            nowLocal, scheduling.ToPolicy(), calendar);
     }
 }

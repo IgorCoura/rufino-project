@@ -28,7 +28,9 @@ public class BillPaymentMirrorTests
         bool acknowledgeImmediateExecution = false)
     {
         bill.Approve(approvedBy, note, policy, clearance, occurredAt, acknowledgeRisk);
-        bill.Schedule(approvedBy, scheduleFor, policy, today, occurredAt, acknowledgeImmediateExecution);
+        bill.Schedule(
+            approvedBy, scheduleFor, policy, today, SameDayScheduling.Allow(), occurredAt,
+            acknowledgeImmediateExecution);
     }
 
     private static readonly UserId Approver = UserId.From(new Guid("0195a1f0-0000-7000-8000-00000000000a"));
@@ -133,7 +135,9 @@ public class BillPaymentMirrorTests
         var bill = Scheduled();
         bill.UnschedulePayment(BillActionOrigin.Provider, DecidedAt);
 
-        bill.Schedule(Approver, ScheduleFor.AddDays(1), ApprovalPolicy.Default(null), Today, DecidedAt);
+        bill.Schedule(
+            Approver, ScheduleFor.AddDays(1), ApprovalPolicy.Default(null), Today,
+            SameDayScheduling.Allow(), DecidedAt);
 
         Assert.Equal(ScheduleFor.AddDays(1), bill.ScheduledFor);
         Assert.Single(bill.PullDomainEvents().OfType<BillSchedulingRequestedDomainEvent>());

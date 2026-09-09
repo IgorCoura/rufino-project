@@ -107,6 +107,7 @@ void main() {
         'effectiveDate': '2026-09-11',
         'slid': true,
         'immediate': false,
+        'afterDueDate': true,
       }));
 
       final preview =
@@ -120,6 +121,7 @@ void main() {
       expect(preview.effectiveDate, DateTime(2026, 9, 11));
       expect(preview.slid, isTrue);
       expect(preview.immediate, isFalse);
+      expect(preview.afterDueDate, isTrue);
     });
 
     test('an immediate preview carries the flag', () async {
@@ -145,6 +147,79 @@ void main() {
 
       await expectLater(
         service.previewSchedule('bill-1', DateTime(2026, 9, 10)),
+        throwsA(isA<HttpException>()),
+      );
+    });
+  });
+
+  group('getScheduleOptions', () {
+    test('asks the schedule-options route and parses each suggestion',
+        () async {
+      final service = serviceReturning(jsonEncode([
+        {
+          'option': 'Today',
+          'date': null,
+          'preview': null,
+          'available': false,
+          'unavailableReason': 'outside_window',
+        },
+        {
+          'option': 'OnDueDate',
+          'date': '2026-09-30',
+          'preview': {
+            'requestedDate': '2026-09-30',
+            'effectiveDate': '2026-09-30',
+            'slid': false,
+            'immediate': false,
+            'afterDueDate': false,
+          },
+          'available': true,
+          'unavailableReason': null,
+        },
+      ]));
+
+      final options = await service.getScheduleOptions('bill-1');
+
+      final request = sent.single;
+      expect(request.method, 'GET');
+      expect(request.url.path, '/api/v1/$tenant/bills/bill-1/schedule-options');
+
+      expect(options, hasLength(2));
+      expect(options.first.kind, ScheduleOptionKind.today);
+      expect(options.first.available, isFalse);
+      expect(options.first.date, isNull);
+      expect(options.first.preview, isNull);
+      expect(
+        options.first.unavailableReason,
+        ScheduleUnavailableReasons.outsideWindow,
+      );
+
+      expect(options.last.kind, ScheduleOptionKind.onDueDate);
+      expect(options.last.date, DateTime(2026, 9, 30));
+      expect(options.last.preview!.effectiveDate, DateTime(2026, 9, 30));
+    });
+
+    // Um servidor que ganhar uma quinta sugestão não pode derrubar um cliente
+    // que ainda não a conhece: a opção desconhecida vira `unknown` e a folha
+    // simplesmente não desenha um tile para ela.
+    test('an unknown option degrades instead of throwing', () async {
+      final service = serviceReturning(jsonEncode([
+        {'option': 'SomethingNew', 'available': true, 'date': '2026-09-30'},
+      ]));
+
+      final options = await service.getScheduleOptions('bill-1');
+
+      expect(options.single.kind, ScheduleOptionKind.unknown);
+    });
+
+    test('surfaces the rule refusal the server sent', () async {
+      final service = serviceReturning(
+        jsonEncode({'id': 'BLP.BIL01', 'message': 'nao achei'}),
+        status: 404,
+      );
+
+      await expectLater(
+        service.getScheduleOptions('bill-1'),
         throwsA(isA<HttpException>()),
       );
     });

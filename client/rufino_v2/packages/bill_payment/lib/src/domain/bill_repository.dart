@@ -117,12 +117,16 @@ abstract class BillRepository {
   });
 
   /// Asks the server when a payment authorized for [date] would actually
-  /// execute — the ADR-017 policy (lead time, banking calendar) computed
-  /// where it lives.
+  /// execute — the ADR-017 policy (banking calendar, provider floor) computed
+  /// where it lives. Serves the free date picker.
   ///
   /// Purely informative: callers must keep working when this fails — the
   /// approval never waits on it.
   Future<Result<SchedulePreview>> previewSchedule(String id, DateTime date);
+
+  /// The four ready-made dates the scheduling sheet offers (ADR-021), already
+  /// resolved: which are available, on what date, and why the others are not.
+  Future<Result<List<ScheduleOptionPreview>>> getScheduleOptions(String id);
 
   /// Returns a FAILED bill to the decision queue — the new try is a new
   /// approval and a new payment order.

@@ -147,6 +147,13 @@ class BillRepositoryImpl implements BillRepository {
       );
 
   @override
+  Future<Result<List<ScheduleOptionPreview>>> getScheduleOptions(String id) =>
+      _guard(
+        () => apiService.getScheduleOptions(id),
+        context: {'op': 'getScheduleOptions', 'billId': id},
+      );
+
+  @override
   Future<Result<void>> reopenBill(String id) => _guard(
         () => apiService.reopenBill(id),
         context: {'op': 'reopenBill', 'billId': id},

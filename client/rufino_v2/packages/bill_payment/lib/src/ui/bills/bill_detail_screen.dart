@@ -1458,25 +1458,55 @@ class _ApproveSheet extends StatefulWidget {
   State<_ApproveSheet> createState() => _ApproveSheetState();
 }
 
+
 class _ApproveSheetState extends State<_ApproveSheet> {
   final _noteController = TextEditingController();
   late final DateTime _earliest;
+
+  /// A data que de fato vai no `scheduleFor` — venha da sugestão marcada ou
+  /// do seletor livre.
   late DateTime _scheduleFor;
+
+  /// A sugestão marcada, ou nulo quando a data veio do seletor livre.
+  ScheduleOptionKind? _selectedKind;
+
+  var _options = const <ScheduleOptionPreview>[];
+  var _loadingOptions = true;
   var _riskAcknowledged = false;
   var _immediateAcknowledged = false;
   // O relógio da tela e o do servidor podem discordar sobre "vencido" na
   // virada do dia — quando o servidor recusar com BLP.BIL35, a caixa
   // aparece aqui mesmo, sem fechar a folha nem perder o formulário.
   var _serverSaysOverdue = false;
+  // O irmão das 18h: o servidor recusou o "pagar hoje" com BLP.BIL40 porque a
+  // janela fechou entre abrir a folha e confirmar.
+  String? _sameDayRefusal;
   var _submitting = false;
   SchedulePreview? _preview;
+
+  /// A ordem em que a folha escolhe sozinha: a mais conservadora que ainda
+  /// couber. Pagar no vencimento é o que o boleto pede; hoje é o último
+  /// recurso, não o padrão.
+  static const _selectionPreference = [
+    ScheduleOptionKind.onDueDate,
+    ScheduleOptionKind.dayBeforeDue,
+    ScheduleOptionKind.tomorrow,
+    ScheduleOptionKind.today,
+  ];
+
+  static const _optionLabels = {
+    ScheduleOptionKind.today: 'Pagar hoje',
+    ScheduleOptionKind.tomorrow: 'Amanhã',
+    ScheduleOptionKind.dayBeforeDue: 'Um dia antes do vencimento',
+    ScheduleOptionKind.onDueDate: 'No dia do vencimento',
+  };
 
   @override
   void initState() {
     super.initState();
     _earliest = widget.viewModel.earliestScheduleDate;
     _scheduleFor = _earliest;
-    _fetchPreview(_scheduleFor);
+    if (!widget.approveOnly) _loadOptions(selectDefault: true);
   }
 
   @override
@@ -1485,9 +1515,75 @@ class _ApproveSheetState extends State<_ApproveSheet> {
     super.dispose();
   }
 
-  /// A prévia é INFORMATIVA: falha não desenha nada e nunca trava a
-  /// autorização; resposta que chegar depois de a data mudar (ou de a folha
-  /// fechar) é descartada como obsoleta.
+  /// Carrega as quatro sugestões do servidor (ADR-021).
+  ///
+  /// Falha devolve lista vazia, e aí a folha fica só com o seletor livre —
+  /// perder as sugestões custa conveniência, perder a folha custa o pagamento.
+  Future<void> _loadOptions({bool selectDefault = false}) async {
+    final options = await widget.viewModel.loadScheduleOptions();
+    if (!mounted) return;
+
+    setState(() {
+      _options = options;
+      _loadingOptions = false;
+      if (selectDefault) _selectDefault(options);
+      // Recarga depois de uma recusa: a sugestão marcada pode ter acabado de
+      // ficar indisponível, e continuar marcada seria oferecer o mesmo erro.
+      if (!selectDefault && _selectedKind != null && _optionOf(_selectedKind!) == null) {
+        _selectedKind = null;
+        _scheduleFor = _earliest;
+        _preview = null;
+        _fetchPreview(_scheduleFor);
+      }
+    });
+  }
+
+  void _selectDefault(List<ScheduleOptionPreview> options) {
+    for (final kind in _selectionPreference) {
+      final option = options
+          .where((o) => o.kind == kind && o.available && o.date != null)
+          .firstOrNull;
+      if (option == null) continue;
+
+      _selectedKind = kind;
+      _scheduleFor = option.date!;
+      _preview = option.preview;
+      return;
+    }
+
+    // Nenhuma sugestão serve (boleto sem vencimento, fora da janela num
+    // feriado): a data livre assume, e a prévia dela vem do servidor.
+    _selectedKind = null;
+    _scheduleFor = _earliest;
+    _fetchPreview(_earliest);
+  }
+
+  /// A sugestão marcada, quando ela ainda existe e está disponível.
+  ScheduleOptionPreview? _optionOf(ScheduleOptionKind kind) => _options
+      .where((o) => o.kind == kind && o.available && o.date != null)
+      .firstOrNull;
+
+  /// O grupo devolve a sugestão marcada; achar a opção correspondente é o que
+  /// traz junto a data e a prévia que o servidor já resolveu para ela.
+  void _onOptionChanged(ScheduleOptionKind? kind) {
+    if (kind == null) return;
+    final option = _optionOf(kind);
+    if (option != null) _selectOption(option);
+  }
+
+  void _selectOption(ScheduleOptionPreview option) {
+    setState(() {
+      _selectedKind = option.kind;
+      _scheduleFor = option.date!;
+      _preview = option.preview;
+      _sameDayRefusal = null;
+    });
+  }
+
+  /// A prévia da data LIVRE é INFORMATIVA: falha não desenha nada e nunca
+  /// trava a autorização; resposta que chegar depois de a data mudar (ou de a
+  /// folha fechar) é descartada como obsoleta. As sugestões já vêm com a
+  /// delas e não passam por aqui.
   Future<void> _fetchPreview(DateTime date) async {
     final preview = await widget.viewModel.previewSchedule(date);
     if (!mounted || _scheduleFor != date) return;
@@ -1497,14 +1593,16 @@ class _ApproveSheetState extends State<_ApproveSheet> {
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _scheduleFor,
+      initialDate: _scheduleFor.isBefore(_earliest) ? _earliest : _scheduleFor,
       firstDate: _earliest,
       lastDate: _earliest.add(const Duration(days: 365)),
     );
     if (picked == null) return;
     setState(() {
+      _selectedKind = null;
       _scheduleFor = picked;
       _preview = null;
+      _sameDayRefusal = null;
     });
     _fetchPreview(picked);
   }
@@ -1527,7 +1625,10 @@ class _ApproveSheetState extends State<_ApproveSheet> {
             acknowledgeImmediateExecution: _immediateAcknowledged,
           );
     if (!mounted) return;
-    if (!approved && widget.viewModel.lastErrorCode == 'BLP.BIL35') {
+
+    final errorCode = widget.viewModel.lastErrorCode;
+
+    if (!approved && errorCode == 'BLP.BIL35') {
       // O cinto extra do descompasso de relógio: a recusa vira a caixa de
       // aceite, no lugar, com o formulário intacto.
       setState(() {
@@ -1537,6 +1638,21 @@ class _ApproveSheetState extends State<_ApproveSheet> {
       });
       return;
     }
+
+    if (!approved && errorCode == 'BLP.BIL40') {
+      // A janela das 18h fechou entre abrir a folha e confirmar: as sugestões
+      // são relidas, "pagar hoje" cai sozinho, e o formulário fica de pé.
+      setState(() {
+        _submitting = false;
+        _loadingOptions = true;
+        _sameDayRefusal =
+            'O horário de envio dos pagamentos fechou: não dá mais para pagar '
+            'hoje. Escolha outra data.';
+      });
+      await _loadOptions();
+      return;
+    }
+
     // Sucesso fecha; outra recusa também — a mensagem do domínio já está no
     // detalhe pelo caminho de sempre (errorMessage).
     Navigator.of(context).pop();
@@ -1544,6 +1660,7 @@ class _ApproveSheetState extends State<_ApproveSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final viewModel = widget.viewModel;
     final needsAcknowledgement =
         viewModel.bill?.requiresRiskAcknowledgement ?? false;
@@ -1568,17 +1685,44 @@ class _ApproveSheetState extends State<_ApproveSheet> {
             (_, true) => 'Aprovar boleto',
             _ => 'Autorizar e agendar pagamento',
           },
-          style: Theme.of(context).textTheme.titleLarge,
+          style: theme.textTheme.titleLarge,
         ),
         const SizedBox(height: AppSpacing.md),
-        // Aprovar sem agendar não escolhe data, e mostrar o seletor sugeriria
-        // que a escolha ali importa.
-        if (!widget.approveOnly)
-          OutlinedButton.icon(
-            icon: const Icon(Symbols.event),
-            label: Text('Pagar em ${formatDate(_scheduleFor)}'),
-            onPressed: _pickDate,
+        // Aprovar sem agendar não escolhe data, e mostrar as sugestões
+        // sugeriria que a escolha ali importa.
+        if (!widget.approveOnly) ...[
+          if (_loadingOptions)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else
+            RadioGroup<ScheduleOptionKind>(
+              groupValue: _selectedKind,
+              onChanged: _onOptionChanged,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: _options.map(_optionTile).toList(),
+              ),
+            ),
+          // A data livre é AÇÃO, não opção passiva: tocar abre o seletor. Por
+          // isso é um ListTile com o pino desenhado à mão, e não um rádio —
+          // um rádio de valor nulo dentro do grupo confundiria "sem escolha"
+          // com "escolhi outra data".
+          ListTile(
+            leading: Icon(
+              _selectedKind == null
+                  ? Symbols.radio_button_checked
+                  : Symbols.radio_button_unchecked,
+            ),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Outra data…'),
+            subtitle: _selectedKind == null && !_loadingOptions
+                ? Text(formatDate(_scheduleFor))
+                : null,
+            onTap: _pickDate,
           ),
+        ],
         if (preview != null && !widget.approveOnly) ...[
           const SizedBox(height: AppSpacing.sm),
           Text(
@@ -1587,9 +1731,30 @@ class _ApproveSheetState extends State<_ApproveSheet> {
                 : 'Pagamento será executado em '
                     '${formatDate(preview.effectiveDate)}'
                     '${preview.slid ? ' (deslizou do dia pedido)' : ''}.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+        // Pagar depois do vencimento é AVISO, nunca bloqueio: pagar a conta
+        // atrasada é justamente o que o produto precisa saber fazer.
+        if (preview != null && preview.afterDueDate && !widget.approveOnly) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Esta data é posterior ao vencimento. O pagamento sai em atraso e '
+            'pode ter encargos.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
+        ],
+        if (_sameDayRefusal != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            _sameDayRefusal!,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.error,
+            ),
           ),
         ],
         const SizedBox(height: AppSpacing.md),
@@ -1615,7 +1780,7 @@ class _ApproveSheetState extends State<_ApproveSheet> {
             title: Text(
               'Vi o alerta de $riskLabel e assumo o risco de autorizar '
               'este pagamento.',
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: theme.textTheme.bodyMedium,
             ),
           ),
         ],
@@ -1624,9 +1789,9 @@ class _ApproveSheetState extends State<_ApproveSheet> {
           Text(
             'O servidor considera este boleto vencido: o pagamento sai '
             'imediatamente, sem agendamento. Marque o aceite para reenviar.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.error,
-                ),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.error,
+            ),
           ),
         ],
         if (needsImmediateAck && !widget.approveOnly) ...[
@@ -1640,7 +1805,7 @@ class _ApproveSheetState extends State<_ApproveSheet> {
             title: Text(
               'Este boleto está vencido e será pago imediatamente, sem '
               'agendamento. Confirmo o pagamento na hora.',
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: theme.textTheme.bodyMedium,
             ),
           ),
         ],
@@ -1663,6 +1828,32 @@ class _ApproveSheetState extends State<_ApproveSheet> {
         ),
         const SizedBox(height: AppSpacing.sm),
       ],
+    );
+  }
+
+  /// Uma sugestão do servidor. Indisponível NÃO some da lista: aparece
+  /// desabilitada com o motivo, porque uma opção que some sem explicação
+  /// vira "por que não posso pagar no vencimento?".
+  Widget _optionTile(ScheduleOptionPreview option) {
+    final theme = Theme.of(context);
+    final label = _optionLabels[option.kind];
+    if (label == null) return const SizedBox.shrink();
+
+    return RadioListTile<ScheduleOptionKind>(
+      value: option.kind,
+      enabled: option.available,
+      controlAffinity: ListTileControlAffinity.leading,
+      contentPadding: EdgeInsets.zero,
+      title: Text(label),
+      subtitle: Text(
+        option.available && option.date != null
+            ? formatDate(option.date)
+            : ScheduleUnavailableReasons.label(option.unavailableReason),
+        style: option.available
+            ? null
+            : theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+      ),
     );
   }
 }

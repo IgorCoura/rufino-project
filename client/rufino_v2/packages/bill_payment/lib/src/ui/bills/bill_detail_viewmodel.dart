@@ -198,6 +198,19 @@ class BillDetailViewModel extends ChangeNotifier {
     );
   }
 
+  /// The four ready-made dates of the scheduling sheet (ADR-021).
+  ///
+  /// Empty on failure, and by the same rule as [previewSchedule]: the sheet
+  /// falls back to the free date picker rather than refusing to open. Losing
+  /// the suggestions costs convenience; losing the sheet costs the payment.
+  Future<List<ScheduleOptionPreview>> loadScheduleOptions() async {
+    final result = await _repository.getScheduleOptions(billId);
+    return result.fold<List<ScheduleOptionPreview>>(
+      onSuccess: (options) => options,
+      onError: (_, __) => const [],
+    );
+  }
+
   /// Re-runs the official lookup and the twelve checks.
   Future<bool> revalidate() => _act(
         () => _repository.revalidateBill(billId),

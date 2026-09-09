@@ -2,6 +2,7 @@
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Bills.Checks;
+using BillPayment.Domain.PaymentOrders;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.UnitTests.Services.Mothers;
@@ -134,7 +135,9 @@ public class BillHistoryTests
     {
         var bill = ReadyForApproval();
         bill.Approve(Approver, null, ApprovalPolicy.Default(null), RiskLevel.ExtremeDanger, DecidedAt);
-        bill.Schedule(Approver, new DateOnly(2026, 6, 24), ApprovalPolicy.Default(null), new DateOnly(2026, 6, 20), DecidedAt);
+        bill.Schedule(
+            Approver, new DateOnly(2026, 6, 24), ApprovalPolicy.Default(null), new DateOnly(2026, 6, 20),
+            SameDayScheduling.Allow(), DecidedAt);
         bill.LinkPaymentOrder(Domain.PaymentOrders.PaymentOrderId.New(), new DateOnly(2026, 6, 24), DecidedAt);
         bill.MarkPaid(DecidedAt);
 
@@ -221,7 +224,9 @@ public class BillHistoryTests
     {
         var bill = ReadyForApproval();
         bill.Approve(Approver, null, ApprovalPolicy.Default(null), RiskLevel.ExtremeDanger, DecidedAt);
-        bill.Schedule(Approver, new DateOnly(2026, 6, 24), ApprovalPolicy.Default(null), new DateOnly(2026, 6, 20), DecidedAt);
+        bill.Schedule(
+            Approver, new DateOnly(2026, 6, 24), ApprovalPolicy.Default(null), new DateOnly(2026, 6, 20),
+            SameDayScheduling.Allow(), DecidedAt);
         bill.LinkPaymentOrder(Domain.PaymentOrders.PaymentOrderId.New(), new DateOnly(2026, 6, 24), DecidedAt);
         bill.UnschedulePayment(BillActionOrigin.Provider, DecidedAt);
 
@@ -242,8 +247,9 @@ public class BillHistoryTests
         var bill = ReadyForApproval();
         bill.Approve(Approver, null, ApprovalPolicy.Default(null), RiskLevel.ExtremeDanger, DecidedAt);
         bill.Schedule(
-            Approver, new DateOnly(2026, 6, 24), ApprovalPolicy.Default(null), new DateOnly(2026, 6, 20), DecidedAt);
-        bill.LinkPaymentOrder(Domain.PaymentOrders.PaymentOrderId.New(), new DateOnly(2026, 6, 24), DecidedAt);
+            Approver, new DateOnly(2026, 6, 24), ApprovalPolicy.Default(null), new DateOnly(2026, 6, 20),
+            SameDayScheduling.Allow(), DecidedAt);
+        bill.LinkPaymentOrder(PaymentOrderId.New(), new DateOnly(2026, 6, 24), DecidedAt);
         return bill;
     }
 

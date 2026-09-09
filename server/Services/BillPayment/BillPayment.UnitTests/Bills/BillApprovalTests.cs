@@ -3,6 +3,7 @@
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Bills.Checks;
 using BillPayment.Domain.Instruments;
+using BillPayment.Domain.PaymentOrders;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.UnitTests.Bills.Mothers;
@@ -41,7 +42,9 @@ public class BillApprovalTests
         bool acknowledgeImmediateExecution = false)
     {
         bill.Approve(approvedBy, note, policy, clearance, occurredAt, acknowledgeRisk);
-        bill.Schedule(approvedBy, scheduleFor, policy, today, occurredAt, acknowledgeImmediateExecution);
+        bill.Schedule(
+            approvedBy, scheduleFor, policy, today, SameDayScheduling.Allow(), occurredAt,
+            acknowledgeImmediateExecution);
     }
 
     // Caminho feliz: o boleto verificado e limpo é aprovado, a decisão fica gravada com quem

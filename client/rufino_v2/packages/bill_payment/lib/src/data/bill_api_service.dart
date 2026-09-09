@@ -111,6 +111,20 @@ abstract final class BillMapper {
       effectiveDate: DateTime.parse(json['effectiveDate'] as String),
       slid: json['slid'] as bool? ?? false,
       immediate: json['immediate'] as bool? ?? false,
+      afterDueDate: json['afterDueDate'] as bool? ?? false,
+    );
+  }
+
+  /// Builds one [ScheduleOptionPreview] from the API's JSON.
+  static ScheduleOptionPreview scheduleOptionFromJson(Map<String, dynamic> json) {
+    final preview = json['preview'] as Map<String, dynamic>?;
+
+    return ScheduleOptionPreview(
+      kind: ScheduleOptionKind.fromWire(json['option'] as String?),
+      available: json['available'] as bool? ?? false,
+      date: json['date'] == null ? null : DateTime.parse(json['date'] as String),
+      preview: preview == null ? null : schedulePreviewFromJson(preview),
+      unavailableReason: json['unavailableReason'] as String?,
     );
   }
 
@@ -502,6 +516,9 @@ class BillApiService {
   }
 
   /// Asks the server when a payment authorized for [date] would execute.
+  ///
+  /// Serves the free date picker. The four ready-made suggestions come from
+  /// [getScheduleOptions] in a single call.
   Future<SchedulePreview> previewSchedule(String id, DateTime date) async {
     final response = await client.get(
       _uri('/bills/$id/schedule-preview', {'date': dateOnly(date)}),
@@ -511,6 +528,24 @@ class BillApiService {
     return BillMapper.schedulePreviewFromJson(
       jsonDecode(response.body) as Map<String, dynamic>,
     );
+  }
+
+  /// The four ready-made dates the scheduling sheet offers (ADR-021).
+  ///
+  /// One call draws the whole sheet on purpose: four previews would force the
+  /// client to derive the dates in order to ask for them, and deriving days on
+  /// the client is exactly what the timezone mismatch breaks.
+  Future<List<ScheduleOptionPreview>> getScheduleOptions(String id) async {
+    final response = await client.get(
+      _uri('/bills/$id/schedule-options'),
+      headers: await _headers(),
+    );
+    checkApiStatus(response);
+
+    final body = jsonDecode(response.body) as List<dynamic>;
+    return body
+        .map((e) => BillMapper.scheduleOptionFromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// Returns a failed bill to the decision queue.
