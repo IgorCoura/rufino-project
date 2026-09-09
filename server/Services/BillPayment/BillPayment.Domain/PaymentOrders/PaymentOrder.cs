@@ -499,7 +499,7 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
         else if (target == PaymentOrderStatus.Cancelled)
         {
             AddDomainEvent(new PaymentOrderCancelledDomainEvent(
-                Id, TenantId, BillId, changeOrigin, requestedBy, occurredAt));
+                Id, TenantId, BillId, changeOrigin.Name, requestedBy, occurredAt));
         }
         else if (target == PaymentOrderStatus.Refunded)
         {
@@ -532,7 +532,7 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
         UpdatedAt = occurredAt;
 
         AddDomainEvent(new PaymentOrderCancelledDomainEvent(
-            Id, TenantId, BillId, origin ?? BillActionOrigin.System, requestedBy, occurredAt));
+            Id, TenantId, BillId, (origin ?? BillActionOrigin.System).Name, requestedBy, occurredAt));
     }
 
     /// <summary>Guarda a chave do comprovante baixado e cifrado no balde.</summary>

@@ -702,6 +702,17 @@ public sealed class Bill : AggregateRoot<BillId>
         AddDomainEvent(new BillDecisionUndoneDomainEvent(Id, TenantId, undoneBy, occurredAt));
     }
 
+    /// <summary>Este boleto está num estado do qual a decisão pode ser desfeita?</summary>
+    /// <remarks>
+    /// Existe para o caso de uso <strong>não consultar o banco à toa</strong> num pedido que o
+    /// agregado vai recusar de qualquer forma — e, sobretudo, para ele não recusar com o erro
+    /// errado. As duas pré-condições da reversão exigem consulta, e a primeira delas pergunta se
+    /// a chave natural foi reocupada: num boleto que ainda espera decisão, quem ocupa a chave é
+    /// ELE MESMO, então a resposta era <c>BLP.BIL02</c> ("boleto já capturado") mandando procurar
+    /// uma duplicata que não existe, no lugar do <c>BLP.BIL38</c> que explica a recusa.
+    /// </remarks>
+    public bool AcceptsDecisionUndo => Status.CanBeUndone;
+
     /// <summary>O retrato da consulta já passou do prazo de validade neste instante?</summary>
     public bool IsLookupStaleAt(DateTimeOffset instant, TimeSpan maxAge)
         => LastConsultedAt is { } consultedAt && instant - consultedAt > maxAge;

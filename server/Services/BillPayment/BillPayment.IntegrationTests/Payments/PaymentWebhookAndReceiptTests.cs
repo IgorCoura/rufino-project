@@ -90,9 +90,18 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
             StringComparison.Ordinal);
     }
 
-    // Rota sem tenant não existe: o webhook é POR CONTA desde o ADR-019.
+    // Rota sem tenant não existe: o webhook é POR CONTA desde o ADR-019 — e a resposta é 401,
+    // não 404.
+    //
+    // `webhooks/asaas` sem o `{tenantId:guid}` não casa endpoint nenhum, e desde a fase 8 da
+    // auditoria o fallback de autorização exige autenticação. O middleware o aplica TAMBÉM quando
+    // nenhum endpoint casou, então a requisição para na porta antes de virar 404.
+    //
+    // O 401 é o desfecho melhor e por isso a expectativa mudou em vez da produção: ele não
+    // confirma se a rota existe. Trocar o comportamento do servidor para devolver 404 seria abrir
+    // um oráculo de rotas em troca de um teste.
     [Fact]
-    public async Task Webhook_WithoutATenantInTheRoute_ShouldRespond404()
+    public async Task Webhook_WithoutATenantInTheRoute_ShouldRespondUnauthorized()
     {
         using var client = _host.CreateClient();
 
@@ -101,7 +110,7 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
             new { id = "evt_1", @event = "BILL_PAID" },
             CancellationToken.None);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     // Token errado num tenant que TEM webhook é 401 — validado em tempo constante, antes de
@@ -205,6 +214,8 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
     public async Task Webhook_Redelivered_ShouldHaveNoSecondEffect()
     {
         var (_, orderId) = await SubmitOrderAsync();
+        ScriptProviderStatus(PaymentOrderStatus.BankProcessing, "BANK_PROCESSING");
+
         var payload = new
         {
             id = "evt_dup_1",
@@ -261,9 +272,14 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
 
     // Referência que não é nossa devolve 200: falhar faria o provedor reentregar para sempre um
     // evento de outra conta.
+    //
+    // A conta precisa estar vinculada: desde o ADR-022 o tenant SEM webhook responde 200
+    // `NotConfigured` antes de olhar a referência, e sem isto o teste media o desfecho errado.
     [Fact]
     public async Task Webhook_WithAnUnknownReference_ShouldAcknowledgeWithoutEffect()
     {
+        await LinkPaymentAccountAsync();
+
         var response = await PostWebhookAsync(new
         {
             id = "evt_unknown_1",
@@ -314,6 +330,7 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
     public async Task Webhook_WithAPaymentObjectPayload_ShouldStillResolveTheOrder()
     {
         var (_, orderId) = await SubmitOrderAsync();
+        ScriptProviderStatus(PaymentOrderStatus.BankProcessing, "BANK_PROCESSING");
 
         var response = await PostWebhookAsync(new
         {
@@ -691,6 +708,20 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
     /// Marca a ordem como paga SEM drenar o outbox — o teste então dirige a captura do
     /// comprovante pelo comando, deterministicamente, em vez de pela reentrega.
     /// </summary>
+    /// <summary>
+    /// O retrato que a RELEITURA vai encontrar no provedor.
+    /// </summary>
+    /// <remarks>
+    /// O ADR-019 fez o payload do webhook virar aviso: o handler relê a ordem no provedor e
+    /// aplica o que ELE responder. Teste que só manda o evento no corpo e não arma isto encontra
+    /// o retrato padrão e vê a ordem parada — foi o que deixou três testes vermelhos desde
+    /// 227383b8.
+    /// </remarks>
+    private void ScriptProviderStatus(PaymentOrderStatus status, string rawStatus)
+        => _gateways.ScriptedGet = PaymentFetchResult.Found(new ProviderPaymentSnapshot(
+            "pay_fake_1", status, rawStatus,
+            null, null, null, [], null));
+
     /// <summary>
     /// O provedor oferecendo o comprovante — sem URL o comando toma o caminho de "sem
     /// comprovante" e nunca chega ao fetcher.

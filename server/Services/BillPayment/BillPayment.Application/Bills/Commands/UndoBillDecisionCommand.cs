@@ -44,25 +44,31 @@ public sealed class UndoBillDecisionCommandHandler(
             ?? throw BillErrors.NotFound(request.BillId);
 
         // Duas pré-condições que o agregado não tem como conferir, porque ambas exigem consulta.
-
-        // 1) A chave natural pode ter sido reocupada. Negar e cancelar LIBERAM a chave de
-        //    deduplicação (BillStatus.OccupiesNaturalKey), então entre a decisão e a reversão o
-        //    mesmo documento pode ter entrado de novo, legitimamente. Voltar sem conferir criaria
-        //    dois boletos vivos para o mesmo compromisso — o índice único parcial em `bills` é o
-        //    backstop da corrida, e este teste é o que dá a mensagem certa antes dele.
-        if (bill.DedupKey is not null
-            && await bills.ExistsActiveByDedupKeyAsync(bill.DedupKey, cancellationToken))
+        // Elas só valem para quem de fato pode reverter: num boleto que ainda espera decisão, a
+        // primeira encontra o PRÓPRIO boleto ocupando a chave natural e recusaria com
+        // BLP.BIL02 — "já capturado", mandando procurar uma duplicata inexistente — em vez do
+        // BLP.BIL38 que o agregado lança logo abaixo, e que é a recusa verdadeira.
+        if (bill.AcceptsDecisionUndo)
         {
-            throw BillErrors.AlreadyCaptured();
-        }
+            // 1) A chave natural pode ter sido reocupada. Negar e cancelar LIBERAM a chave de
+            //    deduplicação (BillStatus.OccupiesNaturalKey), então entre a decisão e a reversão o
+            //    mesmo documento pode ter entrado de novo, legitimamente. Voltar sem conferir criaria
+            //    dois boletos vivos para o mesmo compromisso — o índice único parcial em `bills` é o
+            //    backstop da corrida, e este teste é o que dá a mensagem certa antes dele.
+            if (bill.DedupKey is not null
+                && await bills.ExistsActiveByDedupKeyAsync(bill.DedupKey, cancellationToken))
+            {
+                throw BillErrors.AlreadyCaptured();
+            }
 
-        // 2) Pode haver ordem viva no provedor. É o caso do boleto cancelado cuja ordem o
-        //    provedor RECUSOU cancelar (hoje isso só vira LogWarning): o dinheiro ainda pode
-        //    sair, e devolver o documento à fila de decisão convidaria a uma segunda aprovação
-        //    para um pagamento que já está em curso.
-        var activeOrder = await orders.GetActiveByBillAsync(tenantId, billId, cancellationToken);
-        if (activeOrder is not null)
-            throw BillErrors.UndoBlockedByLivePaymentOrder();
+            // 2) Pode haver ordem viva no provedor. É o caso do boleto cancelado cuja ordem o
+            //    provedor RECUSOU cancelar (hoje isso só vira LogWarning): o dinheiro ainda pode
+            //    sair, e devolver o documento à fila de decisão convidaria a uma segunda aprovação
+            //    para um pagamento que já está em curso.
+            var activeOrder = await orders.GetActiveByBillAsync(tenantId, billId, cancellationToken);
+            if (activeOrder is not null)
+                throw BillErrors.UndoBlockedByLivePaymentOrder();
+        }
 
         bill.UndoDecision(
             UserId.From(request.UserId),

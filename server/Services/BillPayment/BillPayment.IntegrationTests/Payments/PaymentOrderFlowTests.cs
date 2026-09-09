@@ -270,7 +270,7 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
     // Cancelar DEPOIS da submissão pergunta ao provedor primeiro, e o desfecho reflete nos dois
     // agregados: a ordem vira Cancelled e o boleto sai de Scheduled pelo espelho.
     [Fact]
-    public async Task CancelEndpoint_OnAPendingOrder_ShouldAskTheProviderAndMirrorTheBill()
+    public async Task CancelEndpoint_OnAPendingOrder_ShouldAskTheProviderAndReturnTheBillToApproved()
     {
         await LinkPaymentAccountAsync();
         var billId = await ApproveFutureDueBillAsync();
@@ -286,7 +286,14 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(1, _gateways.CancelCalls);
         Assert.Equal(PaymentOrderStatus.Cancelled, (await LoadOrderAsync(orderId)).Status);
-        Assert.Equal(BillStatus.Cancelled, (await LoadBillAsync(billId)).Status);
+
+        // O boleto volta a Approved SEM data, não a Cancelled: cancelar o agendamento não
+        // descarta a aprovação humana (ADR-018). Enquanto descartava, quem só queria trocar a
+        // data perdia o boleto junto e precisava reimportar o documento.
+        var mirrored = await LoadBillAsync(billId);
+        Assert.Equal(BillStatus.Approved, mirrored.Status);
+        Assert.Null(mirrored.ScheduledFor);
+        Assert.Null(mirrored.PaymentOrderId);
     }
 
     // O provedor recusou o cancelamento (a ordem já anda): 409 BLP.PMO20 e NADA muda localmente —
@@ -407,10 +414,12 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
         Assert.Equal(0, _gateways.SubmissionCalls);
     }
 
-    // O rascunho cancelado reflete no boleto: sem ordem para executar a aprovação, ele volta a
-    // AwaitingApproval (nunca fica Approved para sempre) e a nova decisão cria ordem NOVA.
+    // O rascunho cancelado reflete no boleto: ele volta a Approved SEM data — a aprovação humana
+    // sobrevive ao cancelamento do agendamento (ADR-018) —, e reagendar cria ordem NOVA em vez de
+    // ressuscitar a cancelada (ADR-002). Até o ADR-018 o cancelamento descartava a aprovação
+    // junto, e quem só queria trocar a data tinha de reimportar o documento.
     [Fact]
-    public async Task CancelledDraft_ShouldReturnTheBillToApprovalAndAllowANewOrder()
+    public async Task CancelledDraft_ShouldKeepTheApprovalAndCreateANewOrderOnRescheduling()
     {
         await LinkPaymentAccountAsync();
         var billId = await ApproveFutureDueBillAsync();
@@ -420,11 +429,13 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
         await DrainOutboxAsync();
 
         var bill = await LoadBillAsync(billId);
-        Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
+        Assert.Equal(BillStatus.Approved, bill.Status);
         Assert.Null(bill.PaymentOrderId);
+        Assert.Null(bill.ScheduledFor);
 
         var response = await PostBillAsync(
-            $"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null, AcknowledgeRisk: true));
+            $"{billId}/schedule",
+            new ScheduleBillRequest(ScheduleDate(), AcknowledgeImmediateExecution: true));
         response.EnsureSuccessStatusCode();
         await DrainOutboxAsync();
 
