@@ -58,12 +58,49 @@ internal sealed class RoutingStubHttpMessageHandler : HttpMessageHandler
         return this;
     }
 
+    /// <summary>
+    /// Responde com BYTES crus, sem passar por codificação de texto.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Existe porque magic bytes não sobrevivem a UTF-8.</strong> As demais rotas montam
+    /// <c>StringContent</c>, e ali um <c>0x89</c> — o primeiro byte de um PNG — vira a sequência
+    /// de dois bytes <c>0xC2 0x89</c>. O truque de escrever o corpo em Latin1 funciona por acaso
+    /// para <c>%PDF-</c>, que é ASCII, e falha em silêncio para qualquer assinatura binária.
+    /// </remarks>
+    public RoutingStubHttpMessageHandler RouteBytes(
+        string fragment,
+        HttpStatusCode status,
+        byte[] body,
+        string mediaType)
+    {
+        _byteRoutes.Add((
+            uri => uri.ToString().Contains(fragment, StringComparison.OrdinalIgnoreCase),
+            mediaType,
+            status,
+            body));
+
+        return this;
+    }
+
+    private readonly List<(Func<Uri, bool> Matches, string MediaType, HttpStatusCode Status, byte[] Body)> _byteRoutes = [];
+
     public int HitsFor(string fragment) => _hits.GetValueOrDefault(fragment, 0);
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var uri = request.RequestUri!;
         Requests.Add(uri);
+
+        foreach (var (matches, mediaType, status, body) in _byteRoutes)
+        {
+            if (!matches(uri))
+                continue;
+
+            var content = new ByteArrayContent(body);
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(mediaType);
+
+            return Task.FromResult(new HttpResponseMessage(status) { Content = content });
+        }
 
         foreach (var (matches, mediaType, respond) in _routes)
         {

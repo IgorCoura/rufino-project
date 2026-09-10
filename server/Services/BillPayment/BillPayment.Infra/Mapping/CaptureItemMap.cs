@@ -3,6 +3,7 @@
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureItems;
 using BillPayment.Domain.CaptureSources;
+using BillPayment.Domain.Extraction;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using Microsoft.EntityFrameworkCore;
@@ -92,6 +93,12 @@ internal sealed class CaptureItemMap : IEntityTypeConfiguration<CaptureItem>
         builder.Property(e => e.SourceUrl)
             .HasColumnName("source_url")
             .HasMaxLength(CaptureItem.SOURCE_URL_MAX_LENGTH);
+
+        // Smart Enum nullable: valor novo entra sem tocar no schema, como `status`. Nulo significa
+        // "a escada não rodou para este artefato" — que é o caso de todo anexo.
+        builder.Property(e => e.LinkOutcome)
+            .HasColumnName("link_outcome")
+            .HasConversion(o => o!.Id, id => Enumeration.FromValue<LinkResolutionOutcome>(id));
 
         // Derivado do SourceUrl, como HasStoredArtifact é do StorageKey: sem isto o EF cria uma
         // coluna `link_host` que ninguém escreve e que passaria a divergir da URL na primeira

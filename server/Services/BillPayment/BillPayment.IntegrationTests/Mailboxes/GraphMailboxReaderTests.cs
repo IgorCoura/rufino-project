@@ -361,13 +361,12 @@ public sealed class GraphMailboxReaderTests
 
         public IReadOnlyCollection<string> ResolvableHosts => [];
 
-        public Task<ResolvedDocument?> ResolveAsync(
+        public Task<LinkResolution> ResolveAsync(
             ReadOnlyMemory<byte> body,
             string? contentType,
+            string? sender,
             CancellationToken cancellationToken)
-            => Task.FromResult<ResolvedDocument?>(null);
-
-        public IReadOnlyCollection<DocumentLink> HarvestLinks(ReadOnlyMemory<byte> body, string? contentType) => [];
+            => Task.FromResult(LinkResolution.Disabled());
     }
 
     /// <summary>Cofre de teste: devolve o que foi programado. O cofre real tem suíte própria.</summary>

@@ -174,21 +174,17 @@ public sealed class ProcessCaptureItemCommandHandler(
         // novo gastaria rede — e abriria superfície de ataque — para descobrir o que já se tem.
         if (!extraction.Resolved && !extraction.IsLocked && !item.ManuallySupplied)
         {
-            var resolved = await linkResolver.ResolveAsync(payload, payloadType, cancellationToken);
+            var resolution = await linkResolver.ResolveAsync(
+                payload, payloadType, item.Sender, cancellationToken);
 
-            if (resolved is null)
-            {
-                // A escada não alcançou este emissor. Guardar PARA ONDE ela teria ido é o que
-                // transforma a quarentena em fila de receitas a cadastrar — sem isto o item cai
-                // lá sem dizer de onde veio, que é justamente a informação que faltava.
-                RecordAttemptedLinkAsync(item, payload, payloadType, now.UtcDateTime);
-            }
-            else
-            {
-                // A procedência é registrada mesmo que o documento buscado não resolva: saber
-                // ONDE o sistema foi procurar é o que permite corrigir a receita depois.
-                item.RecordResolvedLink(resolved.SourceUrl, now.UtcDateTime);
+            // A procedência e o DESFECHO são registrados sempre — inclusive quando nada resolveu.
+            // Saber para onde a escada foi, e por que ela parou, é o que transforma a quarentena
+            // em fila de trabalho; sem isso o item cai lá mudo, que é justamente o estado em que a
+            // falta da receita da Acessórias passou semanas invisível.
+            RecordLinkResolution(item, resolution, now.UtcDateTime);
 
+            if (resolution.Document is { } resolved)
+            {
                 payload = resolved.Content;
                 payloadType = resolved.MediaType;
 
@@ -760,32 +756,41 @@ public sealed class ProcessCaptureItemCommandHandler(
             ? []
             : [profile.PrimaryTaxId, .. profile.AdditionalTaxIds];
 
-    /// <summary>Guarda o endereço que a escada tentaria, quando não há receita para ele.</summary>
+    /// <summary>Guarda o desfecho da escada e o endereço que a representa.</summary>
     /// <remarks>
-    /// Só o primeiro link entra: um e-mail traz dezenas, quase todos rastreador e rodapé, e o
-    /// campo existe para identificar o emissor — não para inventariar a mensagem.
+    /// <para>
+    /// <strong>O endereço é o do e-mail, não o do último salto.</strong> O que entrega os bytes
+    /// costuma ser efêmero — o da Acessórias é presignado e vale dois minutos —, então gravá-lo
+    /// como procedência produziria uma evidência morta antes de alguém abrir a quarentena.
+    /// </para>
+    /// <para>
+    /// <strong>Não sobrescreve procedência já gravada</strong>, que é o caso do anexo manual: ali
+    /// o endereço é a prova de onde a pessoa tirou o arquivo.
+    /// </para>
     /// </remarks>
-    private void RecordAttemptedLinkAsync(
-        CaptureItem item,
-        ReadOnlyMemory<byte> payload,
-        string? payloadType,
-        DateTime occurredAt)
+    private void RecordLinkResolution(CaptureItem item, LinkResolution resolution, DateTime occurredAt)
     {
-        if (item.SourceUrl is not null)
+        // Escada desligada não descreve tentativa nenhuma, e registrar um desfecho sugeriria que
+        // o sistema procurou e não achou.
+        if (resolution.Outcome == LinkResolutionOutcome.Disabled)
             return;
 
-        var candidate = linkResolver.HarvestLinks(payload, payloadType).FirstOrDefault();
+        var url = item.SourceUrl is null && resolution.BestCandidate is { } candidate
+            && candidate.Url.Length <= CaptureItem.SOURCE_URL_MAX_LENGTH
+                ? candidate.Url
+                : null;
 
-        if (candidate is null || candidate.Url.Length > CaptureItem.SOURCE_URL_MAX_LENGTH)
-            return;
+        item.RecordLinkResolution(resolution.Outcome, url, occurredAt);
 
-        item.RecordAttemptedLink(candidate.Url, occurredAt);
-
-        if (logger.IsEnabled(LogLevel.Information))
+        if (resolution.Outcome.DeservesAttention && logger.IsEnabled(LogLevel.Information))
         {
             logger.LogInformation(
-                "Nenhuma receita de link para {LinkHost}; o artefato segue para triagem sem o documento.",
-                candidate.Host);
+                "A escada de link terminou em {Outcome} para {LinkHost} após {Fetches} requisição(ões) "
+                + "e {Depth} nível(is); o artefato segue para triagem sem o documento.",
+                resolution.Outcome.Name,
+                resolution.BestCandidate?.Host ?? "(sem host)",
+                resolution.Fetches,
+                resolution.DeepestLevel);
         }
     }
 

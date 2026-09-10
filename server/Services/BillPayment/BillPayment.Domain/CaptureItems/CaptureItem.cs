@@ -2,6 +2,7 @@ namespace BillPayment.Domain.CaptureItems;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureSources;
+using BillPayment.Domain.Extraction;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 
@@ -153,6 +154,18 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
 
     /// <summary>URL de origem quando o artefato veio de link — evidência e reprocesso.</summary>
     public string? SourceUrl { get; private set; }
+
+    /// <summary>
+    /// Como a escada de resolução de link terminou. Nulo quando ela não rodou.
+    /// </summary>
+    /// <remarks>
+    /// <strong>É o que separa "cadastre este emissor" de "conserte alguma coisa".</strong> Antes
+    /// disso, link expirado, host sem receita, endereço recusado pela faixa de IP e escada que
+    /// desceu cinco níveis sem achar produziam o mesmo item mudo na quarentena — e quem olhava a
+    /// fila não tinha como saber qual dos quatro havia acontecido. Sai por API sem o portão do
+    /// ADR-008, como o <see cref="LinkHost"/>: descreve o sistema, não o documento nem o dinheiro.
+    /// </remarks>
+    public LinkResolutionOutcome? LinkOutcome { get; private set; }
 
     /// <summary>
     /// <strong>Qual campo</strong> do <c>PayerProfile</c> derivou a senha do PDF — jamais a
@@ -319,15 +332,51 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
     /// sai por API só sob o mesmo portão do ADR-008 que já cobre o <see cref="StorageKey"/>.
     /// </para>
     /// </remarks>
+    /// <remarks>
+    /// <strong>Exige a URL, ao contrário de <see cref="RecordLinkResolution"/>.</strong> Este
+    /// método afirma que o documento veio DAQUELE endereço — sem ele a afirmação é vazia, e uma
+    /// procedência em branco é pior que procedência nenhuma: some no registro sem sinal de que
+    /// alguém deixou de gravá-la.
+    /// </remarks>
     public void RecordResolvedLink(string sourceUrl, DateTime occurredAt)
     {
-        var url = sourceUrl?.Trim();
-        if (string.IsNullOrEmpty(url))
+        if (string.IsNullOrWhiteSpace(sourceUrl))
             throw CaptureItemErrors.SourceUrlRequired();
-        if (url.Length > SOURCE_URL_MAX_LENGTH)
-            throw CaptureItemErrors.TextTooLong(nameof(SourceUrl), SOURCE_URL_MAX_LENGTH);
 
-        SourceUrl = url;
+        RecordLinkResolution(LinkResolutionOutcome.Resolved, sourceUrl, occurredAt);
+    }
+
+    /// <summary>
+    /// Grava o desfecho da escada e, quando houver, o endereço que ela percorreu.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Não é transição, é procedência.</strong> A resolução do link acontece dentro do
+    /// mesmo processamento que já vai decidir o destino do item — passar por <c>LinkPending</c> só
+    /// para voltar no instante seguinte inventaria um estado intermediário que ninguém observa.
+    /// </para>
+    /// <para>
+    /// <strong>O endereço é opcional porque o desfecho vale sozinho.</strong> "Não havia link
+    /// nenhum" e "o remetente estourou o teto do dia" são informação útil sem endereço a guardar;
+    /// exigi-lo obrigaria a inventar um. Quem promete endereço — <see cref="RecordResolvedLink"/>
+    /// e <see cref="RecordAttemptedLink"/> — continua exigindo, e é lá que a invariante mora.
+    /// </para>
+    /// </remarks>
+    public void RecordLinkResolution(LinkResolutionOutcome outcome, string? sourceUrl, DateTime occurredAt)
+    {
+        ArgumentNullException.ThrowIfNull(outcome);
+
+        var url = sourceUrl?.Trim();
+
+        if (!string.IsNullOrEmpty(url))
+        {
+            if (url.Length > SOURCE_URL_MAX_LENGTH)
+                throw CaptureItemErrors.TextTooLong(nameof(SourceUrl), SOURCE_URL_MAX_LENGTH);
+
+            SourceUrl = url;
+        }
+
+        LinkOutcome = outcome;
         UpdatedAt = occurredAt;
     }
 
@@ -349,7 +398,12 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
     /// </para>
     /// </remarks>
     public void RecordAttemptedLink(string sourceUrl, DateTime occurredAt)
-        => RecordResolvedLink(sourceUrl, occurredAt);
+    {
+        if (string.IsNullOrWhiteSpace(sourceUrl))
+            throw CaptureItemErrors.SourceUrlRequired();
+
+        RecordLinkResolution(LinkResolutionOutcome.NoRecipe, sourceUrl, occurredAt);
+    }
 
     /// <summary>
     /// Só o host do <see cref="SourceUrl"/> — quem hospeda, sem o caminho que abre o documento.
@@ -469,6 +523,7 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
         // de novo, com as receitas de hoje, e pode trazer o documento de outro endereço — ou de
         // nenhum. Manter o anterior descreveria uma busca que não foi a que aconteceu.
         SourceUrl = null;
+        LinkOutcome = null;
     }
 
     /// <summary>Roteou para este tenant e virou boleto.</summary>
@@ -754,6 +809,7 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
         StorageKey = null;
         Routing = null;
         SourceUrl = null;
+        LinkOutcome = null;
         UnlockedBy = null;
         Extraction = null;
         Reason = null;

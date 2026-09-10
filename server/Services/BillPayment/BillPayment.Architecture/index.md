@@ -23,6 +23,7 @@ Design rationale do Bounded Context **BillPayment**: captura de boletos (e-mail 
 | [`12-official-lookup-coverage.md`](12-official-lookup-coverage.md) | **Medição** da cobertura do `bill/simulate` por tipo de documento: o que cada check tem de dado, o que é estrutural e o que ficou por validar em produção |
 | [`13-dead-letter-replay.md`](13-dead-letter-replay.md) | **Operação:** replay da dead-letter do outbox por SQL — identificar, corrigir a causa, reemitir com segurança (idempotência handler a handler) e conferir o efeito |
 | [`14-auditoria-ingestao-email.md`](14-auditoria-ingestao-email.md) | **Segurança:** auditoria de 2026-09-03 do caminho e-mail → `CaptureItem` → `Bill` → aprovação — o que um remetente qualquer consegue, 33 achados com arquivo:linha (9 altos, todos ABERTOS), 18 controles já corretos e a ordem de correção. O status de cada achado vive no checklist do `CLAUDE.md` |
+| [`15-resolucao-aberta-de-link.md`](15-resolucao-aberta-de-link.md) | **Segurança + operação:** o regime aberto da escada de link (ADR-023) — o que muda na superfície de ataque, as travas que passam a segurar o estrago, e **como configurar o ambiente** (Dokploy/VPS) para que elas funcionem |
 
 ## ADRs
 

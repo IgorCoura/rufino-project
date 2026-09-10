@@ -2,6 +2,7 @@ namespace BillPayment.IntegrationTests.Extraction;
 
 using BillPayment.Infra.Extraction;
 using BillPayment.Infra.Extraction.Links;
+using Microsoft.Extensions.Options;
 
 /// <summary>
 /// As duas peças que decidem o que a escada de link vai buscar: a colheita e a barreira de rede.
@@ -99,21 +100,137 @@ public sealed class LinkResolutionTests
     [InlineData("")]
     public async Task IsPubliclyRoutable_WithAnInternalAddress_ShouldRefuse(string host)
     {
-        Assert.False(await SafeUrlPolicy.IsPubliclyRoutableAsync(host, CancellationToken.None));
+        Assert.Null(await Policy().ResolvePinnedAddressAsync(host, CancellationToken.None));
     }
 
     // Endereço público literal passa — a barreira recusa rede interna, não a internet.
     [Fact]
     public async Task IsPubliclyRoutable_WithAPublicAddress_ShouldAllow()
     {
-        Assert.True(await SafeUrlPolicy.IsPubliclyRoutableAsync("8.8.8.8", CancellationToken.None));
+        Assert.NotNull(await Policy().ResolvePinnedAddressAsync("8.8.8.8", CancellationToken.None));
     }
 
     // v4 mapeado em v6 é a forma clássica de contornar a checagem se ele não for desembrulhado.
     [Fact]
     public async Task IsPubliclyRoutable_WithAnIpv4MappedLoopback_ShouldRefuse()
     {
-        Assert.False(await SafeUrlPolicy.IsPubliclyRoutableAsync(
+        Assert.Null(await Policy().ResolvePinnedAddressAsync(
             "::ffff:127.0.0.1", CancellationToken.None));
     }
+
+    // TESTE-ÂNCORA do defeito de producao de 2026-09-10: o boleto da Acessorias chega dentro de um
+    // `document.write("<iframe src=...>")` e a pagina inteira NAO tem uma unica ancora. A versao
+    // que so lia `<a href>` chegava ali e voltava de maos vazias, e o item ia para a quarentena
+    // como se o emissor nao tivesse documento.
+    [Fact]
+    public void Harvest_WithTheDocumentInsideAScriptWrittenIframe_ShouldFindIt()
+    {
+        const string html = """
+            <html><body><script language="javascript">
+            document.write("<iframe src='https://acessorias.s3.us-east-2.amazonaws.com/x/260902.pdf?X-Amz-Expires=120&X-Amz-Signature=abc' width='100%' />");
+            </script></body></html>
+            """;
+
+        var links = HtmlLinkHarvester.HarvestFromPage(html);
+
+        Assert.Contains(links, l => l.Host == "acessorias.s3.us-east-2.amazonaws.com"
+            && l.PathAndQuery.Contains("260902.pdf", StringComparison.Ordinal));
+    }
+
+    // CONTRAPROVA do anterior: a entidade HTML tem que ser decodificada, senao a assinatura do S3
+    // sai quebrada na URL e o balde responde 403 — que se pareceria com "documento nao existe".
+    [Fact]
+    public void Harvest_WithAnEncodedQueryString_ShouldDecodeTheAmpersands()
+    {
+        const string html = """<a href="https://emissor.com.br/b.pdf?a=1&amp;X-Amz-Signature=abc">Boleto</a>""";
+
+        var link = Assert.Single(HtmlLinkHarvester.Harvest(html));
+
+        Assert.Contains("a=1&x-amz-signature=abc", link.PathAndQuery, StringComparison.Ordinal);
+    }
+
+    // A ordem passou a decidir onde o orcamento e gasto: o e-mail da EDP tem oito rastreadores
+    // antes da fatura, e gastar as requisicoes neles significa nao achar a fatura.
+    [Fact]
+    public void Harvest_ShouldRankWhatLooksLikeADocumentAheadOfTrackers()
+    {
+        const string html = """
+            <a href="https://tracking.exemplo.com/abrir">Ver no navegador</a>
+            <a href="https://facebook.com/emissor">Facebook</a>
+            <a href="https://emissor.com.br/2via/boleto.pdf">Acessar Boleto</a>
+            """;
+
+        var links = HtmlLinkHarvester.Harvest(html);
+
+        Assert.Equal("emissor.com.br", links[0].Host);
+    }
+
+    // Imagem em corpo de e-mail e pixel de rastreio: busca-la entrega ao remetente a confirmacao
+    // de que a mensagem foi processada. Dentro de uma pagina ja buscada, porem, pode ser o boleto.
+    [Fact]
+    public void Harvest_ShouldIgnoreImagesInTheBodyButNotInAFetchedPage()
+    {
+        const string html = """<img src="https://rastreador.com.br/pixel.png" />""";
+
+        // A promessa vale para AS DUAS passadas: a estruturada recusa a tag, e a bruta não pode
+        // reencontrar o mesmo endereço no texto — foi exatamente esse o furo que este teste pegou.
+        Assert.Empty(HtmlLinkHarvester.Harvest(html));
+        Assert.Single(HtmlLinkHarvester.HarvestFromPage(html));
+    }
+
+    // Os tres buracos de IPv6 que a versao anterior deixava passar, mais as faixas nao-roteaveis
+    // que faltavam. `::` e `::127.0.0.1` escapavam das tres checagens e alcancam loopback.
+    [Theory]
+    [InlineData("::")]                 // nao-especificado — chega no loopback na maioria dos stacks
+    [InlineData("::127.0.0.1")]        // IPv4-compatible (RFC 4291, deprecado)
+    [InlineData("64:ff9b::7f00:1")]    // NAT64
+    [InlineData("2002:7f00:1::")]      // 6to4
+    [InlineData("198.18.0.1")]         // benchmarking (RFC 2544)
+    [InlineData("192.0.0.1")]          // atribuicoes do IETF
+    [InlineData("203.0.113.10")]       // TEST-NET-3
+    public async Task ResolvePinnedAddress_WithANonRoutableAddress_ShouldRefuse(string host)
+    {
+        Assert.Null(await Policy().ResolvePinnedAddressAsync(host, CancellationToken.None));
+    }
+
+    // A lista configuravel: e onde entram os enderecos publicos da propria instalacao, que o
+    // codigo nao tem como adivinhar e que um atacante quer alcancar a partir de dentro.
+    [Fact]
+    public async Task ResolvePinnedAddress_WithAConfiguredBlockedRange_ShouldRefuseTheOwnPublicAddress()
+    {
+        var policy = Policy(blocked: ["8.8.8.0/24"]);
+
+        Assert.Null(await policy.ResolvePinnedAddressAsync("8.8.8.8", CancellationToken.None));
+        Assert.NotNull(await policy.ResolvePinnedAddressAsync("9.9.9.9", CancellationToken.None));
+    }
+
+    // A excecao vence a proibicao, e a ordem e deliberada: toda faixa que alguem precisa liberar
+    // esta proibida por algum motivo, senao nao precisaria ser liberada.
+    [Fact]
+    public async Task ResolvePinnedAddress_WithAnAllowedRangeOverridingTheBlock_ShouldAllow()
+    {
+        var policy = Policy(blocked: ["8.8.8.0/24"], allowed: ["8.8.8.8"]);
+
+        Assert.NotNull(await policy.ResolvePinnedAddressAsync("8.8.8.8", CancellationToken.None));
+    }
+
+    // Faixa malformada derruba o arranque em vez de ser ignorada: uma faixa que ninguem percebeu
+    // que nao vale e pior que faixa nenhuma — quem a escreveu acredita estar protegido.
+    [Fact]
+    public void Policy_WithAMalformedRange_ShouldRefuseToStart()
+    {
+        var error = Assert.Throws<InvalidOperationException>(() => Policy(blocked: ["10.0.0.0/99"]));
+
+        Assert.Contains("BlockedCidrs", error.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A política sem faixa configurada — só as reservadas, que são código e não configuração.
+    /// </summary>
+    private static SafeUrlPolicy Policy(string[]? blocked = null, string[]? allowed = null)
+        => new(Options.Create(new LinkResolutionOptions
+        {
+            BlockedCidrs = [.. blocked ?? []],
+            AllowedCidrs = [.. allowed ?? []],
+        }));
 }

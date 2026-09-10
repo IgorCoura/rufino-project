@@ -45,7 +45,22 @@ public sealed record CaptureItemDto(
     string? LastError,
 
     /// <summary>Quem hospeda o documento que a escada tentou — sem o caminho que o abre.</summary>
-    string? LinkHost)
+    string? LinkHost,
+
+    /// <summary>
+    /// Como a escada de link terminou — <c>NoRecipe</c>, <c>DepthExhausted</c>, <c>Refused</c>…
+    /// Nulo quando ela não rodou para este artefato.
+    /// </summary>
+    string? LinkOutcome,
+
+    /// <summary>
+    /// Se o desfecho é algo que uma pessoa deveria consertar, e não o curso normal.
+    /// </summary>
+    /// <remarks>
+    /// Sai calculado do servidor porque a régua é do domínio: replicar no cliente faria a tela
+    /// discordar da fila no dia em que um desfecho novo nascesse.
+    /// </remarks>
+    bool LinkNeedsAttention)
 {
     /// <summary>
     /// Projeta o item aplicando o nível de visibilidade do próprio status.
@@ -102,7 +117,14 @@ public sealed record CaptureItemDto(
             // portador — quem a tem, tem o boleto, que pode ser de outro pagador. O host só diz
             // QUEM emitiu, e é o dado que decide qual receita de link cadastrar. Sem ele, a
             // quarentena não responde "de onde veio isto que não conseguimos buscar".
-            item.LinkHost);
+            item.LinkHost,
+
+            // O desfecho da escada acompanha o host, e pelo mesmo motivo: descreve o SISTEMA, não
+            // o documento nem o dinheiro. É o que separa, na tela, "cadastre este emissor" de
+            // "a escada desceu cinco níveis e não achou" — dois itens que até aqui chegavam
+            // idênticos e mudos na quarentena.
+            item.LinkOutcome?.Name,
+            item.LinkOutcome?.DeservesAttention ?? false);
     }
 }
 
