@@ -1241,7 +1241,11 @@ Coisas que não podem erodir:
   comparações com string crua. **Nível desconhecido NUNCA desenha "Seguro"** (era o default do
   switch — um servidor mais novo mentiria verde): cai num banner neutro pedindo atualização, e
   `RiskLevels.tier` devolve 0. Aprovar Perigo OU Extremo exige a caixa "assumo o risco"
-  (`BLP.BIL27`), e a **alçada por risco** (`BLP.BIL32`, 403) é espelhada na UI:
+  (`BLP.BIL27`) — **o aceite é do ato de APROVAR, nunca do de agendar**: a folha em modo
+  `scheduleOnly` (boleto já aprovado, ADR-018) não desenha a caixa nem a cobra no botão, porque
+  o servidor só a exige em `Approve`. Até 2026-09-10 o botão Agendar continuava amarrado a ela
+  e todo boleto em Perigo já aprovado ficava sem como ser agendado — caixa nenhuma na tela para
+  destravar. E a **alçada por risco** (`BLP.BIL32`, 403) é espelhada na UI:
   `BillPaymentPermissionNotifier.canApproveAtRisk` lê os escopos novos
   (`approve-attention` < `approve-danger` < `approve-extreme`, hierárquicos) e o botão Aprovar
   desabilita com o motivo no Tooltip quando o boleto está acima da alçada. A lista de boletos

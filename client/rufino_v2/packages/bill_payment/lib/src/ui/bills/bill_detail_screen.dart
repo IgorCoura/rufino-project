@@ -1712,8 +1712,14 @@ class _ApproveSheetState extends State<_ApproveSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final viewModel = widget.viewModel;
-    final needsAcknowledgement =
-        viewModel.bill?.requiresRiskAcknowledgement ?? false;
+    // O aceite de risco (ADR-015) pertence ao ato de APROVAR — o servidor o
+    // exige em Approve, nunca em Schedule. Numa folha de agendamento puro a
+    // caixa não aparece (o boleto já foi autorizado por alguém que a marcou),
+    // então ela também não pode pesar no botão: um Perigo aprovado ficaria
+    // com o Agendar travado para sempre, sem nada na tela para destravar.
+    final needsRiskAcknowledgement =
+        (viewModel.bill?.requiresRiskAcknowledgement ?? false) &&
+            !widget.scheduleOnly;
     final riskLabel = RiskLevels.label(viewModel.bill?.riskLevel);
     // ADR-017 do BC: boleto vencido é processado NA HORA pelo provedor, sem
     // janela de reação — aprovar exige o aceite explícito, gravado na
@@ -1839,7 +1845,7 @@ class _ApproveSheetState extends State<_ApproveSheet> {
         // ADR-015: boleto em Perigo ou Extremo Perigo só autoriza com o
         // aceite marcado — e o servidor recusa sem ele, então o botão nem
         // habilita.
-        if (needsAcknowledgement && !widget.scheduleOnly) ...[
+        if (needsRiskAcknowledgement) ...[
           const SizedBox(height: AppSpacing.md),
           CheckboxListTile(
             value: _riskAcknowledged,
@@ -1882,7 +1888,7 @@ class _ApproveSheetState extends State<_ApproveSheet> {
         const SizedBox(height: AppSpacing.lg),
         FilledButton(
           onPressed: _submitting ||
-                  (needsAcknowledgement && !_riskAcknowledged) ||
+                  (needsRiskAcknowledgement && !_riskAcknowledged) ||
                   (needsImmediateAck &&
                       !_immediateAcknowledged &&
                       !widget.approveOnly)
