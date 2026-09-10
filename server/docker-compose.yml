@@ -38,7 +38,7 @@ services:
         ASPNETCORE_URLS: "https://+;http://+"
         ASPNETCORE_HTTPS_PORT: "443"
         ASPNETCORE_ENVIRONMENT: Development
-        PUPPETEER_EXECUTABLE_PATH: "/usr/bin/google-chrome-stable"
+        PUPPETEER_EXECUTABLE_PATH: "/opt/chrome-headless-shell/chrome-headless-shell"
         # Por padrão as APIs continuam apontando para o Keycloak da nuvem (é onde o realm
         # completo vive). Para usar o Keycloak local do profile "keycloak", defina no .env:
         #   KEYCLOAK_URL=http://host.docker.internal:8082

@@ -222,7 +222,7 @@ docker run -d -p 8080:80 \
 
 | Variável | Descrição | Padrão |
 |----------|-----------|--------|
-| `PUPPETEER_EXECUTABLE_PATH` | Caminho do executável do Chrome | `/usr/bin/google-chrome-unstable` |
+| `PUPPETEER_EXECUTABLE_PATH` | Caminho do executável do navegador (chrome-headless-shell, embutido na imagem) | `/opt/chrome-headless-shell/chrome-headless-shell` |
 | `DocumentTemplatesOptions__SourceDirectory` | Diretório dos templates | `app_files/templates` |
 | `DocumentOptions__WarningDaysBeforeDocumentExpiration` | Teto (em dias) da janela de aviso antes da expiração | `30` |
 | `DocumentOptions__WarningRatio` | Fração do período de validade usada para janela de aviso (limitada pelo teto acima) | `0.3` |
