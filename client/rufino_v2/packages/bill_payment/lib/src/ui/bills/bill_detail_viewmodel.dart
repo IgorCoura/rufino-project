@@ -93,6 +93,13 @@ class BillDetailViewModel extends ChangeNotifier {
   /// Whether the bill is approved and still waiting for someone to pick a date.
   bool get canSchedule => _bill?.acceptsScheduling ?? false;
 
+  /// Whether the schedule button can be enabled right now.
+  ///
+  /// Status and snapshot age together, exactly like [canApprove]. The server
+  /// re-checks the snapshot when scheduling, so a stale one gets "revalide
+  /// antes de agendar" instead of a click that bounces on `BLP.BIL06`.
+  bool get canScheduleNow => _bill?.canScheduleAt(_clock()) ?? false;
+
   /// Whether a denial or cancellation can be undone.
   bool get canUndoDecision => _bill?.acceptsUndo ?? false;
 

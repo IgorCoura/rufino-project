@@ -746,19 +746,20 @@ public class BillValidationServiceTests
         Assert.Equal(CheckReasons.OVERDUE, result.ReasonCode);
     }
 
-    // Vence hoje depois do corte do provedor: seria processado no dia útil seguinte.
+    // REGRESSÃO (medido em produção, 2026-09-10): boleto que vence HOJE passa na verificação de
+    // prazo a qualquer hora. O corte de 14h que reprovava aqui saiu — o pagamento foi feito depois
+    // dele —, e quem julga se "hoje" ainda serve como data é o PaymentSchedulingService, no
+    // instante do agendamento.
     [Fact]
-    public void Evaluate_DueDateSanity_WhenDueTodayAfterTheCutoff_ShouldFail()
+    public void Evaluate_DueDateSanity_WhenDueToday_ShouldPassRegardlessOfTheHour()
     {
         var result = Check(
             ValidationMother.Context(
                 ValidationMother.BankSlipWithLookup(
-                    ValidationMother.ConsistentWithBarcode(dueDate: ValidationMother.Today)),
-                timeOfDay: ValidationMother.AfterCutoff),
+                    ValidationMother.ConsistentWithBarcode(dueDate: ValidationMother.Today))),
             CheckType.DueDateSanity);
 
-        Assert.Equal(CheckOutcome.Failed, result.Outcome);
-        Assert.Equal(CheckReasons.SAME_DAY_AFTER_CUTOFF, result.ReasonCode);
+        Assert.Equal(CheckOutcome.Passed, result.Outcome);
     }
 
     // Com folga até o vencimento, passa.
@@ -895,7 +896,6 @@ public class BillValidationServiceTests
             PayeeResolution = PayeeResolutionService.Resolve(null, []),
             BankDirectory = new FakeBankDirectory(),
             Today = ValidationMother.Today,
-            TimeOfDay = ValidationMother.Morning,
         };
 
     private static CheckResult Check(BillValidationContext context, CheckType type)

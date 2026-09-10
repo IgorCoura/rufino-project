@@ -188,6 +188,168 @@ public class OfficialSourcePrecedenceTests
         Assert.Same(RiskLevel.Safe, result.RiskContribution);
     }
 
+    // ------------------------------------------------------------------------------------------
+    // ADR-025 — o pagador PASSA a ser verificável no trilho Pix com cobrança registrada.
+    // ------------------------------------------------------------------------------------------
+
+    // O DEFEITO RELATADO: boleto com QR Pix saía Inconclusive ("o documento não traz o documento
+    // fiscal do pagador") sobre um pagamento cuja consulta oficial havia devolvido exatamente esse
+    // documento, completo. E Inconclusive advisory pesa PERIGO desde o ADR-020.
+    [Fact]
+    public void Evaluate_PayerMatch_WhenTheOfficialPixPayerIsTheTenant_ShouldPassWithTheOfficialReason()
+    {
+        var profile = ValidationMother.TenantProfile();
+
+        var result = Check(PixCobvRegisteredTo(profile.PrimaryTaxId.Value), CheckType.PayerMatch, payerProfile: profile);
+
+        Assert.Equal(CheckOutcome.Passed, result.Outcome);
+        Assert.Equal(CheckReasons.PAYER_CONFIRMED_BY_LOOKUP, result.ReasonCode);
+        Assert.Same(RiskLevel.Safe, result.RiskContribution);
+        Assert.Contains(profile.PrimaryTaxId.Formatted(), result.Evidence, StringComparison.Ordinal);
+    }
+
+    // O ESCOPO, trava 1: QR estático não carrega cobrança registrada, logo o pagador que viesse
+    // dali não teria a procedência que sustenta o ADR-025. Continua valendo o ADR-004.
+    [Fact]
+    public void Evaluate_PayerMatch_OnAStaticQr_ShouldNotConfirmTheTenant()
+    {
+        var profile = ValidationMother.TenantProfile();
+        var bill = BillMother.Capture([InstrumentSamples.StaticPix()]);
+        bill.AttachLookups(
+            bankSlip: null,
+            PixLookupResult.Resolved(
+                LookupMother.PixStaticWithPayer(MaskedParty.Of("RUFINO EMPREITEIRA LTDA", profile.PrimaryTaxId.Value)),
+                ValidationMother.ConsultedAt),
+            ValidationMother.OccurredAt);
+
+        var result = Check(bill, CheckType.PayerMatch, payerProfile: profile);
+
+        Assert.Equal(CheckOutcome.Inconclusive, result.Outcome);
+        Assert.Equal(CheckReasons.PAYER_NOT_EXTRACTABLE, result.ReasonCode);
+    }
+
+    // O ESCOPO, trava 2: máscara compatível NUNCA confirma. Quatro dígitos visíveis são
+    // compartilhados por milhões de documentos — é a fronteira que o MaskedParty existe para não
+    // cruzar, e o ADR-025 não a move.
+    [Fact]
+    public void Evaluate_PayerMatch_WhenTheOfficialPayerIsMasked_ShouldStayInconclusive()
+    {
+        var profile = ValidationMother.TenantProfile();
+
+        var result = Check(
+            PixCobvRegisteredTo("**.***.***/0001-81"), CheckType.PayerMatch, payerProfile: profile);
+
+        Assert.Equal(CheckOutcome.Inconclusive, result.Outcome);
+        Assert.Equal(CheckReasons.PAYER_NOT_EXTRACTABLE, result.ReasonCode);
+    }
+
+    // O ESCOPO, trava 3: o DV decide (ADR-011). Fonte oficial também erra — campo trocado, dígito
+    // a menos —, e documento sem DV válido é candidato, não identidade. Aqui o documento nem
+    // contradiz (comprimento diferente do cadastro é ausência de conclusão, por desenho do
+    // MaskedParty) nem confirma: fica exatamente onde o ADR-004 o deixaria.
+    [Fact]
+    public void Evaluate_PayerMatch_WhenTheOfficialPayerHasAnInvalidCheckDigit_ShouldNotConfirm()
+    {
+        var result = Check(
+            PixCobvRegisteredTo("12345678900"),
+            CheckType.PayerMatch,
+            payerProfile: ValidationMother.TenantProfile());
+
+        Assert.Equal(CheckOutcome.Inconclusive, result.Outcome);
+        Assert.Equal(CheckReasons.PAYER_NOT_EXTRACTABLE, result.ReasonCode);
+    }
+
+    // E o DV inválido NÃO desarma a contradição: um documento do mesmo comprimento cujos dígitos
+    // divergem do cadastro contradiz igual, com ou sem DV. Contradizer não exige identificar — é a
+    // assimetria do ADR-004, que o ADR-025 não move.
+    [Fact]
+    public void Evaluate_PayerMatch_WhenAnInvalidOfficialPayerStillDivergesFromTheTenant_ShouldBlock()
+    {
+        var result = Check(
+            PixCobvRegisteredTo("11222333000199"),
+            CheckType.PayerMatch,
+            payerProfile: ValidationMother.TenantProfile());
+
+        Assert.Equal(CheckOutcome.Failed, result.Outcome);
+        Assert.Equal(CheckReasons.PAYER_MISMATCH, result.ReasonCode);
+        Assert.True(result.IsBlockingFailure);
+    }
+
+    // REGRESSÃO (ADR-025 D3): o ramo de contradição comparava contra a lista EXATA de documentos e
+    // ignorava MatchByCnpjRoot. Uma cobv registrada para uma filial não cadastrada de um tenant que
+    // declarou casar por raiz saía bloqueada — pagamento legítimo, barrado por uma regra que o
+    // próprio tenant desligou.
+    [Fact]
+    public void Evaluate_PayerMatch_WithRootMatchingOn_ShouldAcceptASiblingBranchFromTheOfficialLookup()
+    {
+        var profile = ValidationMother.TenantProfile();
+        profile.EnableCnpjRootMatching(BillMother.DefaultOccurredAt);
+
+        var result = Check(PixCobvRegisteredTo(SiblingBranchCnpj), CheckType.PayerMatch, payerProfile: profile);
+
+        Assert.Equal(CheckOutcome.Passed, result.Outcome);
+        Assert.Equal(CheckReasons.PAYER_CONFIRMED_BY_LOOKUP, result.ReasonCode);
+    }
+
+    // CONTRAPROVA da regressão acima: sem a raiz ligada, a mesma filial continua contradizendo — a
+    // correção afrouxa só o que o tenant declarou, e nada mais.
+    [Fact]
+    public void Evaluate_PayerMatch_WithRootMatchingOff_ShouldStillBlockTheSiblingBranch()
+    {
+        var result = Check(
+            PixCobvRegisteredTo(SiblingBranchCnpj),
+            CheckType.PayerMatch,
+            payerProfile: ValidationMother.TenantProfile());
+
+        Assert.Equal(CheckOutcome.Failed, result.Outcome);
+        Assert.Equal(CheckReasons.PAYER_MISMATCH, result.ReasonCode);
+        Assert.True(result.IsBlockingFailure);
+    }
+
+    // ADR-025 D4: PDF que nomeia outro pagador enquanto o QR está registrado para o tenant é
+    // anomalia real — ou a leitura errou, ou o par PDF/QR foi montado. Fail closed: a confirmação
+    // oficial NÃO passa por cima do bloqueio que já existia.
+    [Fact]
+    public void Evaluate_PayerMatch_WhenThePrintedPayerContradicts_ShouldBlockEvenWithTheOfficialConfirming()
+    {
+        var profile = ValidationMother.TenantProfile();
+        var bill = BillMother.CaptureVerbatim(
+            [InstrumentSamples.DynamicPixQr()],
+            BillMother.MailboxOrigin(),
+            extractedPayer: PartyInfo.Of("OUTRA EMPRESA", TaxId.Parse(OtherTenantCnpj)));
+
+        bill.AttachLookups(
+            bankSlip: null,
+            PixLookupResult.Resolved(
+                LookupMother.PixDynamic(
+                    payer: MaskedParty.Of("RUFINO EMPREITEIRA LTDA", profile.PrimaryTaxId.Value)),
+                ValidationMother.ConsultedAt),
+            ValidationMother.OccurredAt);
+
+        var result = Check(bill, CheckType.PayerMatch, payerProfile: profile);
+
+        Assert.Equal(CheckOutcome.Failed, result.Outcome);
+        Assert.Equal(CheckReasons.PAYER_MISMATCH, result.ReasonCode);
+        Assert.True(result.IsBlockingFailure);
+    }
+
+    /// <summary>Filial do MESMO grupo do <c>TenantProfile</c> (raiz 11222333), não cadastrada.</summary>
+    private const string SiblingBranchCnpj = "11222333000262";
+
+    /// <summary>Só-Pix dinâmico cuja cobrança registrada nomeia <paramref name="payerTaxId"/>.</summary>
+    private static Bill PixCobvRegisteredTo(string payerTaxId)
+    {
+        var bill = BillMother.Capture([InstrumentSamples.DynamicPixQr()]);
+        bill.AttachLookups(
+            bankSlip: null,
+            PixLookupResult.Resolved(
+                LookupMother.PixDynamic(payer: MaskedParty.Of("RUFINO EMPREITEIRA LTDA", payerTaxId)),
+                ValidationMother.ConsultedAt),
+            ValidationMother.OccurredAt);
+
+        return bill;
+    }
+
     /// <summary>Híbrido que liquida por Pix num banco (237) diferente do do código de barras (341).</summary>
     private static Bill HybridPaidByPix()
     {

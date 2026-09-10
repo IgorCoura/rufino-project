@@ -1135,7 +1135,7 @@ refresh de token e limpa no logout — junto com as outras duas.
 | `/bill-payment/pending` | Painel diário: fila de aprovação + 3 listas de pendências + nudge de onboarding | `expectation`/`view` |
 | `/bill-payment/bills` | Fila de boletos, filtro `?status=` **no servidor**, abre em Aguardando aprovação; filtros Agendados/Pagos/Falhou e a linha "pagar em" quando há data efetiva | `bill`/`view` |
 | `/bill-payment/bills/import` | Importação manual: linha digitável, código Pix e/ou **anexo do boleto** (PDF/imagem) — um dos três basta | `bill`/`import` |
-| `/bill-payment/bills/:id` | Aprovação: banner de risco (Seguro/Atenção/Perigo), 13 verificações, consulta oficial por inteiro, resumo com competência/descrição da IA + revalidar/negar/cancelar/aprovar (Perigo exige a caixa "assumo o risco"); pós-aprovação, a seção **Execução do pagamento** (fase 3) com status/retenção/datas da ordem, cancelar agendamento, confirmar pagamento imediato e reabrir boleto falhado | `bill`/`view` (cancelar ordem: `bill`/`cancel`; confirmar/reabrir: `bill`/`approve`) |
+| `/bill-payment/bills/:id` | Aprovação: banner de risco (Seguro/Atenção/Perigo), 14 verificações, consulta oficial por inteiro, resumo com competência/descrição da IA + revalidar/negar/cancelar/aprovar (Perigo exige a caixa "assumo o risco"); pós-aprovação, a seção **Execução do pagamento** (fase 3) com status/retenção/datas da ordem, cancelar agendamento, confirmar pagamento imediato e reabrir boleto falhado | `bill`/`view` (cancelar ordem: `bill`/`cancel`; confirmar/reabrir: `bill`/`approve`) |
 | `/bill-payment/bills/:id/artifact` | O documento original do boleto, em tela cheia, **com botão de baixar** | `bill`/`view` |
 | `/bill-payment/bills/:id/receipt` | O comprovante de pagamento vindo do provedor, em tela cheia (só existe após Pago), **com botão de baixar** | `bill`/`view` |
 | `/bill-payment/bills/:id/email` | O e-mail que trouxe o boleto — título, remetente e corpo renderizado | `bill`/`view` |
@@ -1293,9 +1293,31 @@ Coisas que não podem erodir:
   aceitou e o detalhe recusou". **A tolerância é obrigatória no tipo Fixo** nos dois: o domínio a
   exige (`AmountPolicy.From` → `BLP.PYE07`) e o formulário a tratava como opcional, então cadastrar
   valor fixo com ela em branco voltava do servidor com "valor obrigatório" sem dizer qual campo.
-- **A regra das 12 horas é do cliente também**: `BillDetail.isSnapshotStaleAt` espelha
-  `Approval:MaxSnapshotAgeHours`; retrato velho desabilita Aprovar com o motivo à vista e
-  oferece Revalidar. Motivo de negar/cancelar é obrigatório no form.
+- **O prazo do retrato vem RESOLVIDO do servidor (`snapshotExpiresAt`), e a constante local é só
+  reserva.** `BillDetail.isSnapshotStaleAt` prefere o prazo que o servidor calculou contra a
+  política vigente; `maxSnapshotAge` (12h) fica como fallback para resposta que não o traga.
+  Replicar o número era como a tela passava a mentir quando `Approval:MaxSnapshotAgeHours` mudava.
+  Motivo de negar/cancelar é obrigatório no form.
+- **Retrato velho bloqueia APROVAR e AGENDAR, e os dois avisam.** O servidor reconfere o frescor
+  nos dois atos (ADR-018 abriu a janela entre eles), e a tela checava em nenhum dos dois para o
+  boleto aprovado: o banner era gated em `acceptsDecision` — que um aprovado não satisfaz —, o
+  botão "Agendar…" seguia habilitado, e o clique voltava `BLP.BIL06` sem dizer o que fazer. Hoje
+  `canScheduleAt` é o espelho de `canApproveAt`, o banner cobre os dois estados com o texto certo
+  ("revalide antes de agendar"), e o botão desabilita com o motivo no Tooltip — com Revalidar ao
+  lado, porque aprovado aceita revalidação. Travado por teste de widget.
+- **Recusa `BLP.BIL06` no meio do voo oferece "Revalidar agora" DENTRO da folha** — o terceiro
+  irmão de `BLP.BIL35` e `BLP.BIL40`. O retrato pode vencer entre abrir a folha e confirmar;
+  fechar perderia data, observação e aceites por uma recusa cuja saída é um botão. Revalidar dali
+  não derruba a aprovação quando nada mudou (regra nova do servidor), e é por isso que o texto
+  do aviso pode prometer isso.
+- **Dia de calendário é parseado por `_day`, nunca por `DateTime.parse` cru.** O servidor manda
+  `yyyy-MM-dd` e o helper lê os três números como escritos, produzindo meia-noite LOCAL — então
+  `formatDate`, que chama `.toLocal()`, não tem como deslocar o dia. Era exatamente esse o bug do
+  vencimento "um dia a menos": o dia chegava como instante de meia-noite UTC e em UTC-3 virava o
+  dia anterior, aparecendo errado na lista e na consulta oficial e **certo** na evidência do check
+  (que é texto do servidor). O `_day` também absorve um servidor que regrida para `...T00:00:00Z`.
+  Instante — `consultedAt`, `snapshotExpiresAt`, `expiresAt` do Pix, `createdAt` — continua em
+  `_date`: truncá-lo para dia apagaria a hora de que a regra depende.
 - **`CheckReasons` é contrato de tradução**: `check_translations.dart` traduz o **código**;
   código desconhecido cai para a `evidence` do servidor (coberto por teste que varre os 46).
 - **A quarentena renderiza o que veio** — os campos financeiros chegam `null` fora de

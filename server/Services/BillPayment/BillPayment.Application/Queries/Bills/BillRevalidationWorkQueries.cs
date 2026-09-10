@@ -33,9 +33,12 @@ internal sealed class BillRevalidationWorkQueries(BillPaymentDbContext context, 
     /// </para>
     /// <para>
     /// <strong>E só boleto que ainda aceita revalidação silenciosa.</strong> Revalidar um
-    /// <c>Approved</c> derruba a aprovação incondicionalmente, e um worker fazendo isso desfaria
-    /// decisão humana em silêncio. Efeito colateral bom: aprovar assumindo o risco tira o boleto
-    /// da fila sozinho.
+    /// <c>Approved</c> deixou de derrubar a aprovação incondicionalmente (2026-09-10), mas
+    /// <strong>este</strong> caso é justamente o que a derruba: a fila existe para boleto cujo
+    /// <c>LookupAvailability</c> reprovou, e quando a consulta volta a responder o desfecho DAQUELE
+    /// check muda — então a aprovação cairia, em silêncio, por obra de um worker. A regra não
+    /// mudou; o motivo dela ficou mais preciso. Efeito colateral bom: aprovar assumindo o risco
+    /// tira o boleto da fila sozinho.
     /// </para>
     /// <para>
     /// <strong>A tentativa é contada na SAÍDA</strong>, junto com o adiamento. Contar só as falhas

@@ -3,7 +3,9 @@ namespace BillPayment.UnitTests.Bills;
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Bills.Checks;
 using BillPayment.Domain.Lookups;
+using BillPayment.Domain.PaymentOrders;
 using BillPayment.Domain.SeedWork;
+using BillPayment.Domain.SharedKernel;
 using BillPayment.UnitTests.Bills.Mothers;
 using BillPayment.UnitTests.Lookups.Mothers;
 using BillPayment.UnitTests.Services.Mothers;
@@ -15,6 +17,9 @@ using BillPayment.UnitTests.Services.Mothers;
 public class BillValidationTests
 {
     private static readonly DateTime EvaluatedAt = new(2026, 6, 20, 9, 0, 0, DateTimeKind.Utc);
+    private static readonly UserId Approver = UserId.From(new Guid("0195a1f0-0000-7000-8000-00000000000a"));
+    private static readonly DateOnly Today = new(2026, 6, 20);
+    private static readonly DateOnly ScheduleFor = new(2026, 6, 24);
 
     // Linha 3 da matriz: tudo passou ou foi pulado, o boleto fica aguardando um humano.
     [Fact]
@@ -229,6 +234,141 @@ public class BillValidationTests
         Assert.Same(RiskLevel.Danger, bill.Risk);
     }
 
+    // 2026-09-10: revalidar um APROVADO sem nada mudar mantém a aprovação. Antes derrubava
+    // incondicionalmente, e isso fechava um laço sem saída — o agendamento exige retrato fresco,
+    // revalidar era o único jeito de renová-lo, e revalidar custava a aprovação.
+    [Fact]
+    public void RecordChecks_OnAnApprovedBill_WhenNothingChanged_ShouldKeepTheApproval()
+    {
+        var bill = Approved();
+
+        var outcome = bill.RecordChecks(AllPassing(), EvaluatedAt.AddHours(13));
+
+        Assert.Equal(BillStatus.Approved, bill.Status);
+        Assert.True(outcome.ApprovalPreserved);
+        Assert.Equal(BillStatus.Approved, outcome.Status);
+
+        // A aprovação vigente continua sendo a mesma pessoa, no mesmo instante.
+        Assert.Equal(Approver, bill.Approval!.DecidedBy);
+        Assert.Equal(ApprovalDecision.Approved, bill.Approval.Decision);
+    }
+
+    // E a trilha registra a revalidação que NÃO mudou o status: meses depois alguém vai perguntar
+    // por que a aprovação sobreviveu a uma consulta nova.
+    [Fact]
+    public void RecordChecks_WhenTheApprovalSurvives_ShouldStillRecordTheValidationInTheTrail()
+    {
+        var bill = Approved();
+        var before = bill.History.Count;
+
+        bill.RecordChecks(AllPassing(), EvaluatedAt.AddHours(13));
+
+        var entry = bill.History[^1];
+        Assert.Equal(before + 1, bill.History.Count);
+        Assert.Equal(BillAction.Validated, entry.Action);
+        Assert.Equal(BillStatus.Approved, entry.FromStatus);
+        Assert.Equal(BillStatus.Approved, entry.ToStatus);
+        Assert.Contains("aprovação mantida", entry.Note, StringComparison.Ordinal);
+    }
+
+    // Desfecho, severidade e motivo: cada um deles, sozinho, é mudança — e mudança derruba.
+    [Theory]
+    [MemberData(nameof(ChangedChecks))]
+    public void RecordChecks_OnAnApprovedBill_WhenACheckChanged_ShouldFallBackToAwaitingApproval(
+        CheckResult changed)
+    {
+        var bill = Approved();
+
+        var outcome = bill.RecordChecks(AllPassing(changed), EvaluatedAt.AddHours(13));
+
+        Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
+        Assert.False(outcome.ApprovalPreserved);
+    }
+
+    public static TheoryData<CheckResult> ChangedChecks() => new()
+    {
+        // Desfecho diferente.
+        CheckResult.Failed(CheckType.PayeeMatch, CheckReasons.PAYEE_LOOKALIKE),
+        // Mesmo desfecho, severidade diferente — o caso do DocumentConsistency que escala para
+        // Blocking quando a identidade do beneficiário divergiu.
+        CheckResult.Failed(
+            CheckType.DocumentConsistency,
+            CheckReasons.DOCUMENT_PAYEE_MISMATCH,
+            severity: CheckSeverity.Blocking),
+        // Mesmo desfecho e severidade, MOTIVO diferente: a razão mudou, e é ela que a tela traduz
+        // para o aprovador.
+        CheckResult.Passed(
+            CheckType.ExpectationMatch, reasonCode: CheckReasons.EXPECTATION_NOT_REGISTERED),
+    };
+
+    // A evidência fica FORA da comparação de propósito: é texto com valores e datas dentro, muda a
+    // cada consulta, e incluí-la faria a preservação nunca acontecer.
+    [Fact]
+    public void RecordChecks_OnAnApprovedBill_WhenOnlyTheEvidenceTextChanged_ShouldKeepTheApproval()
+    {
+        var bill = Approved();
+
+        var withNewEvidence = AllPassing(
+            CheckResult.Passed(CheckType.LookupAvailability, evidence: "consultado às 22h de 20/06"));
+
+        var outcome = bill.RecordChecks(withNewEvidence, EvaluatedAt.AddHours(13));
+
+        Assert.Equal(BillStatus.Approved, bill.Status);
+        Assert.True(outcome.ApprovalPreserved);
+    }
+
+    // A outra metade da regra, e a que protege dinheiro: as catorze podem sair IDÊNTICAS enquanto
+    // o valor a pagar sobe — é o que acontece todo dia num boleto vencido, porque AmountMatch
+    // compara contra a política do beneficiário, não contra o número que o aprovador viu.
+    [Fact]
+    public void RecordChecks_OnAnApprovedBill_WhenThePayableAmountChanged_ShouldFallBackToAwaitingApproval()
+    {
+        var bill = Approved();
+
+        // Mesma consulta, valor maior: o encargo do atraso entrou.
+        bill.AttachLookups(
+            BillLookupResult.Resolved(
+                ValidationMother.ConsistentWithBarcode(amount: ValidationMother.BarcodeAmount.Add(LookupMother.Brl(40m))),
+                ValidationMother.ConsultedAt.AddHours(13)),
+            null,
+            EvaluatedAt.AddHours(13));
+
+        var outcome = bill.RecordChecks(AllPassing(), EvaluatedAt.AddHours(13));
+
+        Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
+        Assert.False(outcome.ApprovalPreserved);
+    }
+
+    // Boleto aprovado ANTES de o valor consentido passar a ser gravado cai uma vez para a fila de
+    // decisão: sem saber contra o que a pessoa consentiu, manter a aprovação seria presumir.
+    [Fact]
+    public void RecordChecks_OnALegacyApprovalWithoutTheAmount_ShouldFallBackToAwaitingApproval()
+    {
+        var bill = Approved();
+        LegacyApprovalWithoutAmount(bill);
+
+        var outcome = bill.RecordChecks(AllPassing(), EvaluatedAt.AddHours(13));
+
+        Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
+        Assert.False(outcome.ApprovalPreserved);
+    }
+
+    // Boleto com data escolhida está a caminho do provedor. Antes desta guarda a revalidação o
+    // levava a AwaitingApproval SEM limpar a data — aguardando aprovação com ordem em voo.
+    [Fact]
+    public void RecordChecks_OnAScheduledBill_ShouldThrow_BLP_BIL41()
+    {
+        var bill = Approved();
+        bill.Schedule(
+            Approver, ScheduleFor, ApprovalPolicy.Default(null), Today, SameDayScheduling.Allow(), EvaluatedAt);
+
+        var ex = Assert.Throws<DomainException>(() => bill.RecordChecks(AllPassing(), EvaluatedAt.AddHours(1)));
+
+        Assert.Equal("BLP.BIL41", ex.Id);
+        Assert.Equal(BillStatus.Approved, bill.Status);
+        Assert.Equal(ScheduleFor, bill.ScheduledFor);
+    }
+
     // Consulta que não resolveu NÃO apaga o retrato anterior: apagar deixaria o boleto sem
     // evidência nenhuma justamente quando a rede falhou.
     [Fact]
@@ -293,8 +433,36 @@ public class BillValidationTests
         return bill;
     }
 
+    /// <summary>Boleto com retrato oficial, verificado e aprovado, com os eventos drenados.</summary>
+    private static Bill Approved()
+    {
+        var bill = ValidationMother.BankSlipWithLookup();
+        bill.RecordChecks(AllPassing(), EvaluatedAt);
+        bill.Approve(Approver, null, ApprovalPolicy.Default(null), RiskLevel.ExtremeDanger, EvaluatedAt);
+        bill.PullDomainEvents();
+        return bill;
+    }
+
     /// <summary>
-    /// As doze passando, com os desvios informados substituindo o resultado do seu tipo.
+    /// Reescreve a decisão vigente sem o valor consentido, como as aprovações gravadas antes de
+    /// <c>AmountAtDecision</c> existir.
+    /// </summary>
+    /// <remarks>
+    /// O caminho é reflexão de propósito: não existe — e não deve existir — API de domínio para
+    /// fabricar uma aprovação incompleta. O que o teste precisa reproduzir é uma LINHA de banco
+    /// anterior à migração, e essa linha é o único jeito honesto de descrevê-la.
+    /// </remarks>
+    private static void LegacyApprovalWithoutAmount(Bill bill)
+    {
+        var legacy = ApprovalRecord.Approve(Approver, EvaluatedAt, null, RiskLevel.Safe);
+
+        typeof(Bill)
+            .GetProperty(nameof(Bill.Approval))!
+            .SetValue(bill, legacy);
+    }
+
+    /// <summary>
+    /// As catorze passando, com os desvios informados substituindo o resultado do seu tipo.
     /// </summary>
     private static List<CheckResult> AllPassing(params CheckResult[] overrides)
     {

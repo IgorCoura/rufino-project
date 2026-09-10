@@ -54,7 +54,11 @@ Regras de agendamento do provedor, que o `PaymentSchedulingService` precisa espe
 
 - Sem `scheduleDate` → paga no vencimento.
 - Data em dia não útil → processa no próximo dia útil.
-- Requisição **após as 14h** → processa no dia útil seguinte.
+- ~~Requisição **após as 14h** → processa no dia útil seguinte.~~ **Contrariado por medição em
+  2026-09-10**: um pagamento submetido depois das 14h foi processado no mesmo dia. O número saiu
+  da documentação do provedor e nunca havia sido conferido; o corte foi removido do check 10, e
+  quem decide se "hoje" ainda serve é a janela 9h–18h do ADR-021. **Reconfira na documentação do
+  provedor antes de reintroduzir qualquer corte de hora aqui.**
 - Conta vencida → processa imediatamente, sem agendamento.
 - `minimumScheduleDate` do simulate é o piso.
 

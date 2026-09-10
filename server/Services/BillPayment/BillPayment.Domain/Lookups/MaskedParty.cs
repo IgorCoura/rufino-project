@@ -57,6 +57,35 @@ public sealed class MaskedParty : ValueObject
     public int VisibleDigitCount => MaskedTaxId?.Count(char.IsAsciiDigit) ?? 0;
 
     /// <summary>
+    /// O provedor não escondeu dígito nenhum — apesar do nome do tipo, não há máscara aqui.
+    /// </summary>
+    /// <remarks>
+    /// Medido em produção (doc 12, achado 1): em cobrança registrada (<c>cobv</c>) o pagador volta
+    /// <strong>completo</strong>, a documentação do provedor dizendo o contrário. É a única forma
+    /// em que este VO identifica alguém em vez de só contradizer.
+    /// </remarks>
+    public bool IsFullyVisible => MaskedTaxId is not null && !MaskedTaxId.Contains(MASK_CHAR, StringComparison.Ordinal);
+
+    /// <summary>
+    /// O documento fiscal, quando o provedor o devolveu inteiro e o dígito verificador confere.
+    /// <c>null</c> em todo o resto — e <c>null</c> aqui significa <em>não dá para confirmar
+    /// ninguém por aqui</em>, nunca "está tudo bem".
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>É o portão do ADR-025</strong>, e ele é estreito de propósito. Máscara com um único
+    /// caractere oculto não passa: quatro dígitos visíveis são compartilhados por milhões de
+    /// documentos, e tratá-los como identidade seria a generalização que o doc 12 avisou não fazer.
+    /// </para>
+    /// <para>
+    /// O DV decide (ADR-011). Uma fonte oficial também erra — campo trocado, dígito a menos — e um
+    /// documento sem DV válido é candidato, não identidade.
+    /// </para>
+    /// </remarks>
+    public TaxId? ResolvedTaxId
+        => IsFullyVisible && TaxId.TryParse(MaskedTaxId, out var resolved) ? resolved : null;
+
+    /// <summary>
     /// O documento do tenant pode ser este pagador? <c>false</c> é uma contradição comprovada.
     /// </summary>
     public bool IsCompatibleWith(TaxId taxId)

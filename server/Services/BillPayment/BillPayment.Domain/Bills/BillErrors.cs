@@ -314,6 +314,26 @@ public static class BillErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
 
+    /// <summary>
+    /// Revalidar um boleto cuja data de pagamento já foi escolhida mexeria no veredito de algo que
+    /// está a caminho do provedor.
+    /// </summary>
+    /// <remarks>
+    /// Antes de 2026-09-10 a revalidação levava qualquer <c>Approved</c> a <c>AwaitingApproval</c>
+    /// <strong>sem limpar a data</strong>, produzindo um estado impossível: aguardando aprovação
+    /// com ordem em voo. Desfazer o agendamento é ato próprio — e quem o desfaz é gente.
+    /// </remarks>
+    public static DomainException ValidationNotAllowedWhileScheduled(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}41",
+            messageTemplate: "O pagamento já foi agendado. Cancele o agendamento antes de revalidar.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
     public static DomainException ApproverRequired(
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",

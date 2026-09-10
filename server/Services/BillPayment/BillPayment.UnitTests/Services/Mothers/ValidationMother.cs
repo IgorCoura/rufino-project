@@ -30,8 +30,6 @@ internal static class ValidationMother
     /// </summary>
     public static readonly DateOnly Today = new(2026, 6, 20);
 
-    public static readonly TimeOnly Morning = new(9, 0);
-    public static readonly TimeOnly AfterCutoff = new(15, 30);
     public static readonly DateTime OccurredAt = new(2026, 6, 20, 9, 0, 0, DateTimeKind.Utc);
 
     /// <summary>
@@ -140,12 +138,13 @@ internal static class ValidationMother
         DateOnly? dueDate = null,
         DateOnly? minimumScheduleDate = null,
         bool isOverdue = false,
-        LookupParty? beneficiary = null)
+        LookupParty? beneficiary = null,
+        Money? amount = null)
         => LookupSnapshot.Create(
             beneficiary ?? LookupParty.From(LookupMother.BENEFICIARY_NAME, null, LookupMother.BENEFICIARY_CNPJ),
             ConsultedAt,
             bankCode: new BankCode(BarcodeBankCode),
-            amount: BarcodeAmount,
+            amount: amount ?? BarcodeAmount,
             originalAmount: BarcodeAmount,
             dueDate: dueDate ?? (BarcodeDueDate is { } d ? DateOnly.FromDateTime(d) : null),
             isOverdue: isOverdue,
@@ -161,7 +160,6 @@ internal static class ValidationMother
         DuplicateFinding? duplicate = null,
         BillId? duplicateOf = null,
         DateOnly? today = null,
-        TimeOnly? timeOfDay = null,
         IBankDirectory? bankDirectory = null,
         IReadOnlyCollection<BillExpectation>? expectations = null,
         LookupParty? consultedBeneficiary = null,
@@ -180,7 +178,6 @@ internal static class ValidationMother
             Duplicate = duplicate ?? DuplicateFinding.None,
             DuplicateOf = duplicateOf,
             Today = today ?? Today,
-            TimeOfDay = timeOfDay ?? Morning,
         };
 
     /// <param name="consultedBeneficiary">

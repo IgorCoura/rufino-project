@@ -33,12 +33,6 @@ using BillPayment.Domain.SharedKernel;
 /// </remarks>
 public static class BillValidationService
 {
-    /// <summary>
-    /// Requisição depois desta hora é processada no dia útil seguinte pelo provedor. Espelha a
-    /// regra do Asaas descrita em <c>04-integrations.md</c>.
-    /// </summary>
-    public const int PROVIDER_CUTOFF_HOUR = 14;
-
     /// <summary>Tolerância de vencimento entre fontes, em dias. Cobre fuso e arredondamento.</summary>
     public const int DUE_DATE_TOLERANCE_DAYS = 1;
 
@@ -509,6 +503,19 @@ public static class BillValidationService
     /// confirmação não libera. Um <c>Passed</c> aqui não prova propriedade — prova só que nada
     /// contradisse, num dado que ninguém certifica (ADR-004).
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Com uma exceção medida, e só uma</strong> (ADR-025): no trilho Pix com cobrança
+    /// registrada, o emissor grava o pagador na <c>cobv</c> e o PSP o devolve inteiro. Ali a
+    /// confirmação existe, e sai com motivo próprio para a tela não confundi-la com o passe fraco.
+    /// </para>
+    /// <para>
+    /// A ordem dos ramos é regra, não arrumação: <strong>todas</strong> as contradições primeiro,
+    /// as confirmações depois. Um PDF que nomeia outro pagador enquanto o QR está registrado para
+    /// o tenant é anomalia real — ou a leitura errou, ou o par PDF/QR foi montado —, e deixar a
+    /// confirmação oficial passar por cima dela trocaria um bloqueio existente por um alerta.
+    /// </para>
+    /// </remarks>
     private static CheckResult EvaluatePayerMatch(BillValidationContext context)
     {
         var profile = context.PayerProfile;
@@ -536,10 +543,9 @@ public static class BillValidationService
         // O pagador que o decode do Pix devolve é FONTE OFICIAL, e vem antes do que se inferiu do
         // PDF (doc 12, achado 1: em cobrança registrada ele volta completo, não mascarado). Estava
         // atrás da inferência, e por isso nunca era consultado num documento que trazia o CNPJ
-        // impresso. A assimetria do ADR-004 não muda: contradição bloqueia, compatibilidade não
-        // confirma — o que muda é a ordem de quem se consulta primeiro.
-        if (context.Bill.PixLookup?.Payer is { } masked && masked.VisibleDigitCount > 0
-            && !masked.IsCompatibleWithAny(AllTenantTaxIds(context)))
+        // impresso.
+        if (context.Bill.PixLookup?.Payer is { } official && official.VisibleDigitCount > 0
+            && !IsCompatibleWithTenant(context, official))
         {
             return CheckResult.Failed(
                 CheckType.PayerMatch,
@@ -567,23 +573,60 @@ public static class BillValidationService
                     CheckSeverity.Blocking);
             }
 
-            return profile.Owns(taxId) || profile.OwnsByCnpjRoot(taxId)
-                ? CheckResult.Passed(
-                    CheckType.PayerMatch,
-                    evidence: $"O documento identifica o pagador como {taxId.Formatted()}, que é do tenant.")
-                : CheckResult.Failed(
+            // Contradição do impresso bloqueia mesmo com a confirmação oficial logo abaixo: ver o
+            // porquê no <remarks> do método.
+            if (!profile.Owns(taxId) && !profile.OwnsByCnpjRoot(taxId))
+            {
+                return CheckResult.Failed(
                     CheckType.PayerMatch,
                     CheckReasons.PAYER_MISMATCH,
                     $"O documento identifica o pagador como {taxId.Formatted()}, "
                     + "que não pertence ao cadastro fiscal desta conta.",
                     CheckSeverity.Blocking);
+            }
+        }
+
+        // A ÚNICA confirmação forte de pagador que o sistema tem (ADR-025). O escopo — trilho Pix,
+        // cobrança registrada, documento inteiro com DV válido — mora no tipo: o retrato só devolve
+        // documento quando todas as travas passam, e aqui não há como afrouxá-las.
+        if (context.Bill.Rail == PaymentRail.Pix
+            && context.Bill.PixLookup?.RegisteredPayerTaxId is { } registered
+            && profile.Owns(registered))
+        {
+            return CheckResult.Passed(
+                CheckType.PayerMatch,
+                CheckReasons.PAYER_CONFIRMED_BY_LOOKUP,
+                $"A consulta oficial do Pix diz que esta cobrança foi emitida contra "
+                + $"{registered.Formatted()}, que é do tenant.");
+        }
+
+        if (extracted?.TaxId is { } printed)
+        {
+            return CheckResult.Passed(
+                CheckType.PayerMatch,
+                evidence: $"O documento identifica o pagador como {printed.Formatted()}, que é do tenant.");
         }
 
         return CheckResult.Inconclusive(
             CheckType.PayerMatch,
             CheckReasons.PAYER_NOT_EXTRACTABLE,
-            "O documento não traz o documento fiscal do pagador.");
+            "O documento não traz o documento fiscal do pagador, e a consulta oficial não "
+            + "identificou contra quem a cobrança foi emitida.");
     }
+
+    /// <summary>
+    /// O pagador que a consulta oficial devolveu pode ser este tenant?
+    /// </summary>
+    /// <remarks>
+    /// A raiz do CNPJ entra <strong>só quando o documento veio inteiro</strong> (ADR-025 D3).
+    /// Sobre máscara não há como saber se os oito dígitos da raiz estão visíveis, e afrouxar ali
+    /// criaria compatibilidade onde não existe evidência — máscara continua sendo comparada contra
+    /// a lista exata de documentos do cadastro.
+    /// </remarks>
+    private static bool IsCompatibleWithTenant(BillValidationContext context, MaskedParty official)
+        => official.ResolvedTaxId is { } complete
+            ? context.PayerProfile!.Owns(complete)
+            : official.IsCompatibleWithAny(AllTenantTaxIds(context));
 
     private static CheckResult EvaluateOriginTrust(BillValidationContext context)
     {
@@ -662,11 +705,14 @@ public static class BillValidationService
                 CheckReasons.CANNOT_SCHEDULE_BEFORE_DUE,
                 $"O provedor só agenda a partir de {minimum:yyyy-MM-dd}, depois do vencimento em {dueDate:yyyy-MM-dd}.");
 
-        if (dueDate == context.Today && context.TimeOfDay.Hour >= PROVIDER_CUTOFF_HOUR)
-            return CheckResult.Failed(
-                CheckType.DueDateSanity,
-                CheckReasons.SAME_DAY_AFTER_CUTOFF,
-                $"Vence hoje e já passou das {PROVIDER_CUTOFF_HOUR}h — o provedor processaria no dia útil seguinte.");
+        // O corte de hora saiu daqui em 2026-09-10, medido em produção: o pagamento passou DEPOIS
+        // das 14h que este check usava. O número vinha de uma leitura da documentação do provedor
+        // (doc 04) que nunca foi remedida, era comparado contra UTC — disparando às 11h de
+        // Brasília — e contradizia a janela 9h–18h que o ADR-021 tornou a única regra sobre hora.
+        //
+        // Quem decide se "hoje" ainda serve como data de pagamento é o PaymentSchedulingService,
+        // no instante do AGENDAMENTO. E é o lugar certo: este check roda na captura, então a hora
+        // que ele julgaria é a de quando o documento chegou, não a de quando alguém decide.
 
         var days = dueDate.Value.DayNumber - context.Today.DayNumber;
         var provenance = source switch

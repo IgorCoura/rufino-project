@@ -36,13 +36,42 @@ public sealed class ApprovalRecord : ValueObject
     /// </summary>
     public RiskLevel? RiskAtDecision { get; private set; }
 
+    /// <summary>
+    /// O valor a pagar no instante da aprovação — o número contra o qual o consentimento foi
+    /// dado. Nulo em recusa/cancelamento, e quando a consulta oficial não tinha resolvido valor.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Entrou em 2026-09-10, junto com a revalidação que preserva a aprovação.</strong>
+    /// Sem ele, "as catorze verificações não mudaram" seria lido como "nada mudou" — e não é: em
+    /// boleto vencido o valor a pagar sobe todo dia, e <c>AmountMatch</c> compara contra a
+    /// política do beneficiário, não contra o que o aprovador viu. As duas coisas convivem, e uma
+    /// aprovação de R$ 1.000 sobreviveria para um débito de R$ 1.040.
+    /// </para>
+    /// <para>
+    /// <strong>É <c>decimal</c>, e não <c>Money</c>, por imposição da persistência.</strong> Este
+    /// VO é owned de 1º nível e <strong>só pode ter escalares</strong>: owned de 2º nível em
+    /// agregado já persistido grava NULL (a lição do EconomicCore, registrada no
+    /// <c>BillMap</c>) — e um valor aprovado que vira NULL em silêncio é pior que não ter o
+    /// campo, porque a comparação passaria a concluir "não mudou" sempre. O BC é de moeda única
+    /// (BRL em todo <c>ApprovalOptions</c> e em todo retrato), então o número sozinho diz tudo o
+    /// que a comparação precisa saber.
+    /// </para>
+    /// </remarks>
+    public decimal? AmountAtDecision { get; private set; }
+
     private ApprovalRecord() { }
 
     public static ApprovalRecord Approve(
-        UserId decidedBy, DateTime decidedAt, string? note, RiskLevel? riskAtDecision = null)
+        UserId decidedBy,
+        DateTime decidedAt,
+        string? note,
+        RiskLevel? riskAtDecision = null,
+        decimal? amountAtDecision = null)
     {
         var record = Create(decidedBy, ApprovalDecision.Approved, decidedAt, note, noteRequired: false);
         record.RiskAtDecision = riskAtDecision;
+        record.AmountAtDecision = amountAtDecision;
         return record;
     }
 
@@ -85,5 +114,6 @@ public sealed class ApprovalRecord : ValueObject
         yield return DecidedAt;
         yield return Note;
         yield return RiskAtDecision;
+        yield return AmountAtDecision;
     }
 }

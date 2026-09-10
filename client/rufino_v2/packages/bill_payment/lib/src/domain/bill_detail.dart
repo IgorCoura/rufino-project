@@ -264,6 +264,7 @@ class BillDetail {
     this.bankCode,
     this.minimumScheduleDate,
     this.lastConsultedAt,
+    this.snapshotExpiresAt,
     this.approval,
     this.scheduledFor,
     this.history = const [],
@@ -275,7 +276,12 @@ class BillDetail {
   });
 
   /// How old the lookup snapshot may be before approval requires a
-  /// revalidation. Mirrors the server's `Approval:MaxSnapshotAgeHours`.
+  /// revalidation — the fallback for a server that does not send
+  /// [snapshotExpiresAt].
+  ///
+  /// Kept only as that fallback. The server resolves the deadline and sends
+  /// it, because mirroring `Approval:MaxSnapshotAgeHours` in two places is how
+  /// the screen came to disagree with the rule it was describing.
   static const Duration maxSnapshotAge = Duration(hours: 12);
 
   /// The bill's id.
@@ -310,6 +316,13 @@ class BillDetail {
 
   /// When the official lookup last answered.
   final DateTime? lastConsultedAt;
+
+  /// When the lookup snapshot stops sustaining an approval or a schedule.
+  ///
+  /// Resolved by the server against the policy in force. Null when the lookup
+  /// never answered — there is no deadline running on a snapshot that does not
+  /// exist, which is also why the server does not refuse one.
+  final DateTime? snapshotExpiresAt;
 
   /// The twelve checks, in the catalog's reading order.
   final List<BillCheck> checks;
@@ -400,8 +413,17 @@ class BillDetail {
 
   /// Whether the lookup snapshot is too old to sustain an approval at [now].
   ///
+  /// Prefers the deadline the server resolved ([snapshotExpiresAt]) and falls
+  /// back to [maxSnapshotAge] when it did not send one.
+  ///
   /// A bill never consulted counts as stale: there is no snapshot to trust.
+  /// This is stricter than the server, which only refuses a snapshot it has —
+  /// deliberately, because the screen should send whoever is looking at an
+  /// unverified bill to Revalidar rather than to Aprovar.
   bool isSnapshotStaleAt(DateTime now) {
+    final expiresAt = snapshotExpiresAt;
+    if (expiresAt != null) return now.isAfter(expiresAt);
+
     final consultedAt = lastConsultedAt;
     if (consultedAt == null) return true;
     return now.difference(consultedAt) > maxSnapshotAge;
@@ -413,6 +435,18 @@ class BillDetail {
   /// "revalide antes de aprovar" instead of a click that bounces on a 409.
   bool canApproveAt(DateTime now) =>
       acceptsDecision && !isSnapshotStaleAt(now);
+
+  /// Whether the schedule button can be enabled at [now].
+  ///
+  /// The mirror of [canApproveAt] for the other act. The server re-checks the
+  /// snapshot in `Schedule` too (ADR-018 split the two acts, so there is a
+  /// window between them and the money moves in the second one), and the
+  /// screen used to check it in neither: on an approved bill the stale banner
+  /// was hidden — it was gated on `acceptsDecision`, which an approved bill
+  /// fails — and "Agendar…" stayed enabled until the click came back
+  /// `BLP.BIL06`.
+  bool canScheduleAt(DateTime now) =>
+      acceptsScheduling && !isSnapshotStaleAt(now);
 
   /// The earliest schedule date selectable at [today].
   ///

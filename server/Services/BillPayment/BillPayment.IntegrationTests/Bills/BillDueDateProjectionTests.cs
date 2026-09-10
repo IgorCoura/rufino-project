@@ -61,7 +61,10 @@ public sealed class BillDueDateProjectionTests : BaseIntegrationTest, IDisposabl
             new Uri($"/api/v1/{TenantId}/bills", UriKind.Relative));
 
         var item = Assert.Single(page!.Items, b => b.Id == billId);
-        Assert.Equal(PixDueDate.ToDateTime(TimeOnly.MinValue), item.DueDate);
+        // Dia de calendário, não instante: desde 2026-09-10 o contrato é DateOnly, e a conversão
+        // para meia-noite UTC que existia aqui era exatamente o que fazia a tela mostrar o dia
+        // anterior em todo fuso a oeste de Greenwich.
+        Assert.Equal(PixDueDate, item.DueDate);
         Assert.Equal(153.20m, item.Amount);
         Assert.NotNull(item.Beneficiary);
         Assert.Equal(BeneficiaryName, item.Beneficiary!.Name);
@@ -70,6 +73,52 @@ public sealed class BillDueDateProjectionTests : BaseIntegrationTest, IDisposabl
             .AsNoTracking()
             .SingleAsync(b => b.Id == BillId.From(billId)));
         Assert.Equal(PixDueDate, persisted.DueDate);
+    }
+
+    // REGRESSÃO (2026-09-10): o vencimento aparecia um dia a menos na lista e na consulta oficial,
+    // e certo na evidência do check de prazo. A causa era o arame: o dia saía como
+    // "2026-06-25T00:00:00Z", e o cliente, que formata em hora local, mostrava 24/06 em UTC-3. A
+    // evidência escapava porque é texto montado no servidor. Este teste olha o JSON CRU — com
+    // DateOnly no contrato, desserializar esconderia o problema que ele existe para pegar.
+    [Fact]
+    public async Task GetDetailAndList_ShouldSendCalendarDaysWithoutATimeComponent()
+    {
+        _lookups.PixResult = ResolvedPix();
+
+        var billId = await ImportPixAsync();
+        await DrainOutboxAsync();
+
+        var list = await _client.GetStringAsync(new Uri($"/api/v1/{TenantId}/bills", UriKind.Relative));
+        var detail = await _client.GetStringAsync(
+            new Uri($"/api/v1/{TenantId}/bills/{billId}/detail", UriKind.Relative));
+
+        Assert.Contains("\"dueDate\":\"2026-06-25\"", list, StringComparison.Ordinal);
+        Assert.Contains("\"dueDate\":\"2026-06-25\"", detail, StringComparison.Ordinal);
+
+        // E nenhum dos dois carrega meia-noite num campo de dia.
+        Assert.DoesNotContain("\"dueDate\":\"2026-06-25T", list, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"dueDate\":\"2026-06-25T", detail, StringComparison.Ordinal);
+
+        // O instante continua instante: a consulta oficial respondeu numa HORA, e truncá-la para
+        // dia apagaria a informação que o prazo de validade do retrato usa.
+        Assert.Contains("\"lastConsultedAt\":\"2026-06-20T09:00:00", detail, StringComparison.Ordinal);
+    }
+
+    // A tela deixa de replicar o prazo de 12h: o servidor resolve o vencimento do retrato contra a
+    // política vigente e o manda pronto.
+    [Fact]
+    public async Task GetDetail_ShouldResolveWhenTheLookupSnapshotExpires()
+    {
+        _lookups.PixResult = ResolvedPix();
+
+        var billId = await ImportPixAsync();
+        await DrainOutboxAsync();
+
+        var detail = await _client.GetFromJsonAsync<BillDetailContract>(
+            new Uri($"/api/v1/{TenantId}/bills/{billId}/detail", UriKind.Relative));
+
+        Assert.Equal(ConsultedAt.UtcDateTime, detail!.LastConsultedAt);
+        Assert.Equal(ConsultedAt.UtcDateTime.AddHours(12), detail.SnapshotExpiresAt);
     }
 
     // Sem consulta resolvida o boleto só-Pix continua sem vencimento — ausência honesta, não

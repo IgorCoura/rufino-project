@@ -128,6 +128,27 @@ public sealed class PixLookupSnapshot : ValueObject
         };
     }
 
+    /// <summary>
+    /// O documento fiscal de quem a cobrança foi emitida <strong>contra</strong>, quando o trilho
+    /// tem autoridade para afirmá-lo. <c>null</c> significa "não dá para confirmar o pagador por
+    /// aqui" — nunca "o pagador está errado", que é o que o ramo de contradição responde.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>É aqui que o escopo do <c>ADR-025</c> fica preso</strong>, e não num <c>if</c> do
+    /// serviço de validação. Duas travas, em série: o QR precisa ser <see cref="IsDynamic"/> —
+    /// estático não carrega cobrança registrada, logo não carrega pagador com procedência — e o
+    /// documento precisa ter voltado inteiro e com DV válido, que é o que
+    /// <see cref="MaskedParty.ResolvedTaxId"/> exige.
+    /// </para>
+    /// <para>
+    /// Vive no retrato, e não no serviço, porque foi esse o alerta do doc 12 ao deixar a decisão em
+    /// aberto: promover o check sem cravar o escopo transformaria uma exceção medida numa regra
+    /// geral falsa. Com a pergunta feita ao tipo, generalizar exige mexer aqui.
+    /// </para>
+    /// </remarks>
+    public TaxId? RegisteredPayerTaxId => IsDynamic ? Payer?.ResolvedTaxId : null;
+
     /// <summary>O valor que o check de valor deve olhar: o total com encargos, se houver.</summary>
     public Money? PayableAmount => TotalAmount ?? Amount;
 

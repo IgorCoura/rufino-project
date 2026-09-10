@@ -49,23 +49,40 @@ abstract final class BillMapper {
       rail: json['rail'] as String,
       beneficiary: partyFromJson(json['beneficiary'] as Map<String, dynamic>?),
       amount: (json['amount'] as num?)?.toDouble(),
-      dueDate: json['dueDate'] == null
-          ? null
-          : DateTime.parse(json['dueDate'] as String),
+      dueDate: _day(json['dueDate']),
       bankCode: json['bankCode'] as String?,
       riskLevel: json['riskLevel'] as String?,
       origin: originFromJson(json['origin'] as Map<String, dynamic>),
       createdAt: DateTime.parse(json['createdAt'] as String),
       readingStatus:
           json['readingStatus'] as String? ?? ReadingStatuses.notApplicable,
-      scheduledFor: json['scheduledFor'] == null
-          ? null
-          : DateTime.parse(json['scheduledFor'] as String),
+      scheduledFor: _day(json['scheduledFor']),
     );
   }
 
   static DateTime? _date(Object? value) =>
       value == null ? null : DateTime.parse(value as String);
+
+  /// Parses a CALENDAR DAY — a due date, a schedule date — as local midnight.
+  ///
+  /// A day is not an instant, and treating it as one is how the same bill came
+  /// to show two different due dates. The server sends `yyyy-MM-dd`; this takes
+  /// the three numbers as written and builds a local `DateTime`, so nothing
+  /// downstream can shift the day by a timezone offset. It also survives a
+  /// server that regresses to sending `...T00:00:00Z`: the date part is read
+  /// the same way either way, and the time is deliberately discarded.
+  static DateTime? _day(Object? value) {
+    if (value == null) return null;
+    final text = value as String;
+    final date = text.length >= 10 ? text.substring(0, 10) : text;
+    final parts = date.split('-');
+    if (parts.length != 3) return DateTime.parse(text);
+    return DateTime(
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+      int.parse(parts[2]),
+    );
+  }
 
   /// Builds a [BankSlipLookup] from the API's JSON, when one came.
   static BankSlipLookup? bankSlipLookupFromJson(Map<String, dynamic>? json) {
@@ -78,8 +95,8 @@ abstract final class BillMapper {
       fee: (json['fee'] as num?)?.toDouble(),
       allowChangeValue: json['allowChangeValue'] as bool? ?? false,
       isOverdue: json['isOverdue'] as bool? ?? false,
-      dueDate: _date(json['dueDate']),
-      minimumScheduleDate: _date(json['minimumScheduleDate']),
+      dueDate: _day(json['dueDate']),
+      minimumScheduleDate: _day(json['minimumScheduleDate']),
       consultedAt: DateTime.parse(json['consultedAt'] as String),
     );
   }
@@ -98,7 +115,7 @@ abstract final class BillMapper {
       interest: (json['interest'] as num?)?.toDouble(),
       fine: (json['fine'] as num?)?.toDouble(),
       discount: (json['discount'] as num?)?.toDouble(),
-      dueDate: _date(json['dueDate']),
+      dueDate: _day(json['dueDate']),
       expiresAt: _date(json['expiresAt']),
       consultedAt: DateTime.parse(json['consultedAt'] as String),
     );
@@ -107,8 +124,8 @@ abstract final class BillMapper {
   /// Builds a [SchedulePreview] from the API's JSON.
   static SchedulePreview schedulePreviewFromJson(Map<String, dynamic> json) {
     return SchedulePreview(
-      requestedDate: DateTime.parse(json['requestedDate'] as String),
-      effectiveDate: DateTime.parse(json['effectiveDate'] as String),
+      requestedDate: _day(json['requestedDate'])!,
+      effectiveDate: _day(json['effectiveDate'])!,
       slid: json['slid'] as bool? ?? false,
       immediate: json['immediate'] as bool? ?? false,
       afterDueDate: json['afterDueDate'] as bool? ?? false,
@@ -122,7 +139,7 @@ abstract final class BillMapper {
     return ScheduleOptionPreview(
       kind: ScheduleOptionKind.fromWire(json['option'] as String?),
       available: json['available'] as bool? ?? false,
-      date: json['date'] == null ? null : DateTime.parse(json['date'] as String),
+      date: _day(json['date']),
       preview: preview == null ? null : schedulePreviewFromJson(preview),
       unavailableReason: json['unavailableReason'] as String?,
     );
@@ -173,9 +190,7 @@ abstract final class BillMapper {
       payeeTaxId: json['payeeTaxId'] as String?,
       accountReference: json['accountReference'] as String?,
       amount: (json['amount'] as num?)?.toDouble(),
-      dueDate: json['dueDate'] == null
-          ? null
-          : DateTime.parse(json['dueDate'] as String),
+      dueDate: _day(json['dueDate']),
       billingPeriod: json['billingPeriod'] as String?,
       competenceYear: json['competenceYear'] as int?,
       competenceMonth: json['competenceMonth'] as int?,
@@ -196,16 +211,11 @@ abstract final class BillMapper {
       beneficiary: partyFromJson(beneficiary),
       amount: (json['amount'] as num?)?.toDouble(),
       originalAmount: (json['originalAmount'] as num?)?.toDouble(),
-      dueDate: json['dueDate'] == null
-          ? null
-          : DateTime.parse(json['dueDate'] as String),
+      dueDate: _day(json['dueDate']),
       bankCode: json['bankCode'] as String?,
-      minimumScheduleDate: json['minimumScheduleDate'] == null
-          ? null
-          : DateTime.parse(json['minimumScheduleDate'] as String),
-      lastConsultedAt: json['lastConsultedAt'] == null
-          ? null
-          : DateTime.parse(json['lastConsultedAt'] as String),
+      minimumScheduleDate: _day(json['minimumScheduleDate']),
+      lastConsultedAt: _date(json['lastConsultedAt']),
+      snapshotExpiresAt: _date(json['snapshotExpiresAt']),
       checks: (json['checks'] as List<dynamic>? ?? const [])
           .map((e) => checkFromJson(e as Map<String, dynamic>))
           .toList(),
@@ -229,9 +239,7 @@ abstract final class BillMapper {
               decidedAt: DateTime.parse(approval['decidedAt'] as String),
               note: approval['note'] as String?,
             ),
-      scheduledFor: json['scheduledFor'] == null
-          ? null
-          : DateTime.parse(json['scheduledFor'] as String),
+      scheduledFor: _day(json['scheduledFor']),
       origin: originFromJson(json['origin'] as Map<String, dynamic>),
       createdAt: DateTime.parse(json['createdAt'] as String),
       history: [

@@ -197,20 +197,34 @@ A evidência registra **valor original × valor atualizado × juros/multa**, par
 
 Compara o pagador contra o `PayerProfile` do tenant — `PrimaryTaxId`, `AdditionalTaxIds`, e a raiz do CNPJ quando `MatchByCnpjRoot` está ligado.
 
-**A ordem das fontes mudou em 2026-09-10** ([ADR-024](adr/ADR-024-fonte-oficial-primeiro-e-a-regua-por-ausencia.md)): o pagador que o decode do Pix devolve é **fonte oficial** e vem antes do CNPJ inferido do PDF. Estava atrás, e por isso nunca era consultado num documento que trazia o CNPJ impresso — o check saía `Passed` com uma contradição oficial por ler. A assimetria do ADR-004 não muda: contradição bloqueia, compatibilidade não confirma.
+**A ordem das fontes mudou em 2026-09-10** ([ADR-024](adr/ADR-024-fonte-oficial-primeiro-e-a-regua-por-ausencia.md)): o pagador que o decode do Pix devolve é **fonte oficial** e vem antes do CNPJ inferido do PDF. Estava atrás, e por isso nunca era consultado num documento que trazia o CNPJ impresso — o check saía `Passed` com uma contradição oficial por ler.
 
-| Situação | Outcome | Severidade | Motivo |
-|---|---|---|---|
-| Extraído e casa | `Passed` | — | — |
-| Extraído e **não** casa | `Failed` | **Blocking** | `payer_mismatch` |
-| Não extraível | `Inconclusive` | Advisory | `payer_not_extractable` |
-| `PayerProfile` sem TaxId cadastrado | `Skipped` | — | `payer_profile_missing` |
+**E no mesmo dia ele passou a poder confirmar**, no trilho Pix ([ADR-025](adr/ADR-025-pagador-verificavel-no-trilho-pix.md)). Consultar a fonte oficial só para contradizer deixava um boleto cuja `cobv` nomeia o CNPJ do tenant sair `Inconclusive` — e, pela régua do ADR-020, em **Perigo** — sobre um dado que a consulta havia entregue completo.
 
-**A assimetria é o ponto do check**: presença de contradição bloqueia, ausência de confirmação não libera. Um `Passed` aqui não prova propriedade — prova só que nada contradisse, num dado que ninguém certifica. Um `Failed` é evidência suficiente de que o boleto é de outra pessoa, e é o que garante o requisito de que **um usuário não pague a conta de outro**.
+**A ordem dos ramos é regra, não arrumação:** todas as contradições primeiro, as confirmações depois.
 
-`Inconclusive` é o caso majoritário **por medição**: o CNPJ do pagador aparece em apenas 38% dos boletos reais ([`08-boleto-corpus-findings.md`](08-boleto-corpus-findings.md)). Justamente as contas recorrentes de concessionária identificam o pagador por conta contrato ou matrícula, não por documento fiscal — é por isso que existe a escada de roteamento, e é por isso que este check não pode ser a única defesa.
+| # | Situação | Outcome | Severidade | Motivo |
+|---|---|---|---|---|
+| a | Beneficiário é um documento do próprio tenant | `Failed` | **Blocking** | `payee_is_the_payer` |
+| b | Pagador **oficial** do Pix não pode ser nenhum documento do tenant | `Failed` | **Blocking** | `payer_mismatch` |
+| c | Documento extraído só existe dentro do código de barras | `Failed` | **Blocking** | `payer_only_inside_barcode` |
+| d | Documento extraído **não** casa | `Failed` | **Blocking** | `payer_mismatch` |
+| e | Pagador **oficial** do Pix é do tenant | `Passed` | — | `payer_confirmed_by_lookup` |
+| f | Documento extraído casa | `Passed` | — | — |
+| g | Nem um nem outro | `Inconclusive` | Advisory | `payer_not_extractable` |
+| — | Sem `PayerProfile` cadastrado | `Skipped` | — | `payer_profile_missing` |
 
-Racional completo em [`adr/ADR-004`](adr/ADR-004-pagador-nao-autoritativo.md).
+O ramo (d) vem **antes** de (e) de propósito: um PDF que nomeia outro pagador enquanto o QR está registrado para o tenant é anomalia real — ou a leitura errou, ou o par PDF/QR foi montado —, e deixar a confirmação oficial passar por cima trocaria um bloqueio existente por um alerta.
+
+**Fora do trilho Pix com cobrança registrada, a assimetria do ADR-004 continua inteira**: presença de contradição bloqueia, ausência de confirmação não libera. Um `Passed` **sem motivo** aqui não prova propriedade — prova só que nada contradisse, num dado que ninguém certifica. Só o `Passed` com `payer_confirmed_by_lookup` afirma que a cobrança foi emitida *contra* este tenant, e **a tela precisa distinguir os dois** — selos idênticos seriam a mesma mentira que o ADR-004 já proibia entre `PayerMatch` e `PayeeMatch`.
+
+O escopo da confirmação é estreito e mora no tipo, não num `if`: `PixLookupSnapshot.RegisteredPayerTaxId` só devolve documento com o QR **dinâmico**, e `MaskedParty.ResolvedTaxId` só o resolve quando ele veio **inteiro** (nenhum caractere de máscara) e com **DV válido**. Máscara compatível nunca confirma — quatro dígitos visíveis são compartilhados por milhões de documentos.
+
+Uma sutileza que a tabela não mostra: DV inválido tira o poder de **confirmar**, nunca o de **contradizer**. Um documento do mesmo comprimento cujos dígitos divergem do cadastro contradiz igual, com ou sem DV — contradizer não exige identificar.
+
+`Inconclusive` continua sendo o caso majoritário no trilho boleto **por medição**: o CNPJ do pagador aparece em apenas 38% dos boletos reais ([`08-boleto-corpus-findings.md`](08-boleto-corpus-findings.md)). Justamente as contas recorrentes de concessionária identificam o pagador por conta contrato ou matrícula, não por documento fiscal — é por isso que existe a escada de roteamento, e é por isso que este check não pode ser a única defesa.
+
+Racional completo em [`adr/ADR-004`](adr/ADR-004-pagador-nao-autoritativo.md) e [`adr/ADR-025`](adr/ADR-025-pagador-verificavel-no-trilho-pix.md).
 
 ### 9. `OriginTrust` — a origem é confiável?
 
@@ -230,8 +244,16 @@ Sutileza que precisa estar na UI: **um remetente confiável não torna o boleto 
 **A data é a do agregado** (`Bill.DueDate`), não um recálculo local: o check refazia a precedência à mão, sempre pelo boleto primeiro e **pulando a linha digitável**, e a verificação 14 lia outra data no mesmo boleto (corrigido em 2026-09-10). `Bill.DueDateOrigin` diz a procedência — oficial, código de barras (protegida por DV) ou leitura por IA —, e a evidência a declara.
 
 - Vencido (`isOverdue`) → `Failed` (`overdue`) com o valor atualizado destacado. Asaas processa boleto vencido imediatamente, sem agendamento.
-- Vence hoje após o horário de corte do provedor → `Failed` (`same_day_after_cutoff`).
 - `MinimumScheduleDate` posterior ao vencimento → `Failed` (`cannot_schedule_before_due`).
+
+**Este check não olha para a hora**, e isso mudou em 2026-09-10. Havia um corte de 14h aqui
+(`same_day_after_cutoff`, hoje sem produtor) com três problemas: o número vinha de uma leitura da
+documentação do provedor que **foi contrariada por medição** — um pagamento passou depois dele —,
+era comparado contra **UTC**, disparando às 11h de Brasília, e contradizia a janela 9h–18h que o
+[ADR-021](adr/ADR-021-quatro-opcoes-de-agendamento.md) tornou a única regra sobre horário. Quem
+decide se "hoje" ainda serve como data de pagamento é o `PaymentSchedulingService`, no instante do
+**agendamento** — que é o lugar certo, porque este check roda na captura e a hora que ele julgaria
+seria a da chegada do documento, não a da decisão.
 - Caso contrário → `Passed` com a janela de agendamento disponível na evidência.
 
 ### 11. `TenantRouting` — por que este boleto é deste tenant?
@@ -317,9 +339,11 @@ Regras que o handler **não** pode quebrar (doutrina do `CLAUDE.md`):
 
 O `LookupSnapshot` envelhece: valor de boleto vencido muda todo dia. Regras:
 
-- Snapshot com mais de **N horas** (config, default 12) na hora da aprovação → a aprovação é recusada com `BLP.BIL06` e a UI dispara revalidação automática.
+- Snapshot com mais de **N horas** (config, default 12) é recusado com `BLP.BIL06` **na aprovação e no agendamento** — os dois, desde que o ADR-018 separou os atos e abriu uma janela entre eles. O prazo resolvido viaja no detalhe (`snapshotExpiresAt`), para a tela parar de replicar o número e desabilitar os dois botões com o motivo à vista em vez de deixar o clique bater no 409.
 - Revalidar **substitui** o snapshot e reexecuta todos os checks. Snapshots anteriores ficam na trilha de auditoria (tabela append-only `bill_lookup_history`), nunca são sobrescritos em silêncio.
-- Revalidação que muda o valor de um Bill já `Approved` mas ainda não `Scheduled` derruba a aprovação de volta para `AwaitingApproval` — mudança de valor invalida o consentimento dado.
+- **Revalidação que não muda nada PRESERVA a aprovação** (2026-09-10, decisão do usuário). "Nada" são duas coisas: o desfecho das catorze verificações (`Outcome` + `Severity` + `ReasonCode`; a `Evidence` fica fora, porque muda a cada consulta) **e** o valor a pagar, comparado com o que ficou gravado na decisão. Qualquer das duas diferente leva o boleto de volta a `AwaitingApproval`. Era incondicional até então, e o efeito era um laço: renovar o retrato para poder agendar custava a aprovação, sempre.
+- **Valor diferente derruba mesmo com as catorze idênticas** — e é por isso que a segunda metade existe: `AmountMatch` compara contra a política do beneficiário, não contra o número que o aprovador viu, então num boleto vencido ele passa todo dia enquanto o valor sobe.
+- **Boleto com data escolhida não revalida** (`BLP.BIL41`): está a caminho do provedor, e o caminho de volta é cancelar o agendamento, que é ato de gente.
 
 ## Matriz de decisão
 

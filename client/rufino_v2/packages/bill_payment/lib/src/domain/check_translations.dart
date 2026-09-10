@@ -182,10 +182,18 @@ String? checkReasonMessage(String? reasonCode) => switch (reasonCode) {
       'amount_not_available' => 'O valor não pôde ser determinado.',
 
       // Pagador.
+      // Não diz mais "impresso no documento": desde o ADR-024 a contradição também pode vir da
+      // consulta oficial do Pix, e o texto antigo apontaria a fonte errada para quem aprova.
       'payer_mismatch' =>
-        'O pagador impresso no documento não é este cliente.',
+        'O pagador desta cobrança não é este cliente.',
       'payer_not_extractable' =>
-        'O pagador não pôde ser lido do documento.',
+        'Não foi possível determinar de quem é este documento.',
+      // O ÚNICO passe forte do check 8 (ADR-025), e por isso tem texto próprio: a cobrança foi
+      // registrada contra o documento fiscal do cliente. Um passe SEM motivo neste check significa
+      // outra coisa — o PDF afirmou e nada contradisse —, e mostrar os dois com o mesmo selo seria
+      // prometer uma verificação que não houve.
+      'payer_confirmed_by_lookup' =>
+        'A consulta oficial confirma que esta cobrança foi emitida contra este cliente.',
       'payer_profile_missing' =>
         'Perfil do pagador não cadastrado — verificação impossível.',
       // Os dois bloqueiam o pagamento. O texto diz o que houve E o que fazer, porque
@@ -205,6 +213,9 @@ String? checkReasonMessage(String? reasonCode) => switch (reasonCode) {
 
       // Vencimento e agendamento.
       'overdue' => 'O documento está vencido.',
+      // Sem produtor desde 2026-09-10 (o corte de 14h do check 10 foi removido por medicao).
+      // A traducao FICA: boletos verificados antes disso guardam o codigo, e a tela de aprovacao
+      // ainda precisa saber le-lo.
       'same_day_after_cutoff' =>
         'Vence hoje, após o horário-limite de agendamento.',
       'cannot_schedule_before_due' =>

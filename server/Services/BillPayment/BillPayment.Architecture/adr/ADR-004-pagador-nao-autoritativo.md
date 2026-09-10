@@ -1,6 +1,7 @@
 # ADR-004 — O pagador: não é autoritativo, mas é decisivo
 
 **Status:** Aceito · **Data:** 2026-07-31 · **Revisado:** 2026-07-31 (requisito de fonte compartilhada + medição do corpus real)
+**Limitado por:** [ADR-025](ADR-025-pagador-verificavel-no-trilho-pix.md) (2026-09-10) — no Pix dinâmico com cobrança registrada o pagador **é** verificável; em todo o resto este ADR segue inteiro
 
 ## Contexto
 
@@ -40,7 +41,7 @@ Como o pagador não basta para roteamento, ele é um degrau de uma escada de cin
 - **O TaxId extraído precisa de validação de dígito verificador** antes de ser tratado como identidade — o corpus mostrou 214 falsos CNPJs vindos de fonte de código de barras renderizada como texto.
 - `PayerProfile` (Aggregate novo) passa a ser obrigatório: sem cadastro fiscal do tenant não há contra o que comparar. Enquanto não existir, o check é `Skipped` com motivo — melhor do que comparar contra nada.
 - A UI precisa distinguir visualmente `PayerMatch=Passed` de `PayeeMatch=Passed`. Selos idênticos para um dado certificado e um dado lido de PDF seriam enganosos.
-- **Esta decisão é permanente, não provisória.** A única fonte que tornaria o pagador verificável seria o DDA (Débito Direto Autorizado), que lista os boletos emitidos *contra* o CNPJ — e o DDA está **fora do desenho** por custo e complexidade de acesso ([`ADR-012`](ADR-012-portais-reduzir-residuo.md)). Não há alternativa no horizonte: a escada de roteamento de cinco degraus e o `PayerMatch` Advisory-quando-ausente ficam como estão. Só reabra este ADR se o acesso ao DDA mudar de patamar.
+- **Esta decisão é permanente, não provisória** — ~~e a única fonte que tornaria o pagador verificável seria o DDA~~. **Limitada em 2026-09-10 pelo [`ADR-025`](ADR-025-pagador-verificavel-no-trilho-pix.md):** apareceu uma segunda fonte, que este ADR declarava inexistente. No **Pix dinâmico com cobrança registrada (`cobv`)** o emissor grava o pagador na cobrança e o PSP o devolve completo no decode — medido em produção ([`doc 12`](../12-official-lookup-coverage.md), achado 1). Ali, e **só** ali, `PayerMatch` confirma. Fora desse escopo — trilho boleto, QR estático, Pix sem cobrança registrada, documento mascarado — tudo abaixo continua valendo palavra por palavra, incluindo o DDA ([`ADR-012`](ADR-012-portais-reduzir-residuo.md)) estar fora do desenho e a escada de roteamento de cinco degraus ficar como está.
 - **Consequência direta:** como nada garante que uma cobrança emitida contra o tenant chegou até o sistema, a defesa contra ausência silenciosa passa a ser a expectativa de boleto ([`ADR-014`](ADR-014-expectativa-e-lembretes.md)) — não um check.
 
 ## Alternativa descartada

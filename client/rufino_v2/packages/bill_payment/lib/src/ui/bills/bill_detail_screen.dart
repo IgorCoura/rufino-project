@@ -1175,11 +1175,21 @@ class _Actions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (bill.acceptsDecision && viewModel.isSnapshotStale)
+        // O aviso vale para os DOIS atos, não só para aprovar. O servidor
+        // reconfere o frescor do retrato no agendamento também (ADR-018), e
+        // enquanto isto olhava só `acceptsDecision` o boleto aprovado não
+        // recebia aviso nenhum: o botão seguia habilitado e o clique voltava
+        // com BLP.BIL06, sem dizer o que fazer a respeito.
+        if ((bill.acceptsDecision || bill.acceptsScheduling) &&
+            viewModel.isSnapshotStale)
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: Text(
-              'Consulta desatualizada — revalide antes de aprovar.',
+              bill.acceptsScheduling
+                  ? 'Consulta desatualizada — revalide antes de agendar. '
+                      'A aprovação continua valendo se nada mudar.'
+                  : 'Consulta desatualizada — revalide antes de aprovar.',
+              key: const Key('bill-stale-snapshot-notice'),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.tertiary,
                   ),
@@ -1316,11 +1326,20 @@ class _Actions extends StatelessWidget {
               BillPaymentPermissionGuard(
                 resource: BillPaymentResources.bill,
                 scope: BillPaymentScopes.schedule,
-                child: FilledButton(
-                  onPressed: viewModel.isMutating
-                      ? null
-                      : () => _approveSheet(context, scheduleOnly: true),
-                  child: const Text('Agendar…'),
+                // Retrato velho desabilita com o motivo à vista, como na
+                // aprovação: o servidor recusaria com BLP.BIL06, e o botão
+                // Revalidar está ao lado — aprovado aceita revalidação.
+                child: Tooltip(
+                  message: viewModel.canScheduleNow
+                      ? ''
+                      : 'Consulta oficial desatualizada — revalide para agendar.',
+                  child: FilledButton(
+                    key: const Key('bill-schedule-button'),
+                    onPressed: viewModel.isMutating || !viewModel.canScheduleNow
+                        ? null
+                        : () => _approveSheet(context, scheduleOnly: true),
+                    child: const Text('Agendar…'),
+                  ),
                 ),
               ),
           ],
@@ -1482,6 +1501,9 @@ class _ApproveSheetState extends State<_ApproveSheet> {
   // O irmão das 18h: o servidor recusou o "pagar hoje" com BLP.BIL40 porque a
   // janela fechou entre abrir a folha e confirmar.
   String? _sameDayRefusal;
+  // O terceiro irmão: o retrato da consulta venceu entre abrir a folha e
+  // confirmar (BLP.BIL06). A saída é revalidar, e ela fica aqui dentro.
+  var _staleSnapshot = false;
   var _submitting = false;
   SchedulePreview? _preview;
 
@@ -1608,6 +1630,22 @@ class _ApproveSheetState extends State<_ApproveSheet> {
     _fetchPreview(picked);
   }
 
+  /// Re-runs the official lookup from inside the sheet, keeping the form.
+  ///
+  /// Closing the sheet to press Revalidar outside would throw away the date,
+  /// the note and the acknowledgements for a refusal whose only fix is one
+  /// button. On success the deadline moves forward and Autorizar works again;
+  /// on failure the message the domain sent stays on the detail behind.
+  Future<void> _revalidate() async {
+    setState(() => _submitting = true);
+    final ok = await widget.viewModel.revalidate();
+    if (!mounted) return;
+    setState(() {
+      _submitting = false;
+      _staleSnapshot = !ok;
+    });
+  }
+
   Future<void> _authorize() async {
     setState(() => _submitting = true);
     final note = _noteController.text.trim();
@@ -1636,6 +1674,17 @@ class _ApproveSheetState extends State<_ApproveSheet> {
         _submitting = false;
         _serverSaysOverdue = true;
         _immediateAcknowledged = false;
+      });
+      return;
+    }
+
+    if (!approved && errorCode == 'BLP.BIL06') {
+      // O retrato venceu entre abrir a folha e confirmar — ou o relógio do
+      // cliente discorda do do servidor. A saída existe e é uma só, então a
+      // folha a oferece no lugar em vez de fechar com a mensagem crua.
+      setState(() {
+        _submitting = false;
+        _staleSnapshot = true;
       });
       return;
     }
@@ -1755,6 +1804,26 @@ class _ApproveSheetState extends State<_ApproveSheet> {
             _sameDayRefusal!,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.error,
+            ),
+          ),
+        ],
+        if (_staleSnapshot) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'A consulta oficial venceu e precisa ser refeita antes de '
+            'prosseguir. Revalidar não derruba a aprovação quando nada muda.',
+            key: const Key('sheet-stale-snapshot-refusal'),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonal(
+              key: const Key('sheet-revalidate-button'),
+              onPressed: _submitting ? null : _revalidate,
+              child: const Text('Revalidar agora'),
             ),
           ),
         ],

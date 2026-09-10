@@ -3,6 +3,9 @@
 using System.Text;
 using BillPayment.Domain.CaptureItems;
 using BillPayment.Domain.Extraction;
+using BillPayment.Domain.PayerProfiles;
+using BillPayment.Domain.Services;
+using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Extraction;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -17,6 +20,9 @@ public sealed class PdfBoletoDocumentParserTests
 {
     private static readonly DateOnly Today = new(2026, 7, 31);
     private const string BankSlip = "34191234546789012345767890123457314880000061507";
+
+    private static readonly TenantId Tenant = TenantId.From(new Guid("0195a1f0-0000-7000-8000-000000000001"));
+    private static readonly DateTime RegisteredAt = new(2026, 9, 10, 12, 0, 0, DateTimeKind.Utc);
 
     private static PdfBoletoDocumentParser Build()
         => new(
@@ -173,5 +179,52 @@ public sealed class PdfBoletoDocumentParserTests
             EncryptedPdfFixture.Bytes(), "application/pdf", candidatas, CancellationToken.None);
 
         Assert.Null(clear);
+    }
+
+    // REGRESSÃO (2026-09-10, achado do usuário): PDF cujo a senha são os QUATRO primeiros dígitos
+    // do CNPJ. Antes de o prefixo 4 entrar na derivação este documento ficava trancado, e o
+    // relatório dizia "pdf_locked" — que se lê como "a senha não bate" quando a verdade era que
+    // a senha certa nunca tinha sido tentada.
+    [Fact]
+    public async Task Unlock_WithAFourDigitPrefixPassword_ShouldOpenTheDocument()
+    {
+        var candidatas = PasswordDerivationService.Derive(
+            PayerProfile.Register(
+                Tenant, PayerKind.Company, "RUFINO TESTE LTDA", EncryptedPdfFixture.TenantCnpj, RegisteredAt));
+
+        var clear = await Build().UnlockAsync(
+            EncryptedPdfFixture.ShortPrefixBytes(), "application/pdf", candidatas, CancellationToken.None);
+
+        Assert.NotNull(clear);
+
+        using var document = PdfDocument.Open(clear!.Value.ToArray());
+        Assert.Equal(1, document.NumberOfPages);
+    }
+
+    // O sintoma que o usuário viu: o documento era relatado como TRANCADO. "Trancado" manda o item
+    // para a quarentena dizendo que a senha não bate, quando a verdade era que a senha certa nunca
+    // fora oferecida. Com o prefixo 4 na lista o documento abre, e o desfecho passa a descrever o
+    // que de fato aconteceu — este fixture é uma página em branco, então não há instrumento nele.
+    [Fact]
+    public async Task Parse_WithAFourDigitPrefixPassword_ShouldNotReportTheDocumentAsLocked()
+    {
+        var candidatas = new[]
+        {
+            PasswordCandidate.From(EncryptedPdfFixture.ShortPrefixPassword, "cnpj_first_4_primary"),
+        };
+
+        var result = await Build().ParseAsync(
+            EncryptedPdfFixture.ShortPrefixBytes(), "application/pdf", candidatas,
+            knownTaxIds: [], Today, CancellationToken.None);
+
+        Assert.False(result.IsLocked);
+
+        // A contraprova: sem a candidata de 4 dígitos o mesmo documento volta a ser "trancado".
+        var semACandidata = await Build().ParseAsync(
+            EncryptedPdfFixture.ShortPrefixBytes(), "application/pdf",
+            [PasswordCandidate.From(EncryptedPdfFixture.Password, "cnpj_first_5_primary")],
+            knownTaxIds: [], Today, CancellationToken.None);
+
+        Assert.True(semACandidata.IsLocked);
     }
 }

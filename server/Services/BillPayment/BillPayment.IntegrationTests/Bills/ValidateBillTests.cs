@@ -28,6 +28,10 @@ public sealed class ValidateBillTests : BaseIntegrationTest, IDisposable
     private const string BankSlipLine = "34191234546789012345767890123457314880000061507";
     private const string BeneficiaryCnpj = "11222333000181";
     private const string OtherCnpj = "11444777000161";
+
+    /// <summary>Documento fiscal do tenant — diferente do beneficiário, senão o check 8 bloquearia
+    /// por <c>payee_is_the_payer</c> antes de chegar ao pagador.</summary>
+    private const string TenantCnpj = "45678901000175";
     private const string BeneficiaryName = "PADARIA SAO JOSE LTDA";
 
     private const string DynamicPix =
@@ -199,6 +203,63 @@ public sealed class ValidateBillTests : BaseIntegrationTest, IDisposable
         Assert.True(check.IsBlockingFailure);
     }
 
+    // ADR-025, ponta a ponta: o defeito relatado era um boleto com QR Pix classificado como PERIGO
+    // com a verificação 8 dizendo "o documento não traz o documento fiscal do pagador" — sobre um
+    // pagamento cuja consulta oficial havia devolvido esse documento, completo. Sem PDF nenhum
+    // lido, o pagador agora vem da cobrança registrada, e o boleto não exige mais aceite de risco.
+    [Fact]
+    public async Task ImportThenDrainOutbox_WhenTheCobvNamesTheTenantAsPayer_ShouldConfirmThePayerAndNotFlagDanger()
+    {
+        await SeedPayerProfileAsync(TenantCnpj);
+        _lookups.PixResult = ResolvedPix(OtherCnpj, payerTaxId: TenantCnpj);
+
+        var billId = await ImportAsync(line: null, DynamicPix);
+        await DrainOutboxAsync();
+
+        var bill = await LoadAsync(billId);
+
+        var check = bill.Checks.Single(c => c.Type == CheckType.PayerMatch);
+        Assert.Equal(CheckOutcome.Passed, check.Outcome);
+        Assert.Equal(CheckReasons.PAYER_CONFIRMED_BY_LOOKUP, check.ReasonCode);
+        // O pagador deixa de empurrar o boleto para Perigo. O boleto INTEIRO pode continuar em
+        // Perigo por outra verificação — aqui, o beneficiário não cadastrado, que o ADR-024 D3
+        // declara invariante —, e é por isso que a asserção é sobre a contribuição desta.
+        Assert.Same(RiskLevel.Safe, check.RiskContribution);
+        Assert.DoesNotContain(bill.Checks, c => c.ReasonCode == CheckReasons.PAYER_NOT_EXTRACTABLE);
+    }
+
+    // CONTRAPROVA: mesma cobrança registrada em nome de OUTRO documento fiscal continua bloqueando.
+    // A confirmação do ADR-025 não afrouxa a contradição do ADR-004 — só acrescenta o outro lado.
+    [Fact]
+    public async Task ImportThenDrainOutbox_WhenTheCobvNamesSomeoneElseAsPayer_ShouldStillBlock()
+    {
+        await SeedPayerProfileAsync(TenantCnpj);
+        _lookups.PixResult = ResolvedPix(BeneficiaryCnpj, payerTaxId: OtherCnpj);
+
+        var billId = await ImportAsync(line: null, DynamicPix);
+        await DrainOutboxAsync();
+
+        var bill = await LoadAsync(billId);
+
+        var check = bill.Checks.Single(c => c.Type == CheckType.PayerMatch);
+        Assert.Equal(CheckOutcome.Failed, check.Outcome);
+        Assert.Equal(CheckReasons.PAYER_MISMATCH, check.ReasonCode);
+        Assert.True(check.IsBlockingFailure);
+    }
+
+    private Task SeedPayerProfileAsync(string taxId)
+        => ExecuteDbContextAsync(async db =>
+        {
+            await db.PayerProfiles.AddAsync(Domain.PayerProfiles.PayerProfile.Register(
+                Domain.SharedKernel.TenantId.From(TenantId),
+                Domain.PayerProfiles.PayerKind.Company,
+                "RUFINO EMPREITEIRA LTDA",
+                TaxId.Parse(taxId),
+                ReceivedAt));
+
+            await db.SaveEntitiesAsync();
+        });
+
     /// <summary>Anexa uma leitura de IA pelo método rico do agregado — o mesmo caminho do worker.</summary>
     private async Task AttachReadingAsync(Guid billId, string printedPayeeTaxId)
         => await ExecuteDbContextAsync(async db =>
@@ -224,14 +285,17 @@ public sealed class ValidateBillTests : BaseIntegrationTest, IDisposable
                 fee: new Money(1.99m, Currency.BRL)),
             consultedAt ?? ConsultedAt);
 
-    private static PixLookupResult ResolvedPix(string receiverTaxId)
+    private static PixLookupResult ResolvedPix(string receiverTaxId, string? payerTaxId = null)
         => PixLookupResult.Resolved(
             PixLookupSnapshot.Create(
                 LookupParty.From(BeneficiaryName, null, receiverTaxId),
                 ConsultedAt,
                 isDynamic: true,
                 totalAmount: new Money(615.07m, Currency.BRL),
-                dueDate: new DateOnly(2026, 6, 25)),
+                dueDate: new DateOnly(2026, 6, 25),
+                payer: payerTaxId is null
+                    ? null
+                    : MaskedParty.Of("RUFINO EMPREITEIRA LTDA", payerTaxId)),
             ConsultedAt);
 
     private static Uri ImportRoute(Guid tenantId) => new($"/api/v1/{tenantId}/bills/import", UriKind.Relative);
