@@ -74,9 +74,18 @@ internal static class LookupMother
 
     /// <summary>QR estático: reutilizável, sem valor e sem vencimento.</summary>
     public static PixLookupSnapshot PixStatic()
+        => PixStaticWithPayer(payer: null);
+
+    /// <summary>
+    /// QR estático com pagador — cenário que o provedor não produz, montado de propósito para
+    /// provar que o escopo do ADR-025 não vaza: sem cobrança registrada não há confirmação, mesmo
+    /// que o documento chegue inteiro.
+    /// </summary>
+    public static PixLookupSnapshot PixStaticWithPayer(MaskedParty? payer)
         => PixLookupSnapshot.Create(
             LookupParty.From(BENEFICIARY_NAME, tradingName: null, BENEFICIARY_CNPJ),
             ConsultedAt,
             isDynamic: false,
-            receiverIspb: "60701190");
+            receiverIspb: "60701190",
+            payer: payer);
 }

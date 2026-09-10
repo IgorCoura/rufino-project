@@ -37,6 +37,7 @@ const _serverReasonCodes = [
   'payer_mismatch',
   'payer_not_extractable',
   'payer_profile_missing',
+  'payer_confirmed_by_lookup',
   'payee_is_the_payer',
   'payer_only_inside_barcode',
   'origin_unknown',

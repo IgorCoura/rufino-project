@@ -35,7 +35,7 @@ O design rationale do BC vive em `BillPayment.Architecture/`. O ponto de entrada
 | [`14-auditoria-ingestao-email.md`](BillPayment.Architecture/14-auditoria-ingestao-email.md) | **Segurança:** auditoria de 2026-09-03 da ingestão por e-mail — 33 achados com arquivo:linha, todos **abertos**; o status vive na seção "Auditoria da ingestão por e-mail" do checklist abaixo |
 | [`adr/`](BillPayment.Architecture/adr/) | ADR-001 a ADR-020 — o **porquê** de cada decisão estrutural |
 
-**Antes de propor mudança estrutural, leia o ADR correspondente.** Decisões já fechadas e greppáveis: Asaas como provedor de consulta *e* pagamento (ADR-001), com **uma conta por tenant, trazida pelo próprio tenant** (ADR-016 — o desenho de subconta criada pela plataforma do doc 07 foi substituído); `Bill` e `PaymentOrder` como Aggregates separados (ADR-002); verificação como entidade com evidência e quatro resultados, não booleano (ADR-003); pagador **não** é verificável por fonte oficial, mas **bloqueia quando contradiz** (ADR-004); confiança é do remetente, não da caixa (ADR-005); só Microsoft Graph; **Gmail entra por encaminhamento**, sem adapter (ADR-006); nenhum pagamento sem `UserId` autorizando (ADR-007); fonte compartilhada = uma `CaptureSource` por tenant, isolamento por construção (ADR-008); **sem cofre por ora — env vars + `secrets.json`**, envelope encryption no Postgres permanece (ADR-009); **QR Pix é o trilho preferencial**, divergência entre QR e código de barras bloqueia (ADR-010); **IA extrai candidatos, DV + consulta oficial decidem** (ADR-011); **DDA está fora** — portais depois de esgotar fatura digital, **sem evasão de anti-bot** (ADR-012); **Gemini atrás de porta agnóstica** (ADR-013); **o sistema sabe o que espera receber e avisa quando não recebeu** (ADR-014); **a validação classifica Seguro/Atenção/Perigo e NUNCA rejeita — quem decide é o humano, e Perigo exige aceite explícito gravado na trilha** (ADR-015); **a conta Asaas é do tenant, trazida e provada por ele — sem chave-plataforma e sem fallback global**, com webhook, saldo e whitelist por conta (ADR-016); **política de agendamento: submissão só das 9h às 18h e vencido exige confirmação explícita gravada na trilha** (ADR-017, com as 24h de antecedência REMOVIDAS pelo ADR-021); **aprovar e agendar são DOIS atos com alçadas diferentes, cancelar agendamento devolve a `Approved`, e recusa/cancelamento se desfazem com revalidação automática** (ADR-018); **webhook POR TENANT, com o payload tratado como aviso e a ordem RELIDA no provedor** (ADR-019); **a expectativa entra na validação como a 14ª verificação e a régua de risco endurece — o que era Atenção virou Perigo, e só expectativa, prazo e nome do beneficiário ficam com teto de Atenção** (ADR-020); **a antecedência de 24h sai, a janela vira 9h–18h e ela só bloqueia "pagar hoje" — porque é sobre a hora da SUBMISSÃO, não a do pagamento, que é do Asaas — com a tela oferecendo quatro datas prontas resolvidas pelo servidor** (ADR-021); **o dreno de eventos deixa de ter lista de tipos, existe varredura periódica que reconcilia a ASSINATURA do webhook no provedor, curar NÃO troca o token e a rotação é trimestral** (ADR-022); **a escada de link ganha regime ABERTO opcional, a allowlist deixa de ser a fronteira de segurança e ela desce para o IP pinado no connect mais o egresso da rede** (ADR-023); **para DECIDIR contra o cadastro vale a consulta oficial do trilho que paga e nunca o documento, consulta sem resposta é EXTREMO PERIGO com varredura que a reconsulta sozinha, e a régua separa ausência de CADASTRO (teto de Atenção) de ausência de IDENTIDADE (Perigo)** (ADR-024).
+**Antes de propor mudança estrutural, leia o ADR correspondente.** Decisões já fechadas e greppáveis: Asaas como provedor de consulta *e* pagamento (ADR-001), com **uma conta por tenant, trazida pelo próprio tenant** (ADR-016 — o desenho de subconta criada pela plataforma do doc 07 foi substituído); `Bill` e `PaymentOrder` como Aggregates separados (ADR-002); verificação como entidade com evidência e quatro resultados, não booleano (ADR-003); pagador **não** é verificável por fonte oficial, mas **bloqueia quando contradiz** (ADR-004) — **com uma exceção medida: no Pix dinâmico com cobrança registrada ele confirma** (ADR-025); confiança é do remetente, não da caixa (ADR-005); só Microsoft Graph; **Gmail entra por encaminhamento**, sem adapter (ADR-006); nenhum pagamento sem `UserId` autorizando (ADR-007); fonte compartilhada = uma `CaptureSource` por tenant, isolamento por construção (ADR-008); **sem cofre por ora — env vars + `secrets.json`**, envelope encryption no Postgres permanece (ADR-009); **QR Pix é o trilho preferencial**, divergência entre QR e código de barras bloqueia (ADR-010); **IA extrai candidatos, DV + consulta oficial decidem** (ADR-011); **DDA está fora** — portais depois de esgotar fatura digital, **sem evasão de anti-bot** (ADR-012); **Gemini atrás de porta agnóstica** (ADR-013); **o sistema sabe o que espera receber e avisa quando não recebeu** (ADR-014); **a validação classifica Seguro/Atenção/Perigo e NUNCA rejeita — quem decide é o humano, e Perigo exige aceite explícito gravado na trilha** (ADR-015); **a conta Asaas é do tenant, trazida e provada por ele — sem chave-plataforma e sem fallback global**, com webhook, saldo e whitelist por conta (ADR-016); **política de agendamento: submissão só das 9h às 18h e vencido exige confirmação explícita gravada na trilha** (ADR-017, com as 24h de antecedência REMOVIDAS pelo ADR-021); **aprovar e agendar são DOIS atos com alçadas diferentes, cancelar agendamento devolve a `Approved`, e recusa/cancelamento se desfazem com revalidação automática** (ADR-018); **webhook POR TENANT, com o payload tratado como aviso e a ordem RELIDA no provedor** (ADR-019); **a expectativa entra na validação como a 14ª verificação e a régua de risco endurece — o que era Atenção virou Perigo, e só expectativa, prazo e nome do beneficiário ficam com teto de Atenção** (ADR-020); **a antecedência de 24h sai, a janela vira 9h–18h e ela só bloqueia "pagar hoje" — porque é sobre a hora da SUBMISSÃO, não a do pagamento, que é do Asaas — com a tela oferecendo quatro datas prontas resolvidas pelo servidor** (ADR-021); **o dreno de eventos deixa de ter lista de tipos, existe varredura periódica que reconcilia a ASSINATURA do webhook no provedor, curar NÃO troca o token e a rotação é trimestral** (ADR-022); **a escada de link ganha regime ABERTO opcional, a allowlist deixa de ser a fronteira de segurança e ela desce para o IP pinado no connect mais o egresso da rede** (ADR-023); **para DECIDIR contra o cadastro vale a consulta oficial do trilho que paga e nunca o documento, consulta sem resposta é EXTREMO PERIGO com varredura que a reconsulta sozinha, e a régua separa ausência de CADASTRO (teto de Atenção) de ausência de IDENTIDADE (Perigo)** (ADR-024).
 
 ### Três regras que não podem erodir
 
@@ -728,6 +728,72 @@ verificação desta entrega: o `FakeAuthorizationServerClient` não conhecia os 
 `schedule`/`undo-decision`, e os testes de alçada de risco aprovavam **com data** sem pedir a
 alçada de agendamento.
 
+## 2026-09-10 (5) — O pagador que a consulta oficial entregou e o check não lia (ADR-025)
+
+Relatado sobre um boleto com QR Pix: *"está dando verificação inconclusivo, com a mensagem 'o
+documento não traz o documento fiscal do pagador' — sendo que o decode do QR Pix traz as
+informações do pagador"*. Está certo, e o efeito era pior que o rótulo: `Inconclusive` + `Advisory`
+pesa **Perigo** desde o ADR-020, então um boleto cuja cobrança está registrada no CNPJ do tenant
+exigia aceite explícito de risco.
+
+**O dado estava na mão desde a véspera.** O ADR-024 pusera o pagador do decode Pix na frente do
+CNPJ inferido do PDF — mas só no ramo que *contradiz*. Sendo ele compatível, o método seguia como
+se nada tivesse sido consultado, caía na inferência e, sem CNPJ impresso, respondia
+`payer_not_extractable`. Faltava a outra metade: consultar para **confirmar**.
+
+**Por que não fora feito antes, e por que agora:** o achado 1 do doc 12 mediu em produção que na
+cobrança registrada (`cobv`) o pagador volta **completo**, e registrou a consequência como
+*decisão em aberto* — aplicá-la é limitar o ADR-004, que se declarava permanente. O ADR-025 a
+fecha, com o escopo que aquele doc exigia cravado.
+
+### A ordem dos ramos é regra, não arrumação
+
+Todas as contradições primeiro (beneficiário-é-o-pagador, oficial contradiz, documento só dentro do
+código de barras, documento impresso contradiz), as confirmações depois (oficial, e então o
+impresso). **O ramo (d) fica antes do (e) de propósito:** um PDF que nomeia outro pagador enquanto o
+QR está registrado para o tenant é anomalia real — ou a leitura errou, ou o par PDF/QR foi montado.
+*Fail closed*; a confirmação oficial não troca um bloqueio existente por um alerta.
+
+### ⚠️ As três travas do escopo moram no TIPO — não as mova
+
+`PixLookupSnapshot.RegisteredPayerTaxId` exige QR **dinâmico**; `MaskedParty.ResolvedTaxId` exige
+documento **inteiro** (zero caracteres de máscara) e **DV válido** (ADR-011: fonte oficial também
+erra). Foi exatamente esse o alerta do doc 12 — *"promover o check sem cravar o escopo
+transformaria uma exceção numa regra geral falsa"* —, e é por isso que o serviço de validação faz
+**uma** pergunta em vez de montar as condições à mão. Máscara compatível **nunca** confirma: quatro
+dígitos visíveis são de milhões de documentos.
+
+Sutileza que a suíte fixou: **DV inválido tira o poder de confirmar, nunca o de contradizer.** Um
+documento do mesmo comprimento cujos dígitos divergem do cadastro contradiz igual, com ou sem DV —
+contradizer não exige identificar.
+
+### 🐛 A contradição oficial ignorava `MatchByCnpjRoot` (achado adjacente)
+
+O ramo de contradição comparava contra `AllTenantTaxIds` — a lista **exata**, principal +
+adicionais — e nunca consultava a raiz do CNPJ. Um tenant com casamento por raiz ligado e uma
+`cobv` registrada para uma filial não cadastrada saía **bloqueado**: pagamento legítimo, barrado
+por uma regra que o próprio tenant desligou. Agora, **e só quando o documento veio inteiro**, quem
+responde é `PayerProfile.Owns`. Sobre máscara continua valendo a lista exata — não há como saber se
+os oito dígitos da raiz estão visíveis, e afrouxar ali criaria compatibilidade sem evidência.
+
+### Um `Passed` de `PayerMatch` passa a ter duas forças
+
+`payer_confirmed_by_lookup` afirma que a cobrança foi emitida **contra** um documento do tenant;
+um passe **sem motivo** continua significando o que o ADR-004 diz — o PDF afirmou, e nada
+contradisse. **A tela distingue os dois** (`check_translations.dart`), e tem de continuar
+distinguindo: selo idêntico para um dado certificado pelo emissor e um lido de PDF é a mesma
+mentira que o ADR-004 já proibia entre `PayerMatch` e `PayeeMatch`. A tradução de `payer_mismatch`
+saiu de *"o pagador impresso no documento"* — desde o ADR-024 a contradição também vem da consulta
+oficial, e o texto antigo apontava a fonte errada para quem aprova.
+
+### ⚠️ O que este ADR NÃO autoriza
+
+O degrau 1 da escada de roteamento (`BillRoutingService`) continua inferindo o pagador do PDF,
+mesmo com a `cobv` trazendo o documento oficial. É a segunda consequência que o doc 12 listou, e
+ela muda **atribuição de tenant** — risco de outra natureza, que pede decisão própria. E nada muda
+no trilho boleto, no QR estático, no Pix sem cobrança registrada e no pagador mascarado: ali o
+ADR-004 segue palavra por palavra.
+
 ## 2026-09-10 (4) — O corte das 14h saiu do check de prazo, contrariado por medição
 
 Relatado sobre um boleto que vencia no dia: *"reprovou o vencimento porque vence hoje e já passou
@@ -779,7 +845,7 @@ Racional completo no [`ADR-024`](BillPayment.Architecture/adr/ADR-024-fonte-ofic
 |---|---|---|
 | 4 `LookupConsistency` | Com código de barras e consulta do boleto indisponível, saía `Skipped` — o ramo do Pix era **inalcançável** sempre que existisse um código de barras | Cai para a comparação do Pix; só pula quando nenhum lado é comparável |
 | 6 `ReceivingBankMatch` | Confrontava com o cadastro o banco do **código de barras** mesmo num documento que liquida por Pix | O banco segue o trilho que paga |
-| 8 `PayerMatch` | Lia o CNPJ inferido do PDF **antes** do pagador que o decode do Pix devolve | Fonte oficial primeiro; a assimetria do ADR-004 não muda |
+| 8 `PayerMatch` | Lia o CNPJ inferido do PDF **antes** do pagador que o decode do Pix devolve | Fonte oficial primeiro — e, desde o ADR-025, ela também **confirma** no trilho Pix |
 | 10 `DueDateSanity` | Refazia a precedência à mão, pelo boleto primeiro e **pulando a linha digitável** | Lê `Bill.DueDate`; `Bill.DueDateOrigin` declara a procedência |
 
 O 4 é o mais caro dos quatro: é em **arrecadação** que a consulta do boleto mais falha e o decode
@@ -2069,7 +2135,7 @@ Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC t
 - **Consulta que não resolveu não apaga o retrato anterior.** `AttachLookups` substitui só quando resolve, e registra **toda** tentativa em `LookupHistory`. Apagar deixaria o boleto sem evidência nenhuma justamente quando a rede falhou. **A garantia de só-append é invariante de domínio, não de armazenamento** — o histórico é uma coluna jsonb (os retratos têm `Money`/`TaxId` aninhados); promover para tabela filha append-only é o passo seguinte se a auditoria exigir a garantia no banco.
 - **`bill_checks` é tabela filha, `lookup`/`pix_lookup`/`lookup_history` são jsonb.** Não é inconsistência: `BillCheck` só tem escalares (owned de 1º nível, o EF rastreia bem), enquanto os retratos têm VO aninhado e recairiam na armadilha do 2º nível. A tabela também é o que permite, depois, uma fila operacional filtrada por motivo em SQL.
 - **O contrato do provedor é medido, não lido da documentação.** As duas sondas de produção (2026-08-06) acharam divergências: `bank` vem como **string** de três dígitos (não objeto), e o decode Pix devolve **seis campos** que a documentação não anunciava. Ao tocar em `AsaasContracts`, rode as sondas em vez de confiar no texto do provedor — `tools/smoke-probe-*.js` reportam aderência ao contrato assumido.
-- **Decisão em aberto: o pagador do Pix não vem mascarado.** Produção devolveu o CNPJ **completo** do pagador num QR dinâmico com cobrança registrada (`cobv`). O `MaskedParty` tolera as duas formas e o comportamento atual é seguro (contradição bloqueia, compatibilidade não confirma), **mas isso contraria a premissa do ADR-004** de que não existe fonte autoritativa de pagador. Promover `PayerMatch` a check forte exige reabrir o ADR **e cravar o escopo**: vale só para Pix dinâmico com `cobv`, não para QR estático nem para boleto. Não generalize sem essa decisão.
+- **DECIDIDA em 2026-09-10 (ADR-025): o pagador do Pix não vem mascarado, e agora confirma.** Produção devolveu o CNPJ **completo** do pagador num QR dinâmico com cobrança registrada (`cobv`), o que contrariava a premissa do ADR-004 de que não existe fonte autoritativa de pagador. Ficou em aberto até um boleto com QR Pix sair **Perigo** com a verificação 8 dizendo *"o documento não traz o documento fiscal do pagador"* — sobre um pagamento cuja consulta havia devolvido exatamente esse documento. `PayerMatch` passa a sair `Passed` com `payer_confirmed_by_lookup`. **O escopo mora no tipo, e é ali que ele tem de continuar:** `PixLookupSnapshot.RegisteredPayerTaxId` exige QR **dinâmico**, e `MaskedParty.ResolvedTaxId` exige documento **inteiro** (zero caracteres de máscara) com **DV válido**. Máscara compatível **nunca** confirma — quatro dígitos visíveis são de milhões de documentos. Não mova essas travas para um `if` do serviço de validação: foi por causa desse risco que a decisão ficou um mês em aberto.
 - **Falha de consulta oficial é modelada, não lançada.** `IBillLookupService`/`IPixLookupService` devolvem `BillLookupResult`/`PixLookupResult` com um `LookupStatus`, nunca exceção por documento não encontrado. A distinção que justifica o tipo: **`Unresolved`** (o provedor respondeu que não conhece o título — retentar dá o mesmo) × **`Unavailable`** (timeout, 5xx, circuito aberto, credencial ausente — nada foi aprendido sobre o documento). Colapsar as duas faria indisponibilidade de rede virar suspeita do boleto. E `Unresolved` é o caso **comum**, não o excepcional: 0/12 das linhas de cobrança do corpus resolveram em sandbox.
 - **O Asaas exige `User-Agent`, e o `HttpClient` do .NET não manda nenhum.** Sem o cabeçalho o provedor recusa antes de olhar o corpo (`400` — "É obrigatório preencher User-Agent no cabeçalho da requisição"), então **consulta de boleto e decode de Pix falhavam os dois**. O valor é a constante `AsaasOptions.USER_AGENT`, aplicada em `ConfigureAsaasClient`: não é opção de configuração porque identifica a aplicação e não o ambiente — e um campo configurável poderia chegar vazio, que é exatamente o estado quebrado. **As sondas de fumaça não pegam isto**: elas rodam em Node, cujo `fetch` manda `User-Agent: node` sozinho — foi por isso que as duas saíram verdes em 2026-08-06 contra o mesmo endpoint que o adapter não conseguia chamar. Ao acrescentar adapter HTTP novo, confira o que o provedor exige de cabeçalho **pelo caminho do .NET**, nunca pelo da ferramenta de medição.
 - **O cliente HTTP da consulta retenta; o do pagamento não pode.** `AddStandardResilienceHandler` está ligado em `bill/simulate` e `pix/qrCodes/decode` porque os dois são read-only e idempotentes. **O adapter de pagamento da fase 3 precisa de um cliente próprio, sem retry automático** — sobretudo o de Pix, cujo endpoint não documenta idempotência e pagaria duas vezes numa retentativa de rede. Reaproveitar o cliente de consulta lá é o erro a não cometer.

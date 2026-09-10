@@ -83,6 +83,19 @@ public static class CheckReasons
     public const string PAYER_PROFILE_MISSING = "payer_profile_missing";
 
     /// <summary>
+    /// A consulta oficial do Pix afirma que esta cobrança foi emitida <strong>contra</strong> um
+    /// documento fiscal deste tenant. É a <strong>única</strong> confirmação forte de pagador que
+    /// o sistema tem (ADR-025), e por isso viaja num <c>Passed</c>: um passe sem motivo neste check
+    /// continua significando o que o ADR-004 diz — o PDF afirmou, e nada contradisse.
+    /// </summary>
+    /// <remarks>
+    /// A tela <strong>precisa</strong> distinguir os dois passes. Selo idêntico para um dado
+    /// certificado pelo emissor da cobrança e para um lido de PDF é a mesma mentira que o ADR-004
+    /// já proibia entre <c>PayerMatch</c> e <c>PayeeMatch</c>.
+    /// </remarks>
+    public const string PAYER_CONFIRMED_BY_LOOKUP = "payer_confirmed_by_lookup";
+
+    /// <summary>
     /// O documento fiscal atribuído ao pagador está <strong>dentro</strong> do código de barras,
     /// e não impresso como campo. Coincidência de dígitos, não identificação — a atribuição do
     /// boleto se apoiou em nada.

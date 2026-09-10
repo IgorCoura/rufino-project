@@ -76,12 +76,12 @@ A documentação diz mascarado; produção devolveu **`02.624.917/0001-92`, comp
 
 Isso não quebra nada: `MaskedParty` tolera as duas formas (sem `*`, a comparação é exata) e o check já bloqueia quando contradiz. **Mas abre uma possibilidade que o [`ADR-004`](adr/ADR-004-pagador-nao-autoritativo.md) declarava inexistente**: naquele ADR, "não existe API que confirme *este documento foi emitido para o meu CNPJ*". Para **Pix dinâmico com cobrança registrada (`cobv`), existe** — o emissor grava o pagador na cobrança e o PSP devolve.
 
-Consequências possíveis, **nenhuma aplicada ainda**:
+Consequências:
 
-- `PayerMatch` poderia ser um check **forte** neste trilho (hoje um `Passed` ali significa só "nada contradisse").
-- O degrau 1 da escada de roteamento (fase 2) ganharia uma fonte autoritativa em vez de inferência.
+- ✅ **Aplicada em 2026-09-10 ([ADR-025](adr/ADR-025-pagador-verificavel-no-trilho-pix.md)):** `PayerMatch` é um check **forte** neste trilho — sai `Passed` com o motivo `payer_confirmed_by_lookup`, distinto do passe fraco que só diz "nada contradisse". O gatilho foi um boleto com QR Pix que saía **Perigo** com a verificação 8 dizendo *"o documento não traz o documento fiscal do pagador"* sobre um pagamento cuja consulta havia devolvido exatamente esse documento.
+- ⏳ **Não aplicada:** o degrau 1 da escada de roteamento (fase 2) ganharia uma fonte autoritativa em vez de inferência. É mudança de **atribuição de tenant**, com risco próprio, e pede decisão separada — o ADR-025 não a autoriza.
 
-> **Decisão em aberto, deliberadamente.** Mexer nisso é reabrir o ADR-004, e o escopo é: vale só para Pix dinâmico com `cobv` — não para QR estático, não para boleto, não para Pix sem cobrança registrada. Promover o check sem cravar esse escopo transformaria uma exceção numa regra geral falsa. O comportamento atual (contradição bloqueia, compatibilidade não confirma) **é seguro** e continua valendo até a decisão.
+> **O escopo foi cravado, como este doc exigia.** Vale só para Pix dinâmico com `cobv`, documento completo e DV válido — não para QR estático, não para boleto, não para Pix sem cobrança registrada, e nunca para máscara compatível. As três travas moram em `PixLookupSnapshot.RegisteredPayerTaxId` e `MaskedParty.ResolvedTaxId`, não num `if` do serviço de validação: generalizar exige mexer no tipo. Fora desse escopo, o ADR-004 segue inteiro.
 
 ### Achado 2 — seis campos que a documentação não anunciava
 

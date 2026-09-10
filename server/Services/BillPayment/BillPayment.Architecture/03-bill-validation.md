@@ -197,20 +197,34 @@ A evidência registra **valor original × valor atualizado × juros/multa**, par
 
 Compara o pagador contra o `PayerProfile` do tenant — `PrimaryTaxId`, `AdditionalTaxIds`, e a raiz do CNPJ quando `MatchByCnpjRoot` está ligado.
 
-**A ordem das fontes mudou em 2026-09-10** ([ADR-024](adr/ADR-024-fonte-oficial-primeiro-e-a-regua-por-ausencia.md)): o pagador que o decode do Pix devolve é **fonte oficial** e vem antes do CNPJ inferido do PDF. Estava atrás, e por isso nunca era consultado num documento que trazia o CNPJ impresso — o check saía `Passed` com uma contradição oficial por ler. A assimetria do ADR-004 não muda: contradição bloqueia, compatibilidade não confirma.
+**A ordem das fontes mudou em 2026-09-10** ([ADR-024](adr/ADR-024-fonte-oficial-primeiro-e-a-regua-por-ausencia.md)): o pagador que o decode do Pix devolve é **fonte oficial** e vem antes do CNPJ inferido do PDF. Estava atrás, e por isso nunca era consultado num documento que trazia o CNPJ impresso — o check saía `Passed` com uma contradição oficial por ler.
 
-| Situação | Outcome | Severidade | Motivo |
-|---|---|---|---|
-| Extraído e casa | `Passed` | — | — |
-| Extraído e **não** casa | `Failed` | **Blocking** | `payer_mismatch` |
-| Não extraível | `Inconclusive` | Advisory | `payer_not_extractable` |
-| `PayerProfile` sem TaxId cadastrado | `Skipped` | — | `payer_profile_missing` |
+**E no mesmo dia ele passou a poder confirmar**, no trilho Pix ([ADR-025](adr/ADR-025-pagador-verificavel-no-trilho-pix.md)). Consultar a fonte oficial só para contradizer deixava um boleto cuja `cobv` nomeia o CNPJ do tenant sair `Inconclusive` — e, pela régua do ADR-020, em **Perigo** — sobre um dado que a consulta havia entregue completo.
 
-**A assimetria é o ponto do check**: presença de contradição bloqueia, ausência de confirmação não libera. Um `Passed` aqui não prova propriedade — prova só que nada contradisse, num dado que ninguém certifica. Um `Failed` é evidência suficiente de que o boleto é de outra pessoa, e é o que garante o requisito de que **um usuário não pague a conta de outro**.
+**A ordem dos ramos é regra, não arrumação:** todas as contradições primeiro, as confirmações depois.
 
-`Inconclusive` é o caso majoritário **por medição**: o CNPJ do pagador aparece em apenas 38% dos boletos reais ([`08-boleto-corpus-findings.md`](08-boleto-corpus-findings.md)). Justamente as contas recorrentes de concessionária identificam o pagador por conta contrato ou matrícula, não por documento fiscal — é por isso que existe a escada de roteamento, e é por isso que este check não pode ser a única defesa.
+| # | Situação | Outcome | Severidade | Motivo |
+|---|---|---|---|---|
+| a | Beneficiário é um documento do próprio tenant | `Failed` | **Blocking** | `payee_is_the_payer` |
+| b | Pagador **oficial** do Pix não pode ser nenhum documento do tenant | `Failed` | **Blocking** | `payer_mismatch` |
+| c | Documento extraído só existe dentro do código de barras | `Failed` | **Blocking** | `payer_only_inside_barcode` |
+| d | Documento extraído **não** casa | `Failed` | **Blocking** | `payer_mismatch` |
+| e | Pagador **oficial** do Pix é do tenant | `Passed` | — | `payer_confirmed_by_lookup` |
+| f | Documento extraído casa | `Passed` | — | — |
+| g | Nem um nem outro | `Inconclusive` | Advisory | `payer_not_extractable` |
+| — | Sem `PayerProfile` cadastrado | `Skipped` | — | `payer_profile_missing` |
 
-Racional completo em [`adr/ADR-004`](adr/ADR-004-pagador-nao-autoritativo.md).
+O ramo (d) vem **antes** de (e) de propósito: um PDF que nomeia outro pagador enquanto o QR está registrado para o tenant é anomalia real — ou a leitura errou, ou o par PDF/QR foi montado —, e deixar a confirmação oficial passar por cima trocaria um bloqueio existente por um alerta.
+
+**Fora do trilho Pix com cobrança registrada, a assimetria do ADR-004 continua inteira**: presença de contradição bloqueia, ausência de confirmação não libera. Um `Passed` **sem motivo** aqui não prova propriedade — prova só que nada contradisse, num dado que ninguém certifica. Só o `Passed` com `payer_confirmed_by_lookup` afirma que a cobrança foi emitida *contra* este tenant, e **a tela precisa distinguir os dois** — selos idênticos seriam a mesma mentira que o ADR-004 já proibia entre `PayerMatch` e `PayeeMatch`.
+
+O escopo da confirmação é estreito e mora no tipo, não num `if`: `PixLookupSnapshot.RegisteredPayerTaxId` só devolve documento com o QR **dinâmico**, e `MaskedParty.ResolvedTaxId` só o resolve quando ele veio **inteiro** (nenhum caractere de máscara) e com **DV válido**. Máscara compatível nunca confirma — quatro dígitos visíveis são compartilhados por milhões de documentos.
+
+Uma sutileza que a tabela não mostra: DV inválido tira o poder de **confirmar**, nunca o de **contradizer**. Um documento do mesmo comprimento cujos dígitos divergem do cadastro contradiz igual, com ou sem DV — contradizer não exige identificar.
+
+`Inconclusive` continua sendo o caso majoritário no trilho boleto **por medição**: o CNPJ do pagador aparece em apenas 38% dos boletos reais ([`08-boleto-corpus-findings.md`](08-boleto-corpus-findings.md)). Justamente as contas recorrentes de concessionária identificam o pagador por conta contrato ou matrícula, não por documento fiscal — é por isso que existe a escada de roteamento, e é por isso que este check não pode ser a única defesa.
+
+Racional completo em [`adr/ADR-004`](adr/ADR-004-pagador-nao-autoritativo.md) e [`adr/ADR-025`](adr/ADR-025-pagador-verificavel-no-trilho-pix.md).
 
 ### 9. `OriginTrust` — a origem é confiável?
 
