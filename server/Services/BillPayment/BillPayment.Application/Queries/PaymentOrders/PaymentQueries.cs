@@ -1,4 +1,4 @@
-﻿namespace BillPayment.Application.Queries.PaymentOrders;
+namespace BillPayment.Application.Queries.PaymentOrders;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.PaymentOrders;
@@ -114,7 +114,7 @@ internal sealed class PaymentQueries(
         var artifact = await storage.OpenAsync(tenant, receipt.ReceiptStorageKey, cancellationToken);
         return artifact is null
             ? null
-            : ArtifactDownload.From(artifact, null, $"comprovante-{paymentOrderId}");
+            : await ArtifactDownload.OpenAsync(artifact, null, $"comprovante-{paymentOrderId}", cancellationToken);
     }
 
     private static PaymentOrderDto ToDto(PaymentOrder order)

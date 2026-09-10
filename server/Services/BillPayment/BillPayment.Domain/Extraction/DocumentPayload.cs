@@ -74,7 +74,7 @@ public sealed class DocumentPayload : ValueObject
         if (content.Length > MAX_BYTES)
             throw ExtractionErrors.PayloadTooLarge(MAX_BYTES);
 
-        var normalized = Normalize(contentType);
+        var normalized = Normalize(contentType, content.Span);
         if (normalized is null)
             throw ExtractionErrors.UnsupportedMediaType(contentType ?? "(vazio)");
 
@@ -91,14 +91,35 @@ public sealed class DocumentPayload : ValueObject
         };
     }
 
-    /// <summary>Se este tipo de mídia pode ser lido — usado para decidir antes de gastar.</summary>
-    public static bool IsSupported(string? contentType) => Normalize(contentType) is not null;
+    /// <summary>
+    /// Se este tipo de mídia pode ser lido — usado para decidir antes de gastar, quando ainda não
+    /// há bytes em mãos.
+    /// </summary>
+    public static bool IsSupported(string? contentType) => NormalizeLabel(contentType) is not null;
+
+    /// <summary>
+    /// <strong>Os bytes decidem; o rótulo é o desempate.</strong>
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A assinatura do arquivo é a única fonte que não depende de quem o entregou, então ela vem
+    /// primeiro — inclusive contra um rótulo declarado e suportado. Um PNG anunciado como
+    /// <c>application/pdf</c> chegava ao extrator de visão rotulado errado, e o provedor recusava
+    /// o artefato inteiro.
+    /// </para>
+    /// <para>
+    /// Sem assinatura conhecida vale o rótulo, porque é tudo o que resta: PDF com lixo antes do
+    /// <c>%PDF-</c> existe, e recusá-lo perderia um boleto legítimo.
+    /// </para>
+    /// </remarks>
+    private static string? Normalize(string? contentType, ReadOnlySpan<byte> content)
+        => DocumentMagic.MediaTypeOf(content) ?? NormalizeLabel(contentType);
 
     /// <summary>
     /// <c>application/octet-stream</c> vira PDF: é como parte dos emissores rotula o anexo, e a
     /// allowlist do adapter de caixa já o aceita por isso. O extrator recusa depois se não for.
     /// </summary>
-    private static string? Normalize(string? contentType)
+    private static string? NormalizeLabel(string? contentType)
     {
         var value = contentType?.Trim().ToLowerInvariant();
         if (string.IsNullOrEmpty(value))

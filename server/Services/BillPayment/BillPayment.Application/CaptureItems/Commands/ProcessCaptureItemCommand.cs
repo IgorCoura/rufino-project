@@ -546,8 +546,15 @@ public sealed class ProcessCaptureItemCommandHandler(
         {
             // O tipo guardado é o do que foi realmente lido: quando o boleto veio por link, o
             // artefato é o PDF buscado, e não o corpo do e-mail que apontava para ele.
+            //
+            // E é o tipo MEDIDO nos bytes, não o declarado pelo provedor. O rótulo chega errado
+            // com frequência — `Content-Type: pdf` da Notredame Intermédica vira
+            // application/octet-stream no Exchange —, e gravá-lo assim no balde é o que fazia o
+            // app recusar-se a exibir o boleto lá na frente.
+            var storedType = DocumentMagic.MediaTypeOf(content.Span) ?? contentType ?? "application/pdf";
+
             var storageKey = await storage.StoreAsync(
-                tenantId, item.ArtifactKey, contentType ?? "application/pdf", content, cancellationToken);
+                tenantId, item.ArtifactKey, storedType, content, cancellationToken);
 
             var hash = Sha256Of(content.Span);
 
