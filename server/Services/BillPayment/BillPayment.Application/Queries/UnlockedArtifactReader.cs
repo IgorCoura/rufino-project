@@ -1,4 +1,4 @@
-﻿namespace BillPayment.Application.Queries;
+namespace BillPayment.Application.Queries;
 
 using BillPayment.Domain.Ports;
 using BillPayment.Domain.Services;
@@ -65,7 +65,11 @@ internal sealed class UnlockedArtifactReader(
         if (artifact is null)
             return null;
 
-        var download = ArtifactDownload.From(artifact, declaredContentType, fallbackFileName);
+        // Conferido nos bytes, e não no rótulo do balde: é aqui que o PDF que o Exchange
+        // carimbou de application/octet-stream volta a ser PDF — para o app poder exibi-lo, e
+        // para a destrava abaixo sequer considerá-lo.
+        var download = await ArtifactDownload.OpenAsync(
+            artifact, declaredContentType, fallbackFileName, cancellationToken);
 
         if (!IsWorthUnlocking(download.ContentType, artifact.Length))
             return download;

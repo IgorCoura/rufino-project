@@ -40,7 +40,6 @@ internal sealed class HttpDocumentLinkResolver(
 {
     internal const string CLIENT_NAME = "document-link";
 
-    private static readonly byte[] PdfMagic = "%PDF-"u8.ToArray();
 
     private readonly LinkResolutionOptions _options = options.Value;
 
@@ -422,12 +421,7 @@ internal sealed class HttpDocumentLinkResolver(
     /// </remarks>
     private static ResolvedDocument? AsDocument(FetchedContent fetched, string url)
     {
-        var span = fetched.Content.Span;
-
-        if (span.StartsWith(PdfMagic))
-            return ResolvedDocument.From(fetched.Content, DocumentPayload.PDF, url);
-
-        var mediaType = ImageMagic.MediaTypeOf(span);
+        var mediaType = DocumentMagic.MediaTypeOf(fetched.Content.Span);
 
         return mediaType is null ? null : ResolvedDocument.From(fetched.Content, mediaType, url);
     }
