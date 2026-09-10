@@ -620,8 +620,10 @@ public sealed class ProcessCaptureItemCommandHandler(
 
         var extracted = attempt.Document;
 
+        // O corpo do e-mail viaja junto para o extrator, e é ele que dá a procedência: documento
+        // fiscal que só existe ali foi escrito por quem mandou a mensagem.
         var candidate = DocumentReading.FromExtraction(
-            extracted, new DateTimeOffset(occurredAt, TimeSpan.Zero));
+            extracted, new DateTimeOffset(occurredAt, TimeSpan.Zero), body?.Text);
         var reading = candidate.HasContent ? candidate : null;
 
         if (extraction.Resolved)

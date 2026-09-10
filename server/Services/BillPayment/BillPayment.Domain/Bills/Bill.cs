@@ -86,6 +86,18 @@ public sealed class Bill : AggregateRoot<BillId>
     /// </remarks>
     public DateTime? ReadingLeaseExpiresAt { get; private set; }
 
+    /// <summary>Quantas vezes a varredura já reconsultou este boleto sem a consulta responder.</summary>
+    /// <remarks>
+    /// Governa só o <strong>tamanho da espera</strong>, nunca a desistência: uma queda de dias não
+    /// pode fazer o boleto abandonar a fila, porque abandoná-la é deixá-lo em Extremo Perigo para
+    /// sempre por um incidente que já passou. É a diferença deliberada para
+    /// <see cref="ReadingAttempts"/>, que tem teto.
+    /// </remarks>
+    public int RevalidationAttempts { get; private set; }
+
+    /// <summary>Antes deste instante a varredura de revalidação não reivindica o boleto.</summary>
+    public DateTime? RevalidationNextAttemptAt { get; private set; }
+
     /// <summary>
     /// O retrato chegou DEPOIS de alguém já ter decidido sobre o boleto.
     /// </summary>
@@ -304,6 +316,15 @@ public sealed class Bill : AggregateRoot<BillId>
             _lookupHistory.Add(BillLookupRecord.ForPix(pix));
             if (pix.Snapshot is not null)
                 PixLookup = pix.Snapshot;
+        }
+
+        // A consulta respondeu: a espera da varredura zera. Sem isto, um boleto que atravessou uma
+        // queda longa carregaria o backoff de uma hora para a próxima — e a próxima é justamente
+        // quando ele volta a precisar de resposta rápida.
+        if (bankSlip?.IsResolved == true || pix?.IsResolved == true)
+        {
+            RevalidationAttempts = 0;
+            RevalidationNextAttemptAt = null;
         }
 
         RecomputeDueDate();
@@ -974,16 +995,33 @@ public sealed class Bill : AggregateRoot<BillId>
             throw BillErrors.SameDaySchedulingUnavailable(sameDay.ReasonCode);
     }
 
-    private void RecomputeDueDate()
+    /// <summary>
+    /// De onde veio o <see cref="DueDate"/> consolidado. Derivado da MESMA precedência que o
+    /// calcula — quem precisa declarar a procedência lê daqui em vez de refazer a conta.
+    /// </summary>
+    public DueDateSource DueDateOrigin
     {
-        var official = Rail == PaymentRail.Pix
+        get
+        {
+            if (DueDate is null)
+                return DueDateSource.None;
+            if (OfficialDueDate() is not null)
+                return DueDateSource.Official;
+
+            return EmbeddedDueDate() is not null ? DueDateSource.Barcode : DueDateSource.Reading;
+        }
+    }
+
+    /// <summary>O vencimento do trilho que paga, com o outro trilho como reserva.</summary>
+    private DateOnly? OfficialDueDate()
+        => Rail == PaymentRail.Pix
             ? PixLookup?.DueDate ?? Lookup?.DueDate
             : Lookup?.DueDate ?? PixLookup?.DueDate;
 
+    private void RecomputeDueDate()
         // A leitura por IA é a ÚLTIMA reserva, atrás da linha digitável: a data embutida é
         // protegida por DV, a lida é transcrição de modelo. Só QR estático sem consulta chega nela.
-        DueDate = official ?? EmbeddedDueDate() ?? Reading?.DueDate;
-    }
+        => DueDate = OfficialDueDate() ?? EmbeddedDueDate() ?? Reading?.DueDate;
 
     // Consultar o Kind antes é obrigatório: acessar a linha digitável de um instrumento Pix
     // lança BLP.INS03, por desenho.

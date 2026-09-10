@@ -306,9 +306,10 @@ class _RiskBanner extends StatelessWidget {
           theme.colorScheme.onError,
           Symbols.gpp_bad,
           'Extremo Perigo',
-          'O beneficiário ou a origem deste boleto está na sua lista de '
-              'bloqueio. Aprovar exige a alçada máxima e assumir o risco '
-              'explicitamente.',
+          'Aprovar exige a alçada máxima e assumir o risco explicitamente. Ou '
+              'este boleto foi marcado na sua lista de bloqueio, ou não foi '
+              'possível verificá-lo em fonte nenhuma — o motivo está nas '
+              'verificações abaixo.',
         ),
       RiskLevels.danger => (
           theme.colorScheme.errorContainer,

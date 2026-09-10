@@ -10,6 +10,9 @@ public class PayeeResolutionServiceTests
 {
     private const string OtherCnpj = "11444777000161";
 
+    /// <summary>Outra filial do mesmo inscrito de <c>LookupMother.BENEFICIARY_CNPJ</c>.</summary>
+    private const string AnotherBranch = "45678901000256";
+
     // Documento é o sinal forte e vem primeiro: casa mesmo com o nome escrito de outro jeito.
     [Fact]
     public void Resolve_WhenTheTaxIdMatches_ShouldMatchByTaxIdEvenWithADifferentName()
@@ -61,6 +64,64 @@ public class PayeeResolutionServiceTests
 
         Assert.Equal(PayeeMatchKind.Lookalike, resolution.Kind);
         Assert.Equal(payee.LegalName, resolution.LookalikeName);
+    }
+
+    // REGRESSÃO (DAS do Ministério da Fazenda, 2026-09-10): a Receita emite a guia por uma
+    // filial e o cadastro guarda outra. Mesma raiz de CNPJ é o MESMO inscrito — a raiz é
+    // atribuída pela Receita a uma pessoa jurídica só —, então isto é identidade, não sósia.
+    [Fact]
+    public void Resolve_WithAnotherBranchOfTheRegisteredTaxId_ShouldMatchBySameCnpjRoot()
+    {
+        var payee = ValidationMother.RegisteredPayee();
+
+        var resolution = PayeeResolutionService.Resolve(
+            LookupParty.From(LookupMother.BENEFICIARY_NAME, null, AnotherBranch),
+            [payee]);
+
+        Assert.Equal(PayeeMatchKind.SameCnpjRoot, resolution.Kind);
+        Assert.Same(payee, resolution.Payee);
+    }
+
+    // O documento exato continua vencendo: a filial só entra quando nenhum cadastro casa em cheio.
+    [Fact]
+    public void Resolve_WhenBothTheExactTaxIdAndABranchAreRegistered_ShouldPreferTheExactOne()
+    {
+        var exact = ValidationMother.RegisteredPayee();
+        var branch = ValidationMother.RegisteredPayee(taxId: AnotherBranch, legalName: "FILIAL");
+
+        var resolution = PayeeResolutionService.Resolve(
+            LookupParty.From(LookupMother.BENEFICIARY_NAME, null, LookupMother.BENEFICIARY_CNPJ),
+            [branch, exact]);
+
+        Assert.Equal(PayeeMatchKind.ByTaxId, resolution.Kind);
+        Assert.Same(exact, resolution.Payee);
+    }
+
+    // CONTRAPROVA: raiz diferente continua sendo sósia. Quem fraudaria o boleto não tem como
+    // apresentar uma raiz da pessoa jurídica alheia — é isso que separa os dois ramos.
+    [Fact]
+    public void Resolve_WithADifferentCnpjRoot_ShouldStillFlagLookalike()
+    {
+        var payee = ValidationMother.RegisteredPayee();
+
+        var resolution = PayeeResolutionService.Resolve(
+            LookupParty.From(LookupMother.BENEFICIARY_NAME, null, OtherCnpj),
+            [payee]);
+
+        Assert.Equal(PayeeMatchKind.Lookalike, resolution.Kind);
+    }
+
+    // CPF não tem raiz, e dois CPFs distintos nunca são "a mesma pessoa em outra filial".
+    [Fact]
+    public void Resolve_BetweenTwoDifferentCpfs_ShouldNeverMatchByRoot()
+    {
+        var payee = ValidationMother.RegisteredPayee(taxId: "52998224725", legalName: "PRESTADOR PF");
+
+        var resolution = PayeeResolutionService.Resolve(
+            LookupParty.From("PRESTADOR PF", null, "16899535009"),
+            [payee]);
+
+        Assert.NotEqual(PayeeMatchKind.SameCnpjRoot, resolution.Kind);
     }
 
     // Sem documento na consulta não existe "outro CNPJ com o mesmo nome" — existe apenas um

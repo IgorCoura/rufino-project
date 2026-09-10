@@ -10,6 +10,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Os workers e o que eles usam são internal de propósito (só o host os instancia). A suíte
+         precisa construir a contagem de ciclos travados para provar a regressão de 2026-09-10 —
+         torná-la public só por causa do teste alargaria a superfície, como já se decidiu na Infra. -->
+    <InternalsVisibleTo Include="BillPayment.IntegrationTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />

@@ -163,11 +163,16 @@ internal static class ValidationMother
         DateOnly? today = null,
         TimeOnly? timeOfDay = null,
         IBankDirectory? bankDirectory = null,
-        IReadOnlyCollection<BillExpectation>? expectations = null)
+        IReadOnlyCollection<BillExpectation>? expectations = null,
+        LookupParty? consultedBeneficiary = null,
+        BillLookupResult? bankSlipLookup = null,
+        PixLookupResult? pixLookup = null)
         => new()
         {
             Bill = bill,
-            PayeeResolution = Resolution(payee, matchKind),
+            BankSlipLookup = bankSlipLookup,
+            PixLookup = pixLookup,
+            PayeeResolution = Resolution(payee, matchKind, consultedBeneficiary),
             Origin = origin,
             PayerProfile = payerProfile,
             BankDirectory = bankDirectory ?? new FakeBankDirectory(),
@@ -178,16 +183,22 @@ internal static class ValidationMother
             TimeOfDay = timeOfDay ?? Morning,
         };
 
-    private static PayeeResolution Resolution(Payee? payee, PayeeMatchKind? kind)
+    /// <param name="consultedBeneficiary">
+    /// O beneficiário que a consulta oficial devolveu, quando ele <strong>não</strong> é o do
+    /// cadastro. Sem ele o default monta o beneficiário a partir do próprio <c>Payee</c>, que é
+    /// o caminho limpo — e por isso nunca produziria sósia nem filial.
+    /// </param>
+    private static PayeeResolution Resolution(
+        Payee? payee, PayeeMatchKind? kind, LookupParty? consultedBeneficiary)
     {
         if (payee is null)
-            return PayeeResolutionService.Resolve(null, []);
+            return PayeeResolutionService.Resolve(consultedBeneficiary, []);
 
         // Passa pelo serviço real em vez de fabricar a resolução: o teste do check não deve
         // poder afirmar um casamento que a resolução verdadeira não produziria.
-        var beneficiary = (kind ?? PayeeMatchKind.ByTaxId) == PayeeMatchKind.ByName
+        var beneficiary = consultedBeneficiary ?? ((kind ?? PayeeMatchKind.ByTaxId) == PayeeMatchKind.ByName
             ? LookupParty.From(payee.LegalName, null, null)
-            : LookupParty.From(payee.LegalName, null, payee.TaxId.Value);
+            : LookupParty.From(payee.LegalName, null, payee.TaxId.Value));
 
         return PayeeResolutionService.Resolve(beneficiary, [payee]);
     }

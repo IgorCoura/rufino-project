@@ -34,10 +34,16 @@ public sealed class RiskLevel : Enumeration
     public static readonly RiskLevel Danger = new(3, nameof(Danger), tier: 3);
 
     /// <summary>
-    /// O próprio tenant declarou o ator hostil: beneficiário na blacklist ou origem bloqueada.
-    /// Suspeita derivada é <see cref="Danger"/>; declaração explícita é isto — e aprovar exige
-    /// a alçada máxima além do aceite.
+    /// Ou o próprio tenant declarou o ator hostil (beneficiário na blacklist, origem bloqueada),
+    /// ou <strong>não foi possível verificar nada</strong> — a consulta oficial não respondeu.
+    /// Suspeita derivada é <see cref="Danger"/>; estes dois são isto, e aprovar exige a alçada
+    /// máxima além do aceite.
     /// </summary>
+    /// <remarks>
+    /// A segunda família entrou em 2026-09-10: ausência de confirmação não é o mesmo que ausência
+    /// de suspeita, e deixá-la em Perigo abriria a janela em que basta derrubar a consulta para
+    /// que o boleto seja aprovado com a mesma facilidade de um divergente qualquer.
+    /// </remarks>
     public static readonly RiskLevel ExtremeDanger = new(4, nameof(ExtremeDanger), tier: 4);
 
     // A ordem da escala é dado próprio, não o Id do Smart Enum: id é identidade de

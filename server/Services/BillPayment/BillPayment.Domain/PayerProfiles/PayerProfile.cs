@@ -13,9 +13,6 @@ public sealed class PayerProfile : AggregateRoot<PayerProfileId>
 {
     public const int LEGAL_NAME_MAX_LENGTH = 200;
 
-    /// <summary>Raiz do CNPJ: os 8 primeiros dígitos, comuns a matriz e filiais.</summary>
-    public const int CNPJ_ROOT_LENGTH = 8;
-
     private readonly List<TaxId> _additionalTaxIds = [];
 
     public TenantId TenantId { get; private set; }
@@ -299,10 +296,7 @@ public sealed class PayerProfile : AggregateRoot<PayerProfileId>
     {
         if (!MatchByCnpjRoot || candidate is null)
             return false;
-        if (candidate.Kind != TaxIdKind.CNPJ || PrimaryTaxId.Kind != TaxIdKind.CNPJ)
-            return false;
-
-        return string.Equals(RootOf(candidate), RootOf(PrimaryTaxId), StringComparison.Ordinal);
+        return candidate.SharesCnpjRootWith(PrimaryTaxId);
     }
 
     // Texto vazio vira BLP.PRF08 em vez do erro de formato do VO — a causa é a omissão
@@ -311,8 +305,6 @@ public sealed class PayerProfile : AggregateRoot<PayerProfileId>
         => string.IsNullOrWhiteSpace(taxId)
             ? throw PayerProfileErrors.AdditionalTaxIdRequired()
             : TaxId.Parse(taxId);
-
-    private static string RootOf(TaxId taxId) => taxId.Value[..CNPJ_ROOT_LENGTH];
 
     private void SetKind(PayerKind kind)
         => Kind = kind ?? throw PayerProfileErrors.PrimaryTaxIdRequired();

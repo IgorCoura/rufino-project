@@ -176,30 +176,46 @@ public static class BillValidationService
         return CheckResult.Passed(CheckType.Duplicate);
     }
 
-    // 3. A consulta é obrigatória e nunca cai para "aprova sem consulta". Indisponibilidade e
-    // "não conheço este título" reprovam igual — mas o motivo distingue os dois, porque só um
-    // deles melhora com retentativa.
+    // 3. A consulta é obrigatória e nunca cai para "aprova sem consulta". Falhar aqui leva o
+    // boleto a EXTREMO PERIGO, e não a Perigo: sem resposta ninguém confirmou quem recebe, quanto
+    // e quando, e um atacante capaz de derrubar ou saturar a consulta ganharia justamente a janela
+    // em que o boleto não pode ser conferido.
+    //
+    // O motivo distingue três situações que pedem AÇÕES diferentes de quem aprova, e é por isso
+    // que não colapsam num código só: esperar, desconfiar, ou ir cadastrar a conta.
     private static CheckResult EvaluateLookupAvailability(BillValidationContext context)
     {
-        var failures = new List<string>();
+        var unresolved = RailResults(context)
+            .Where(r => r.Result is { IsResolved: false })
+            .ToList();
 
-        foreach (var (rail, result) in RailResults(context))
-        {
-            if (result is null || result.IsResolved)
-                continue;
-
-            failures.Add($"{rail}: {result.ReasonCode}");
-        }
-
-        if (failures.Count == 0)
+        if (unresolved.Count == 0)
             return CheckResult.Passed(CheckType.LookupAvailability);
 
-        var retryable = RailResults(context).Any(r => r.Result is { IsResolved: false, IsRetryable: true });
+        var evidence = string.Join("; ", unresolved.Select(r => $"{r.Rail}: {r.Result!.ReasonCode}"));
 
         return CheckResult.Failed(
             CheckType.LookupAvailability,
-            retryable ? CheckReasons.LOOKUP_UNAVAILABLE : CheckReasons.LOOKUP_UNRESOLVED,
-            $"A consulta oficial não devolveu o documento — {string.Join("; ", failures)}.");
+            AvailabilityReason(unresolved),
+            $"A consulta oficial não devolveu o documento — {evidence}.");
+    }
+
+    /// <summary>
+    /// Qual das três ausências. <strong>"Sem chave" vence</strong>: quando é ela, o tenant não
+    /// consultou coisa nenhuma, e mandar "revalide mais tarde" seria prometer o que o tempo não
+    /// cumpre.
+    /// </summary>
+    private static string AvailabilityReason(List<(string Rail, LookupResult? Result)> unresolved)
+    {
+        if (unresolved.TrueForAll(r => string.Equals(
+                r.Result!.ReasonCode, LookupReasons.TENANT_KEY_NOT_CONFIGURED, StringComparison.Ordinal)))
+        {
+            return CheckReasons.LOOKUP_NOT_CONFIGURED;
+        }
+
+        return unresolved.Exists(r => r.Result!.IsRetryable)
+            ? CheckReasons.LOOKUP_UNAVAILABLE
+            : CheckReasons.LOOKUP_UNRESOLVED;
     }
 
     private static CheckResult EvaluateLookupConsistency(BillValidationContext context)
@@ -207,14 +223,13 @@ public static class BillValidationService
         var barcode = Barcode(context.Bill);
         var snapshot = context.Bill.Lookup;
 
-        if (barcode is null)
+        // Sem código de barras, ou com ele e SEM o retrato do boleto, a comparação possível é a do
+        // Pix. O ramo do Pix era inalcançável sempre que existisse um código de barras — e é
+        // justamente em arrecadação, onde a consulta do boleto mais falha, que o decode responde
+        // (doc 12). Cair para cá é o mesmo conserto do banco recebedor: não descartar a fonte que
+        // respondeu porque a outra não respondeu.
+        if (barcode is null || snapshot is null)
             return EvaluatePixLookupConsistency(context);
-
-        if (snapshot is null)
-            return CheckResult.Skipped(
-                CheckType.LookupConsistency,
-                CheckReasons.LOOKUP_UNAVAILABLE,
-                "Sem retrato da consulta oficial não há contra o que comparar o código de barras.");
 
         var line = barcode.DigitableLine;
         var divergences = new List<string>();
@@ -257,7 +272,7 @@ public static class BillValidationService
             return CheckResult.Skipped(
                 CheckType.LookupConsistency,
                 CheckReasons.LOOKUP_UNAVAILABLE,
-                "Sem retrato do decode não há contra o que comparar o QR.");
+                "Nenhum dos trilhos tem retrato oficial para comparar com o que o documento declara.");
 
         var declared = pix.PixPayload.Amount;
         if (declared is null || snapshot.CanBePaidWithDifferentValue || snapshot.Amount is null)
@@ -317,6 +332,21 @@ public static class BillValidationService
                 CheckReasons.PAYEE_INACTIVE,
                 $"O beneficiário \"{payee.LegalName}\" está inativo no cadastro.");
 
+        // Outra filial do mesmo inscrito. A raiz do CNPJ é atribuída pela Receita a uma pessoa
+        // jurídica só, então isto é identidade — e não o sósia do ramo acima. Órgão público cobra
+        // por unidade da federação (a Receita emite DAS por uma filial do Ministério da Fazenda e
+        // o cadastro guarda outra) e rede com CNPJ por loja faz o mesmo. Sai com teto de Atenção:
+        // é o cadastro que está incompleto, não o boleto que está errado — e anunciar "Possível
+        // golpe" numa conta de rotina é como o alerta que importa deixa de ser lido.
+        if (resolution.Kind == PayeeMatchKind.SameCnpjRoot)
+            return CheckResult.Warning(
+                CheckType.PayeeMatch,
+                CheckReasons.PAYEE_SAME_CNPJ_ROOT,
+                $"A cobrança vem de {beneficiary.TaxId!.Formatted()} e o cadastro de "
+                + $"\"{payee.LegalName}\" guarda {payee.TaxId.Formatted()} — mesma raiz de CNPJ, "
+                + "outra filial.",
+                CheckSeverity.Notice);
+
         // Casou só por nome: sem documento fiscal não há como GARANTIR o beneficiário, então
         // não é Verde — é Atenção (decisão do usuário, 2026-08-31). A conta de concessionária
         // híbrida escapa disto pelo trilho Pix, cujo decode devolve o CNPJ que o código de
@@ -352,16 +382,22 @@ public static class BillValidationService
     {
         var bill = context.Bill;
 
-        // Arrecadação não tem campo de banco em posição nenhuma — não é escolha de desenho,
-        // é ausência estrutural de dado. Trocar de provedor não muda isso.
-        if (bill.Kind == BillKind.Utility)
+        var barcode = Barcode(bill);
+        var fromBarcode = bill.Kind == BillKind.Utility ? null : barcode?.DigitableLine.BankCode;
+        var fromPix = BankFromPix(context);
+
+        // Arrecadação não tem campo de banco no código de barras — não é escolha de desenho, é
+        // ausência estrutural de dado, e trocar de provedor não muda isso. MAS o decode do QR Pix
+        // devolve o ISPB do recebedor, e num documento híbrido é exatamente o dado que falta
+        // (doc 12, achado 3: o Pix cobre o buraco da arrecadação). Pular o check com o banco na
+        // mão descartava a única fonte que a guia tem — e a tela dizia "não se aplica" enquanto a
+        // consulta oficial, logo abaixo, exibia o banco recebedor.
+        if (bill.Kind == BillKind.Utility && fromPix is null)
             return CheckResult.Skipped(
                 CheckType.ReceivingBankMatch,
                 CheckReasons.BANK_NOT_AVAILABLE_FOR_UTILITY,
-                "O código de barras de arrecadação não carrega banco recebedor.");
-
-        var barcode = Barcode(bill);
-        var fromBarcode = barcode?.DigitableLine.BankCode;
+                "O código de barras de arrecadação não carrega banco recebedor, e não há QR Pix "
+                + "de onde tirá-lo.");
 
         // Duas fontes autoritativas discordando sobre o destino do dinheiro não é evento
         // legítimo — e é exatamente o campo que a fraude clássica precisa trocar.
@@ -372,7 +408,15 @@ public static class BillValidationService
                 $"O código de barras aponta o banco {fromBarcode.Value} e a consulta oficial o {fromLookup.Value}.",
                 CheckSeverity.Blocking);
 
-        var bank = fromBarcode ?? BankFromPix(context);
+        // O banco confrontado com o cadastro é o do trilho QUE VAI PAGAR — mesma precedência de
+        // PayableAmount e Beneficiary. Ler o COMPE do boleto num documento que liquida por Pix
+        // descreveria um pagamento que não vai acontecer: o dinheiro sai pelo PSP do recebedor.
+        // A comparação barcode × consulta acima é outra coisa e continua como está — ali o
+        // objetivo é confrontar duas fontes, não escolher uma.
+        var bank = bill.Rail == PaymentRail.Pix
+            ? fromPix ?? fromBarcode
+            : fromBarcode ?? fromPix;
+
         if (bank is null)
             return CheckResult.Inconclusive(
                 CheckType.ReceivingBankMatch,
@@ -405,11 +449,15 @@ public static class BillValidationService
                 CheckReasons.BANK_OUTSIDE_COMPE,
                 $"{context.BankDirectory.NameOf(bank)} não consta como participante da Compe.");
 
+        // Teto de Atenção: o tenant nunca declarou bancos aceitos, e ausência de EXPECTATIVA não
+        // desmente nada (decisão do usuário, 2026-09-10). Continuam pesando como Perigo o banco
+        // fora da lista e o banco que o Bacen não conhece — aqueles são evidência, não ausência.
         if (accepted is null)
             return CheckResult.Inconclusive(
                 CheckType.ReceivingBankMatch,
                 CheckReasons.BANK_EXPECTATION_NOT_SET,
-                $"O boleto liquida no banco {bank.Value}; o beneficiário ainda não tem bancos aceitos cadastrados.");
+                $"O boleto liquida no banco {bank.Value}; o beneficiário ainda não tem bancos aceitos cadastrados.",
+                CheckSeverity.Notice);
 
         return CheckResult.Passed(
             CheckType.ReceivingBankMatch,
@@ -439,11 +487,14 @@ public static class BillValidationService
                 Invariant($"Sem beneficiário cadastrado não há política de valor. Cobrado: {payable.Amount:0.00}."));
 
         // Unbounded passa em tudo, e por isso o resultado é inconclusivo: nada foi provado.
+        // Teto de Atenção pelo mesmo motivo do banco: é o cadastro que está incompleto, não o
+        // boleto que está errado. Valor FORA de uma política declarada continua sendo Perigo.
         if (!payee.AmountPolicy.IsConclusive)
             return CheckResult.Inconclusive(
                 CheckType.AmountMatch,
                 CheckReasons.AMOUNT_POLICY_UNBOUNDED,
-                Invariant($"O beneficiário não tem expectativa de valor. Cobrado: {payable.Amount:0.00}."));
+                Invariant($"O beneficiário não tem expectativa de valor. Cobrado: {payable.Amount:0.00}."),
+                CheckSeverity.Notice);
 
         return payee.AmountPolicy.Matches(payable)
             ? CheckResult.Passed(CheckType.AmountMatch, evidence: AmountEvidence(context.Bill, payable))
@@ -482,6 +533,22 @@ public static class BillValidationService
                 CheckSeverity.Blocking);
         }
 
+        // O pagador que o decode do Pix devolve é FONTE OFICIAL, e vem antes do que se inferiu do
+        // PDF (doc 12, achado 1: em cobrança registrada ele volta completo, não mascarado). Estava
+        // atrás da inferência, e por isso nunca era consultado num documento que trazia o CNPJ
+        // impresso. A assimetria do ADR-004 não muda: contradição bloqueia, compatibilidade não
+        // confirma — o que muda é a ordem de quem se consulta primeiro.
+        if (context.Bill.PixLookup?.Payer is { } masked && masked.VisibleDigitCount > 0
+            && !masked.IsCompatibleWithAny(AllTenantTaxIds(context)))
+        {
+            return CheckResult.Failed(
+                CheckType.PayerMatch,
+                CheckReasons.PAYER_MISMATCH,
+                "O pagador que a consulta oficial do Pix devolveu não pode ser nenhum dos "
+                + "documentos fiscais desta conta.",
+                CheckSeverity.Blocking);
+        }
+
         var extracted = context.Bill.ExtractedPayer;
         if (extracted?.TaxId is { } taxId)
         {
@@ -510,18 +577,6 @@ public static class BillValidationService
                     $"O documento identifica o pagador como {taxId.Formatted()}, "
                     + "que não pertence ao cadastro fiscal desta conta.",
                     CheckSeverity.Blocking);
-        }
-
-        // O decode do Pix devolve o pagador mascarado. Máscara não identifica ninguém, mas
-        // pode contradizer — e contradição basta para bloquear.
-        if (context.Bill.PixLookup?.Payer is { } masked && masked.VisibleDigitCount > 0
-            && !masked.IsCompatibleWithAny(AllTenantTaxIds(context)))
-        {
-            return CheckResult.Failed(
-                CheckType.PayerMatch,
-                CheckReasons.PAYER_MISMATCH,
-                "O pagador do QR Pix não pode ser nenhum dos documentos fiscais desta conta.",
-                CheckSeverity.Blocking);
         }
 
         return CheckResult.Inconclusive(
@@ -582,11 +637,12 @@ public static class BillValidationService
                 CheckReasons.OVERDUE,
                 DueDateEvidence(bill, "O documento está vencido"));
 
-        // A leitura por IA é a última reserva (decisão de 2026-08-27): QR estático sem data
-        // oficial usa a impressa no documento — e a evidência declara a procedência.
-        var official = bill.Lookup?.DueDate ?? bill.PixLookup?.DueDate;
-        var dueDate = official ?? bill.Reading?.DueDate;
-        var fromReading = official is null && dueDate is not null;
+        // O vencimento é o CONSOLIDADO pelo agregado, não um recálculo local: o check refazia a
+        // precedência à mão, sempre pelo boleto primeiro e pulando a linha digitável, e a
+        // verificação 14 lia outra data no mesmo boleto. A procedência vem junto, para a evidência
+        // continuar dizendo em quem se está confiando.
+        var dueDate = bill.DueDate;
+        var source = bill.DueDateOrigin;
 
         if (dueDate is null)
             return CheckResult.Inconclusive(
@@ -612,12 +668,19 @@ public static class BillValidationService
                 CheckReasons.SAME_DAY_AFTER_CUTOFF,
                 $"Vence hoje e já passou das {PROVIDER_CUTOFF_HOUR}h — o provedor processaria no dia útil seguinte.");
 
+        var days = dueDate.Value.DayNumber - context.Today.DayNumber;
+        var provenance = source switch
+        {
+            _ when source == DueDateSource.Barcode =>
+                " (data embutida no código de barras, protegida por DV; a consulta oficial não trouxe vencimento)",
+            _ when source == DueDateSource.Reading =>
+                " (data lida do documento pela IA; nem a consulta oficial nem o código de barras trouxeram vencimento)",
+            _ => string.Empty,
+        };
+
         return CheckResult.Passed(
             CheckType.DueDateSanity,
-            evidence: fromReading
-                ? $"Vence em {dueDate:yyyy-MM-dd} (data lida do documento pela IA; sem fonte oficial); "
-                    + $"há {dueDate.Value.DayNumber - context.Today.DayNumber} dia(s)."
-                : $"Vence em {dueDate:yyyy-MM-dd}; há {dueDate.Value.DayNumber - context.Today.DayNumber} dia(s).");
+            evidence: $"Vence em {dueDate:yyyy-MM-dd}{provenance}; há {days} dia(s).");
     }
 
     // 13. O documento impresso × a consulta oficial, com a leitura por IA como testemunha. É o
@@ -639,18 +702,68 @@ public static class BillValidationService
 
         var official = bill.Beneficiary;
 
+        // A leitura apontou o PRÓPRIO pagador como beneficiário: descarte, jamais contradição.
+        //
+        // Guia de tributo — DAS, DARF, GPS — imprime UM par CNPJ/Razão Social, o do contribuinte,
+        // e não imprime beneficiário nenhum: o órgão arrecadador só existe no código de barras.
+        // Diante de um campo de beneficiário a preencher e de uma única parte no papel, o
+        // extrator atribui essa parte ao beneficiário, e o boleto de imposto nascia bloqueado
+        // como "instrumento trocado sobre documento legítimo".
+        //
+        // <strong>O descarte não custa capacidade de detecção.</strong> A fraude que este check
+        // existe para pegar imprime SEMPRE um terceiro — o CNPJ para onde o dinheiro deve ir.
+        // Um "beneficiário" igual ao pagador não descreve pagamento nenhum: ninguém emite
+        // cobrança contra si mesmo, e é a mesma impossibilidade que o check 8 usa para bloquear
+        // pelo lado oposto.
+        var misreadAsPayer = reading.PayeeTaxId is { } read && IsOwnedByTenant(context, read);
+        var readPayeeTaxId = misreadAsPayer ? null : reading.PayeeTaxId;
+
         // Identidade primeiro: documento fiscal lido (já provado pelo DV) contra o oficial.
-        if (reading.PayeeTaxId is { } readTaxId
+        //
+        // O PESO depende do trilho (decisão do usuário, 2026-09-10). No BOLETO a consulta oficial
+        // devolve menos — em arrecadação, nada de documento —, então o impresso é parte do que
+        // sustenta a verificação, e contradizê-lo é indício forte de adulteração: bloqueia. No
+        // PIX o decode devolve o CNPJ do recebedor, e a identidade já está verificada sem ajuda do
+        // papel; ali a divergência é mais provável ser erro da leitura por IA, que ninguém
+        // certifica e cujo insumo inclui o corpo do e-mail. Vira aviso com teto de Atenção, com
+        // texto próprio — o alerta continua existindo, deixa de decidir sozinho.
+        //
+        // O que segura o boleto adulterado quando este ramo não bloqueia: o beneficiário do
+        // fraudador não está cadastrado, e o check 5 o reprova como `payee_not_registered`, que
+        // continua pesando Perigo DE PROPÓSITO. Rebaixar aquele motivo abriria esta porta.
+        if (readPayeeTaxId is { } readTaxId
             && official?.TaxId is { } officialTaxId
             && !readTaxId.Equals(officialTaxId))
         {
-            return CheckResult.Failed(
-                CheckType.DocumentConsistency,
-                CheckReasons.DOCUMENT_PAYEE_MISMATCH,
-                $"O documento imprime o beneficiário {readTaxId.Formatted()}, mas a consulta "
-                    + $"oficial diz {officialTaxId.Formatted()} — cara de instrumento trocado "
-                    + "sobre documento legítimo.",
-                severity: CheckSeverity.Blocking);
+            var printed = $"O documento imprime o beneficiário {readTaxId.Formatted()}, "
+                + $"mas a consulta oficial diz {officialTaxId.Formatted()}";
+
+            // Procedência antes de peso: número que só existe no corpo do e-mail foi escrito por
+            // quem mandou a mensagem. Bloquear com base nele entregaria a essa pessoa o poder de
+            // travar os pagamentos de quem recebe — e, casando de propósito com o oficial, o de
+            // calar a verificação. Nenhum dos dois pode depender de texto de terceiro.
+            if (reading.PayeeTaxIdSource == ReadingFieldSource.EmailBody)
+            {
+                return CheckResult.Warning(
+                    CheckType.DocumentConsistency,
+                    CheckReasons.DOCUMENT_PAYEE_FROM_EMAIL_BODY,
+                    $"{printed} — mas esse documento aparece no corpo do e-mail, não no papel. "
+                    + "Confira o documento em vez de confiar na mensagem.",
+                    CheckSeverity.Notice);
+            }
+
+            return bill.Rail == PaymentRail.Pix
+                ? CheckResult.Warning(
+                    CheckType.DocumentConsistency,
+                    CheckReasons.DOCUMENT_PAYEE_SUSPICION,
+                    $"{printed} — o Pix vai pagar quem a consulta devolveu. Pode ser erro de "
+                    + "leitura ou documento adulterado.",
+                    CheckSeverity.Notice)
+                : CheckResult.Failed(
+                    CheckType.DocumentConsistency,
+                    CheckReasons.DOCUMENT_PAYEE_MISMATCH,
+                    $"{printed} — cara de instrumento trocado sobre documento legítimo.",
+                    severity: CheckSeverity.Blocking);
         }
 
         var warnings = new List<string>();
@@ -670,6 +783,12 @@ public static class BillValidationService
                 $"vencimento impresso {readDue:yyyy-MM-dd} × registrado {officialDueDate:yyyy-MM-dd}");
         }
 
+        // O descarte acima é dito em voz alta: quem aprova precisa saber que a leitura errou o
+        // papel do documento, mesmo — sobretudo — quando isso deixou de bloquear.
+        var misreadNote = misreadAsPayer
+            ? " A leitura atribuiu ao beneficiário o documento do próprio pagador e foi descartada."
+            : string.Empty;
+
         if (warnings.Count > 0)
         {
             var reason = warnings[0].StartsWith("valor", StringComparison.Ordinal)
@@ -679,10 +798,10 @@ public static class BillValidationService
             return CheckResult.Warning(
                 CheckType.DocumentConsistency,
                 reason,
-                $"Divergência entre o impresso e o oficial: {string.Join("; ", warnings)}.");
+                $"Divergência entre o impresso e o oficial: {string.Join("; ", warnings)}.{misreadNote}");
         }
 
-        var comparedIdentity = reading.PayeeTaxId is not null && official?.TaxId is not null;
+        var comparedIdentity = readPayeeTaxId is not null && official?.TaxId is not null;
         var comparedAmount = reading.Amount is not null && officialAmount is not null;
         var comparedDueDate = reading.DueDate is not null && officialDue is not null;
 
@@ -698,15 +817,28 @@ public static class BillValidationService
 
             return CheckResult.Passed(
                 CheckType.DocumentConsistency,
-                evidence: $"O impresso confere com o oficial ({string.Join(", ", compared)}).");
+                evidence: $"O impresso confere com o oficial ({string.Join(", ", compared)}).{misreadNote}");
         }
+
+        // Só havia a identidade a confrontar, e ela era o documento do próprio pagador. Dizer
+        // "nada comparável" aqui esconderia por quê.
+        if (misreadAsPayer)
+            return CheckResult.Inconclusive(
+                CheckType.DocumentConsistency,
+                CheckReasons.DOCUMENT_PAYEE_IS_THE_PAYER,
+                "O único beneficiário lido no documento é o documento fiscal do próprio pagador — "
+                + "leitura descartada, e não sobrou campo para confrontar.",
+                CheckSeverity.Notice);
 
         // Há leitura, mas nada em comum com o oficial para confrontar — arrecadação sem CNPJ na
         // consulta, ou consulta indisponível. Ausência não pesa (ADR-004).
+        // Teto de Atenção: não havia o que confrontar. Contradição entre o impresso e o oficial
+        // continua acima disto — ver o desfecho de identidade lá em cima.
         return CheckResult.Inconclusive(
             CheckType.DocumentConsistency,
             official is null ? CheckReasons.OFFICIAL_IDENTITY_NOT_AVAILABLE : CheckReasons.NOTHING_COMPARABLE,
-            "A leitura existe, mas não há campo oficial correspondente para confrontar.");
+            "A leitura existe, mas não há campo oficial correspondente para confrontar.",
+            CheckSeverity.Notice);
     }
 
     /// <summary>
@@ -730,10 +862,12 @@ public static class BillValidationService
 
         return routing.IsConclusive
             ? CheckResult.Passed(CheckType.TenantRouting, evidence: $"Atribuído por {routing.Name}.")
+            // Teto de Atenção: informa, não desmente — é o que o próprio XML doc deste check diz.
             : CheckResult.Inconclusive(
                 CheckType.TenantRouting,
                 CheckReasons.ROUTING_INFERRED,
-                $"Atribuído por {routing.Name} — a conta foi inferida, não constatada.");
+                $"Atribuído por {routing.Name} — a conta foi inferida, não constatada.",
+                CheckSeverity.Notice);
     }
 
     /// <summary>
@@ -846,6 +980,13 @@ public static class BillValidationService
         => bill.Instruments
             .Where(i => i.Kind == PaymentInstrumentKind.Barcode)
             .Any(i => i.DigitableLine.Barcode.Contains(taxId.Value, StringComparison.Ordinal));
+
+    /// <summary>
+    /// O documento é do próprio tenant? Sem cadastro fiscal não há contra o que comparar, e a
+    /// resposta segura é "não sei" — que aqui significa não descartar leitura nenhuma.
+    /// </summary>
+    private static bool IsOwnedByTenant(BillValidationContext context, TaxId taxId)
+        => context.PayerProfile is not null && AllTenantTaxIds(context).Any(own => own.Equals(taxId));
 
     private static IEnumerable<TaxId> AllTenantTaxIds(BillValidationContext context)
     {

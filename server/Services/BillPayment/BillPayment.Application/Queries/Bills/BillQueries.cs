@@ -275,6 +275,22 @@ internal sealed class BillQueries(BillPaymentDbContext context, UnlockedArtifact
         if (bill.Reading is not { } reading)
             return null;
 
+        // A leitura que aponta o PRÓPRIO pagador como beneficiário não vira beneficiário na tela.
+        // Guia de tributo imprime um só par CNPJ/Razão Social — o do contribuinte — e o extrator,
+        // sem beneficiário no papel, atribui essa parte ao campo do beneficiário. Sem esta guarda
+        // a tela anunciava o pagador como quem vai receber o dinheiro, que é a pior troca possível
+        // num campo que existe para o aprovador conferir o destino.
+        //
+        // A comparação é aggregate-local de propósito: o pagador constatado pela escada de
+        // roteamento e o pagador que a própria leitura declarou. O cadastro fiscal do tenant vive
+        // noutro agregado, e é o <c>BillValidationService</c> quem o confronta (check 13).
+        var payerTaxIds = new[] { bill.ExtractedPayer?.TaxId, reading.PayerTaxId };
+        var misreadAsPayer = reading.PayeeTaxId is { } payee
+            && payerTaxIds.Any(payer => payer is not null && payer.Equals(payee));
+
+        if (misreadAsPayer)
+            return null;
+
         return reading.PayeeName is null && reading.PayeeTaxId is null
             ? null
             : new BillPartyDto(reading.PayeeName, null, reading.PayeeTaxId?.Formatted());

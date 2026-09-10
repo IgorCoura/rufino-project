@@ -29,6 +29,19 @@ public sealed class PayeeMatchKind : Enumeration
     /// </summary>
     public static readonly PayeeMatchKind Lookalike = new(4, nameof(Lookalike));
 
+    /// <summary>
+    /// Outro CNPJ do <strong>mesmo inscrito</strong> — a raiz confere e só a filial muda.
+    /// </summary>
+    /// <remarks>
+    /// Fica entre <see cref="ByTaxId"/> e <see cref="Lookalike"/> porque é exatamente o que
+    /// separa os dois. Órgão público cobra por unidade da federação (a Receita emite DAS por
+    /// uma filial do Ministério da Fazenda e o cadastro guarda outra), e rede com CNPJ por loja
+    /// faz o mesmo. Sem este degrau, cobrança legítima de filial não cadastrada era anunciada ao
+    /// aprovador como <em>"Possível golpe"</em> — e o alerta que grita em conta de rotina é o
+    /// alerta que ninguém lê quando o golpe vier de verdade.
+    /// </remarks>
+    public static readonly PayeeMatchKind SameCnpjRoot = new(5, nameof(SameCnpjRoot));
+
     private PayeeMatchKind(int id, string name) : base(id, name) { }
 }
 
@@ -66,10 +79,12 @@ public sealed class PayeeResolution : ValueObject
 /// </summary>
 /// <remarks>
 /// <para>
-/// A ordem é deliberada: <strong>documento primeiro, nome depois, sósia por último</strong>.
-/// Documento é o sinal forte; nome é o que resta quando a consulta não devolve documento; e a
-/// checagem de sósia só faz sentido depois de esgotar as duas — ela existe para pegar o boleto
-/// que usa o nome de um fornecedor conhecido com o CNPJ de outra pessoa.
+/// A ordem é deliberada: <strong>documento exato, filial do mesmo documento, nome, e sósia por
+/// último</strong>. Documento é o sinal forte; a raiz do CNPJ prova o mesmo inscrito quando só a
+/// filial difere; nome é o que resta quando a consulta não devolve documento; e a checagem de
+/// sósia só faz sentido depois de esgotar as três — ela existe para pegar o boleto que usa o nome
+/// de um fornecedor conhecido com o CNPJ de <em>outra pessoa</em>, e a raiz é justamente o que
+/// distingue "outra pessoa" de "outra unidade da mesma".
 /// </para>
 /// <para>
 /// É serviço, e não método do <c>Payee</c>, porque a pergunta cruza <c>Bill</c> (de onde vem o
@@ -98,6 +113,16 @@ public static class PayeeResolutionService
             var byTaxId = candidates.FirstOrDefault(p => p.TaxId.Equals(beneficiary.TaxId));
             if (byTaxId is not null)
                 return PayeeResolution.Matched(byTaxId, PayeeMatchKind.ByTaxId);
+
+            // Mesma raiz, outra filial: é o MESMO inscrito, e por isso identidade — não sósia.
+            // A raiz do CNPJ é atribuída pela Receita a uma pessoa jurídica só, então quem
+            // fraudaria o boleto não tem como apresentar uma da vítima; o que este ramo deixa
+            // passar é apenas a cobrança de outra unidade de quem o tenant já cadastrou. Sai
+            // como correspondência mais fraca que <c>ByTaxId</c>, e o check é quem decide o que
+            // fazer com a diferença de filial.
+            var sameRoot = candidates.FirstOrDefault(p => p.TaxId.SharesCnpjRootWith(beneficiary.TaxId));
+            if (sameRoot is not null)
+                return PayeeResolution.Matched(sameRoot, PayeeMatchKind.SameCnpjRoot);
 
             // O documento veio e não casou com cadastro nenhum. Cair para o nome aqui seria o
             // erro grave: nome igual ao de um fornecedor conhecido com CNPJ de outra pessoa é

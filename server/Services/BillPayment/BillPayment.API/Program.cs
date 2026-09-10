@@ -67,6 +67,15 @@ builder.Services.Configure<BillReadingOptions>(
 if (builder.Configuration.GetValue<bool?>($"{BillReadingOptions.SectionName}:Enabled") ?? true)
     builder.Services.AddHostedService<BillReadingBackgroundService>();
 
+// A varredura que reconsulta boletos sem consulta oficial. Ligada por padrão, e é ela que torna
+// verdadeiro o "revalide mais tarde" da verificação 3: desligada, o boleto fica exigindo a alçada
+// máxima por um incidente de provedor que já terminou.
+builder.Services.Configure<BillRevalidationOptions>(
+    builder.Configuration.GetSection(BillRevalidationOptions.SectionName));
+
+if (builder.Configuration.GetValue<bool?>($"{BillRevalidationOptions.SectionName}:Enabled") ?? true)
+    builder.Services.AddHostedService<BillRevalidationBackgroundService>();
+
 builder.Services.Configure<CaptureRetentionOptions>(
     builder.Configuration.GetSection(CaptureRetentionOptions.SectionName));
 

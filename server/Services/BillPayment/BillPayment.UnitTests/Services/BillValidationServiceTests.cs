@@ -15,6 +15,9 @@ using BillPayment.UnitTests.Services.Mothers;
 
 public class BillValidationServiceTests
 {
+    /// <summary>Outra filial do mesmo inscrito de <c>LookupMother.BENEFICIARY_CNPJ</c>.</summary>
+    private const string AnotherBranch = "45678901000256";
+
     // O catálogo inteiro sai em toda validação: o que não se aplica vira Skipped, nunca some.
     // É o que sustenta a exigência de cobertura completa em RecordChecks.
     [Fact]
@@ -319,7 +322,142 @@ public class BillValidationServiceTests
         Assert.Same(RiskLevel.Danger, result.RiskContribution);
     }
 
+    // REGRESSÃO (DAS do Ministério da Fazenda, 2026-09-10): a Receita emite a guia por uma
+    // filial e o cadastro guardava outra. O check anunciava "Possível golpe" numa cobrança de
+    // rotina — agora é Atenção, dizendo qual filial cobrou e qual está cadastrada.
+    [Fact]
+    public void Evaluate_PayeeMatch_WithAnotherBranchOfTheRegisteredPayee_ShouldWarnWithoutDanger()
+    {
+        var payee = ValidationMother.RegisteredPayee();
+        var branch = LookupParty.From(LookupMother.BENEFICIARY_NAME, null, AnotherBranch);
+
+        var result = Check(
+            ValidationMother.Context(
+                ValidationMother.BankSlipWithLookup(ValidationMother.ConsistentWithBarcode(beneficiary: branch)),
+                payee: payee,
+                consultedBeneficiary: branch),
+            CheckType.PayeeMatch);
+
+        Assert.Equal(CheckOutcome.Warning, result.Outcome);
+        Assert.Equal(CheckReasons.PAYEE_SAME_CNPJ_ROOT, result.ReasonCode);
+        Assert.Same(RiskLevel.Attention, result.RiskContribution);
+        Assert.False(result.IsBlockingFailure);
+    }
+
+    // CONTRAPROVA: nome conhecido com CNPJ de raiz alheia continua sendo sósia, e continua
+    // levando o boleto a Perigo. É o cenário de fraude que o check existe para pegar.
+    [Fact]
+    public void Evaluate_PayeeMatch_WithALookalikeFromAnotherRoot_ShouldStillFail()
+    {
+        var payee = ValidationMother.RegisteredPayee();
+        var lookalike = LookupParty.From(LookupMother.BENEFICIARY_NAME, null, "11444777000161");
+
+        var result = Check(
+            ValidationMother.Context(
+                ValidationMother.BankSlipWithLookup(ValidationMother.ConsistentWithBarcode(beneficiary: lookalike)),
+                payee: payee,
+                consultedBeneficiary: lookalike),
+            CheckType.PayeeMatch);
+
+        Assert.Equal(CheckOutcome.Failed, result.Outcome);
+        Assert.Equal(CheckReasons.PAYEE_LOOKALIKE, result.ReasonCode);
+    }
+
+    // A blacklist continua vencendo qualquer outro desfecho, inclusive a filial reconhecida.
+    [Fact]
+    public void Evaluate_PayeeMatch_WhenTheBranchOwnerIsBlacklisted_ShouldReportTheBlacklist()
+    {
+        var payee = ValidationMother.RegisteredPayee(standing: PayeeStanding.Blacklisted);
+        var branch = LookupParty.From(LookupMother.BENEFICIARY_NAME, null, AnotherBranch);
+
+        var result = Check(
+            ValidationMother.Context(
+                ValidationMother.BankSlipWithLookup(ValidationMother.ConsistentWithBarcode(beneficiary: branch)),
+                payee: payee,
+                consultedBeneficiary: branch),
+            CheckType.PayeeMatch);
+
+        Assert.Equal(CheckReasons.PAYEE_BLACKLISTED, result.ReasonCode);
+    }
+
+    // REGRESSÃO (DAS do Ministério da Fazenda, 2026-09-10): a guia dizia "não se aplica" enquanto
+    // o decode do QR Pix, logo abaixo na mesma tela, exibia o banco recebedor. O código de barras
+    // de arrecadação não carrega banco, mas o Pix carrega — e num documento híbrido é a única
+    // fonte que existe (doc 12, achado 3).
+    [Fact]
+    public void Evaluate_ReceivingBankMatch_ForUtilityBillsWithAPixQr_ShouldUseTheDecodedBank()
+    {
+        var bill = BillMother.Capture([InstrumentSamples.UtilityBarcode(), InstrumentSamples.DynamicPixQr()]);
+        bill.AttachLookups(
+            BillLookupResult.Resolved(LookupMother.Utility(), ValidationMother.ConsultedAt),
+            PixLookupResult.Resolved(LookupMother.PixDynamic(), ValidationMother.ConsultedAt),
+            ValidationMother.OccurredAt);
+
+        var result = Check(
+            ValidationMother.Context(bill, payee: ValidationMother.RegisteredPayee()),
+            CheckType.ReceivingBankMatch);
+
+        Assert.Equal(CheckOutcome.Passed, result.Outcome);
+        Assert.Contains("341", result.Evidence, StringComparison.Ordinal);
+    }
+
+    // POLÍTICA (decisão do usuário, 2026-09-10): ausência de CADASTRO tem teto de Atenção. O
+    // tenant nunca declarou bancos aceitos nem política de valor, e o boleto pode ter chegado por
+    // inferência — nada disso desmente coisa alguma. Antes os três levavam a Perigo, e um boleto
+    // cujos dados oficiais batiam com o cadastro ainda assim exigia "assumo o risco".
+    [Theory]
+    [InlineData(CheckReasons.BANK_EXPECTATION_NOT_SET)]
+    [InlineData(CheckReasons.AMOUNT_POLICY_UNBOUNDED)]
+    [InlineData(CheckReasons.ROUTING_INFERRED)]
+    public void Evaluate_WhenTheRegistryIsIncomplete_ShouldCapTheRiskAtAttention(string reason)
+    {
+        var bill = reason == CheckReasons.ROUTING_INFERRED
+            ? ValidationMother.BankSlipWithLookup(
+                bill: BillMother.CaptureVerbatim(
+                    [InstrumentSamples.Barcode()],
+                    BillMother.MailboxOrigin(),
+                    routing: RoutingConfidence.Weak))
+            : ValidationMother.BankSlipWithLookup();
+
+        var payee = reason == CheckReasons.BANK_EXPECTATION_NOT_SET
+            ? ValidationMother.RegisteredPayee(acceptedBank: null)
+            : ValidationMother.RegisteredPayee();
+
+        var result = BillValidationService
+            .Evaluate(ValidationMother.Context(bill, payee: payee))
+            .Single(r => r.ReasonCode == reason);
+
+        Assert.Same(RiskLevel.Attention, result.RiskContribution);
+    }
+
+    // CONTRAPROVA, e é ela que impede a política acima de abrir uma porta: ausência de IDENTIDADE
+    // continua pesando Perigo. Não saber QUEM é o beneficiário é o que segura o boleto adulterado
+    // depois de o check 13 deixar de bloquear no trilho Pix.
+    [Fact]
+    public void Evaluate_WhenThePayeeIsUnknown_ShouldStillBeDanger()
+    {
+        var result = Check(
+            ValidationMother.Context(ValidationMother.BankSlipWithLookup()), CheckType.PayeeMatch);
+
+        Assert.Equal(CheckReasons.PAYEE_NOT_REGISTERED, result.ReasonCode);
+        Assert.Same(RiskLevel.Danger, result.RiskContribution);
+    }
+
+    // CONTRAPROVA: banco FORA da lista aceita é evidência, não ausência — continua Perigo.
+    [Fact]
+    public void Evaluate_WhenTheBankIsOutsideTheAcceptedList_ShouldStillBeDanger()
+    {
+        var result = Check(
+            ValidationMother.Context(
+                ValidationMother.BankSlipWithLookup(),
+                payee: ValidationMother.RegisteredPayee(acceptedBank: "033")),
+            CheckType.ReceivingBankMatch);
+
+        Assert.Same(RiskLevel.Danger, result.RiskContribution);
+    }
+
     // Arrecadação não tem campo de banco em posição nenhuma — ausência estrutural, não omissão.
+    // Sem QR Pix não há outra fonte, e o check continua não se aplicando.
     [Fact]
     public void Evaluate_ReceivingBankMatch_ForUtilityBills_ShouldBeSkipped()
     {

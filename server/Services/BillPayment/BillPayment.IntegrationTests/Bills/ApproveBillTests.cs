@@ -167,7 +167,11 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
     [Fact]
     public async Task Approve_OnADangerBillWithoutAcknowledgingTheRisk_ShouldReturnConflict()
     {
-        _lookups.BankSlipResult = BillLookupResult.Unavailable("timeout", null, ConsultedAt());
+        // O boleto nasce em Perigo porque o beneficiário NÃO está cadastrado (check 5), com a
+        // consulta RESPONDENDO. Era a consulta indisponível que o levava a Perigo, e desde
+        // 2026-09-10 essa ausência vale Extremo Perigo — o que faria estes casos, que são sobre
+        // Perigo, falarem do nível errado.
+        _lookups.BankSlipResult = ResolvedBankSlip();
 
         var billId = await ImportAsync();
         await DrainOutboxAsync();
@@ -184,7 +188,11 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
     [Fact]
     public async Task Approve_OnADangerBillAcknowledgingTheRisk_ShouldApproveAndRecordIt()
     {
-        _lookups.BankSlipResult = BillLookupResult.Unavailable("timeout", null, ConsultedAt());
+        // O boleto nasce em Perigo porque o beneficiário NÃO está cadastrado (check 5), com a
+        // consulta RESPONDENDO. Era a consulta indisponível que o levava a Perigo, e desde
+        // 2026-09-10 essa ausência vale Extremo Perigo — o que faria estes casos, que são sobre
+        // Perigo, falarem do nível errado.
+        _lookups.BankSlipResult = ResolvedBankSlip();
 
         var billId = await ImportAsync();
         await DrainOutboxAsync();
@@ -204,7 +212,11 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
     [Fact]
     public async Task Approve_ADangerBillWithoutTheDangerClearance_ShouldReturn403()
     {
-        _lookups.BankSlipResult = BillLookupResult.Unavailable("timeout", null, ConsultedAt());
+        // O boleto nasce em Perigo porque o beneficiário NÃO está cadastrado (check 5), com a
+        // consulta RESPONDENDO. Era a consulta indisponível que o levava a Perigo, e desde
+        // 2026-09-10 essa ausência vale Extremo Perigo — o que faria estes casos, que são sobre
+        // Perigo, falarem do nível errado.
+        _lookups.BankSlipResult = ResolvedBankSlip();
         var billId = await ImportAsync();
         await DrainOutboxAsync();
 
@@ -222,7 +234,11 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
     [Fact]
     public async Task Approve_ADangerBillWithTheDangerClearance_ShouldApprove()
     {
-        _lookups.BankSlipResult = BillLookupResult.Unavailable("timeout", null, ConsultedAt());
+        // O boleto nasce em Perigo porque o beneficiário NÃO está cadastrado (check 5), com a
+        // consulta RESPONDENDO. Era a consulta indisponível que o levava a Perigo, e desde
+        // 2026-09-10 essa ausência vale Extremo Perigo — o que faria estes casos, que são sobre
+        // Perigo, falarem do nível errado.
+        _lookups.BankSlipResult = ResolvedBankSlip();
         var billId = await ImportAsync();
         await DrainOutboxAsync();
 

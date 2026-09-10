@@ -74,6 +74,25 @@ public sealed class TaxId : ValueObject
         }
     }
 
+    /// <summary>Os 8 primeiros dígitos do CNPJ — o que matriz e filiais têm em comum.</summary>
+    public const int CNPJ_ROOT_LENGTH = 8;
+
+    /// <summary>
+    /// Os dois documentos são CNPJ da <strong>mesma pessoa jurídica</strong>, diferindo só na
+    /// filial?
+    /// </summary>
+    /// <remarks>
+    /// A raiz é atribuída pela Receita a um único inscrito, e ninguém de fora consegue uma da
+    /// pessoa jurídica alheia. É o que separa "outra filial do beneficiário" — rotina em órgão
+    /// público e em rede com CNPJ por unidade — de "outra pessoa usando o nome dele", que é a
+    /// fraude. CPF não tem raiz e por isso nunca casa aqui.
+    /// </remarks>
+    public bool SharesCnpjRootWith(TaxId? other)
+        => other is not null
+        && Kind == TaxIdKind.CNPJ
+        && other.Kind == TaxIdKind.CNPJ
+        && string.Equals(Value[..CNPJ_ROOT_LENGTH], other.Value[..CNPJ_ROOT_LENGTH], StringComparison.Ordinal);
+
     public string Formatted()
     {
         if (Kind == TaxIdKind.CPF)
