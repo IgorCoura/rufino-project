@@ -106,6 +106,14 @@ void main() {
       await tester.tap(find.text(url));
       await tester.pumpAndSettle();
 
+      // O aviso entra ANTES de abrir: o endereco veio de um e-mail que ninguem
+      // verificou, e e a unica coisa da tela que nao passou por checagem nenhuma.
+      expect(find.text('Este link veio de um e-mail'), findsOneWidget);
+      expect(opened, isEmpty);
+
+      await tester.tap(find.text('Abrir mesmo assim'));
+      await tester.pumpAndSettle();
+
       expect(opened, [url]);
     });
 
@@ -123,11 +131,37 @@ void main() {
 
       await tester.tap(find.text(url));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Abrir mesmo assim'));
+      await tester.pumpAndSettle();
 
       expect(
         find.text('Não foi possível abrir o endereço neste dispositivo.'),
         findsOneWidget,
       );
+    });
+
+    // Contraprova do aviso: recusar fecha o dialogo e NAO abre o endereco.
+    testWidgets('does not open the link when the warning is declined',
+        (tester) async {
+      const url = 'https://www.asaas.com/i/55p08vsad5vci3g7';
+      final opened = <String>[];
+
+      await pumpItem(
+        tester,
+        hasArtifact: false,
+        sourceUrl: url,
+        onOpenLink: (value) async {
+          opened.add(value);
+          return true;
+        },
+      );
+
+      await tester.tap(find.text(url));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      expect(opened, isEmpty);
     });
 
     // É o ponto do problema: sem ver o papel, a pessoa reivindica no escuro.

@@ -458,12 +458,47 @@ class _Body extends StatelessWidget {
     }
   }
 
-  /// Abre o endereço do documento no navegador.
+  /// Abre o endereço do documento no navegador, depois de avisar.
   ///
-  /// Avisa quando não dá: um toque que não faz nada deixaria a pessoa achando
-  /// que o link está quebrado, quando o que faltou foi navegador disponível.
+  /// O aviso existe porque este endereço veio de um e-mail que ninguém
+  /// verificou — é a única coisa nesta tela que não passou por nenhuma
+  /// checagem do servidor. Página de emissor pede documento para liberar o
+  /// boleto (a EDP pede, e foi medido), então proibir digitar qualquer coisa
+  /// tornaria o botão inútil; o que se diz é onde está a fronteira: os
+  /// primeiros dígitos liberam, senha e dados bancários nunca.
+  ///
+  /// Aparece SEMPRE, e não uma vez só: quem confere boleto faz isso dezenas de
+  /// vezes por semana, e um aviso que some é um aviso que deixou de existir
+  /// justamente no dia em que o link era falso.
   Future<void> _openLink(BuildContext context, String url) async {
     final messenger = ScaffoldMessenger.of(context);
+
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded),
+        title: const Text('Este link veio de um e-mail'),
+        content: const Text(
+          'O endereço não foi verificado pelo sistema.\n\n'
+          'Não informe senha, dados bancários, cartão nem CPF/CNPJ completo.\n\n'
+          'Para desbloquear um boleto, no máximo os primeiros dígitos do '
+          'CPF/CNPJ — é o que os emissores pedem.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Abrir mesmo assim'),
+          ),
+        ],
+      ),
+    );
+
+    if (proceed != true) return;
+
     final opened = await onOpenLink(url);
 
     if (!opened) {
