@@ -31,10 +31,11 @@ O design rationale do BC vive em `BillPayment.Architecture/`. O ponto de entrada
 | [`11-bill-expectations.md`](BillPayment.Architecture/11-bill-expectations.md) | Expectativa de boleto e lembretes — rede de segurança contra falha silenciosa |
 | [`12-official-lookup-coverage.md`](BillPayment.Architecture/12-official-lookup-coverage.md) | **Medição** da consulta oficial por tipo de documento — o que cada check tem de dado e o que ficou por validar em produção |
 | [`13-dead-letter-replay.md`](BillPayment.Architecture/13-dead-letter-replay.md) | **Operação:** replay da dead-letter do outbox por SQL, com a análise de idempotência handler a handler |
+| [`15-resolucao-aberta-de-link.md`](BillPayment.Architecture/15-resolucao-aberta-de-link.md) | **Segurança + operação:** o regime aberto da escada de link (ADR-023) e como configurar a VPS/Dokploy para as travas funcionarem |
 | [`14-auditoria-ingestao-email.md`](BillPayment.Architecture/14-auditoria-ingestao-email.md) | **Segurança:** auditoria de 2026-09-03 da ingestão por e-mail — 33 achados com arquivo:linha, todos **abertos**; o status vive na seção "Auditoria da ingestão por e-mail" do checklist abaixo |
 | [`adr/`](BillPayment.Architecture/adr/) | ADR-001 a ADR-020 — o **porquê** de cada decisão estrutural |
 
-**Antes de propor mudança estrutural, leia o ADR correspondente.** Decisões já fechadas e greppáveis: Asaas como provedor de consulta *e* pagamento (ADR-001), com **uma conta por tenant, trazida pelo próprio tenant** (ADR-016 — o desenho de subconta criada pela plataforma do doc 07 foi substituído); `Bill` e `PaymentOrder` como Aggregates separados (ADR-002); verificação como entidade com evidência e quatro resultados, não booleano (ADR-003); pagador **não** é verificável por fonte oficial, mas **bloqueia quando contradiz** (ADR-004); confiança é do remetente, não da caixa (ADR-005); só Microsoft Graph; **Gmail entra por encaminhamento**, sem adapter (ADR-006); nenhum pagamento sem `UserId` autorizando (ADR-007); fonte compartilhada = uma `CaptureSource` por tenant, isolamento por construção (ADR-008); **sem cofre por ora — env vars + `secrets.json`**, envelope encryption no Postgres permanece (ADR-009); **QR Pix é o trilho preferencial**, divergência entre QR e código de barras bloqueia (ADR-010); **IA extrai candidatos, DV + consulta oficial decidem** (ADR-011); **DDA está fora** — portais depois de esgotar fatura digital, **sem evasão de anti-bot** (ADR-012); **Gemini atrás de porta agnóstica** (ADR-013); **o sistema sabe o que espera receber e avisa quando não recebeu** (ADR-014); **a validação classifica Seguro/Atenção/Perigo e NUNCA rejeita — quem decide é o humano, e Perigo exige aceite explícito gravado na trilha** (ADR-015); **a conta Asaas é do tenant, trazida e provada por ele — sem chave-plataforma e sem fallback global**, com webhook, saldo e whitelist por conta (ADR-016); **política de agendamento: submissão só das 9h às 18h e vencido exige confirmação explícita gravada na trilha** (ADR-017, com as 24h de antecedência REMOVIDAS pelo ADR-021); **aprovar e agendar são DOIS atos com alçadas diferentes, cancelar agendamento devolve a `Approved`, e recusa/cancelamento se desfazem com revalidação automática** (ADR-018); **webhook POR TENANT, com o payload tratado como aviso e a ordem RELIDA no provedor** (ADR-019); **a expectativa entra na validação como a 14ª verificação e a régua de risco endurece — o que era Atenção virou Perigo, e só expectativa, prazo e nome do beneficiário ficam com teto de Atenção** (ADR-020); **a antecedência de 24h sai, a janela vira 9h–18h e ela só bloqueia "pagar hoje" — porque é sobre a hora da SUBMISSÃO, não a do pagamento, que é do Asaas — com a tela oferecendo quatro datas prontas resolvidas pelo servidor** (ADR-021); **o dreno de eventos deixa de ter lista de tipos, existe varredura periódica que reconcilia a ASSINATURA do webhook no provedor, curar NÃO troca o token e a rotação é trimestral** (ADR-022).
+**Antes de propor mudança estrutural, leia o ADR correspondente.** Decisões já fechadas e greppáveis: Asaas como provedor de consulta *e* pagamento (ADR-001), com **uma conta por tenant, trazida pelo próprio tenant** (ADR-016 — o desenho de subconta criada pela plataforma do doc 07 foi substituído); `Bill` e `PaymentOrder` como Aggregates separados (ADR-002); verificação como entidade com evidência e quatro resultados, não booleano (ADR-003); pagador **não** é verificável por fonte oficial, mas **bloqueia quando contradiz** (ADR-004); confiança é do remetente, não da caixa (ADR-005); só Microsoft Graph; **Gmail entra por encaminhamento**, sem adapter (ADR-006); nenhum pagamento sem `UserId` autorizando (ADR-007); fonte compartilhada = uma `CaptureSource` por tenant, isolamento por construção (ADR-008); **sem cofre por ora — env vars + `secrets.json`**, envelope encryption no Postgres permanece (ADR-009); **QR Pix é o trilho preferencial**, divergência entre QR e código de barras bloqueia (ADR-010); **IA extrai candidatos, DV + consulta oficial decidem** (ADR-011); **DDA está fora** — portais depois de esgotar fatura digital, **sem evasão de anti-bot** (ADR-012); **Gemini atrás de porta agnóstica** (ADR-013); **o sistema sabe o que espera receber e avisa quando não recebeu** (ADR-014); **a validação classifica Seguro/Atenção/Perigo e NUNCA rejeita — quem decide é o humano, e Perigo exige aceite explícito gravado na trilha** (ADR-015); **a conta Asaas é do tenant, trazida e provada por ele — sem chave-plataforma e sem fallback global**, com webhook, saldo e whitelist por conta (ADR-016); **política de agendamento: submissão só das 9h às 18h e vencido exige confirmação explícita gravada na trilha** (ADR-017, com as 24h de antecedência REMOVIDAS pelo ADR-021); **aprovar e agendar são DOIS atos com alçadas diferentes, cancelar agendamento devolve a `Approved`, e recusa/cancelamento se desfazem com revalidação automática** (ADR-018); **webhook POR TENANT, com o payload tratado como aviso e a ordem RELIDA no provedor** (ADR-019); **a expectativa entra na validação como a 14ª verificação e a régua de risco endurece — o que era Atenção virou Perigo, e só expectativa, prazo e nome do beneficiário ficam com teto de Atenção** (ADR-020); **a antecedência de 24h sai, a janela vira 9h–18h e ela só bloqueia "pagar hoje" — porque é sobre a hora da SUBMISSÃO, não a do pagamento, que é do Asaas — com a tela oferecendo quatro datas prontas resolvidas pelo servidor** (ADR-021); **o dreno de eventos deixa de ter lista de tipos, existe varredura periódica que reconcilia a ASSINATURA do webhook no provedor, curar NÃO troca o token e a rotação é trimestral** (ADR-022); **a escada de link ganha regime ABERTO opcional, a allowlist deixa de ser a fronteira de segurança e ela desce para o IP pinado no connect mais o egresso da rede** (ADR-023).
 
 ### Três regras que não podem erodir
 
@@ -726,6 +727,173 @@ ignorada"). Duas lacunas daquele trabalho já haviam sido corrigidas aqui porque
 verificação desta entrega: o `FakeAuthorizationServerClient` não conhecia os escopos
 `schedule`/`undo-decision`, e os testes de alçada de risco aprovavam **com data** sem pedir a
 alçada de agendamento.
+
+## 2026-09-10 — O boleto que estava a dois cliques e a escada não alcançava (ADR-023)
+
+Relatado como "a feature de abrir link e baixar boleto não funcionou em produção", com o endereço
+`app.acessorias.com/getguia.php?ko=…`. A feature existia e funcionava **como projetada** — o que
+havia eram **três causas em série**, todas de desenho:
+
+1. **`app.acessorias.com` não tinha receita.** Nenhuma requisição chegou a sair.
+2. **Mesmo com receita, o segundo salto não acharia nada**: a página entrega o PDF por
+   `document.write("<iframe src='…'>")` e **não tem uma única tag `<a>`**; o colhedor lia só âncoras.
+3. **O PDF está em outro host** (`acessorias.s3.us-east-2.amazonaws.com`).
+
+Sondado no dia: `getguia.php` responde 200 `text/html` 3,7 KB sem autenticação, e o iframe aponta
+para um S3 presignado que devolve 200 `application/pdf` 160 KB. **O documento era alcançável; o
+código é que não chegava nele.**
+
+### 🐛 Dois defeitos menores, e o segundo explica o silêncio de semanas
+
+- **A procedência gravada era o ÚLTIMO salto.** Para a Acessórias ela é presignada com
+  `X-Amz-Expires=120` — **dois minutos**. A "evidência de onde veio o documento" estaria morta antes
+  de qualquer pessoa abrir a quarentena. Agora quem vira `SourceUrl` é a **raiz do ramo** (o link do
+  e-mail), carregada em `Step.Root` até o fim da escada.
+- **`RecordAttemptedLinkAsync` guardava o PRIMEIRO `<a>` do e-mail** — em campanha, o logotipo ou o
+  "ver no navegador". O mecanismo que existia para virar fila de emissores a cadastrar apontava para
+  o host errado, e foi por isso que a falta da receita nunca virou trabalho.
+
+### A allowlist deixou de ser a fronteira de segurança
+
+`LinkResolution:Mode` = `Allowlist` (**padrão**) ou `Open`. No aberto o destino sai do e-mail — que é
+a definição de SSRF —, e o que segura o estrago passa a ser:
+
+- **IP pinado no `SocketsHttpHandler.ConnectCallback`.** `SafeUrlPolicy` deixou de responder `bool` e
+  devolve o `IPAddress` conferido. A versão anterior conferia o **nome** e o devolvia ao `HttpClient`
+  para resolver outra vez — janela de DNS rebinding. **Qualquer defesa que resolve o nome, confere e
+  devolve o nome para a biblioteca HTTP resolver de novo é vulnerável**; o conserto tem de ser na
+  camada da conexão. O TLS continua validado contra o nome (o handshake é depois do `ConnectCallback`).
+- **Três buracos de IPv6 fechados**: `::`, `::127.0.0.1` (IPv4-*compatible*, não *mapped*) e
+  NAT64/6to4 passavam como públicos e alcançam loopback. Mais `198.18/15`, `192.0.0/24` e as TEST-NET.
+- **`BlockedCidrs`/`AllowedCidrs` configuráveis** — é onde entram **os endereços públicos da própria
+  VPS**, que o código não tem como adivinhar e que um atacante quer alcançar a partir de dentro.
+  Faixa malformada **derruba o arranque**: faixa que ninguém percebeu que não vale é pior que faixa
+  nenhuma. `AllowedCidrs` **vence** a proibição, de propósito.
+- **`AllowedPorts`** (80/443) no regime aberto; no fechado a **receita É a autorização da porta**, e é
+  assim que o `:7446` da SABESP segue alcançável sem afrouxar a lista genérica.
+
+### ⚠️ Profundidade limita a FORMA; o ORÇAMENTO limita o volume
+
+Pedido: cinco níveis de profundidade. **Profundidade sozinha não segura nada** — com 60 links por
+página e 5 níveis, uma árvore sem orçamento são `60^5 ≈ 777 milhões` de requisições saindo da nossa
+rede por causa de um e-mail. Quatro tetos coexistem, e nenhum substitui os outros: `MaxDepth` (5),
+`MaxFetchesPerMessage` (**12 — é este**), `MaxFetchesPerHost` (3) e conjunto de **visitados** (duas
+páginas que se apontam). Mais `TotalTimeoutSeconds` (90) e `MaxFetchesPerSenderPerDay` (200). A busca
+é **em largura**: nos casos medidos o documento está no primeiro ou no segundo salto, e descer em
+profundidade gastaria o orçamento num ramo enquanto o boleto espera no link seguinte.
+
+### ⚠️ O pedido de "lança erro" foi recusado, e virou dado
+
+Lançar conta tentativa contra o item e derruba o worker por causa de servidor de terceiro fora do ar.
+O sinal equivalente é **`LinkResolutionOutcome`** gravado no `CaptureItem` (coluna `link_outcome`,
+migração `CaptureItemLinkOutcome`): `Resolved`, `NoCandidates`, `NoRecipe`, `DepthExhausted`,
+`BudgetExhausted`, `Refused`, `Unreachable`, `Throttled`, `Disabled`. Sai por API **sem** o portão do
+ADR-008, como o `LinkHost` — descreve o sistema, não o documento nem o dinheiro. `DeservesAttention`
+separa o que é pendência do que é curso normal. **`Refused` repetido merece olhar**: emissor honesto
+não hospeda boleto em `127.0.0.1`.
+
+### O colhedor passou a ler o que o navegador leria — sem ser um navegador
+
+Duas passadas, ambas **lineares**: estruturada (`<a>`, `<iframe>`, `<frame>`, `<embed>`, `<object>`,
+`<meta refresh>`, `<area>`) e **bruta** (`https?://…` em qualquer lugar, inclusive dentro de
+`<script>` — **é esta que resolve a Acessórias**). O navegador sem cabeça foi **recusado**: trocaria
+um problema de leitura por execução de JS escolhido por quem manda o e-mail, dentro da nossa rede.
+
+- **`<img>` fica fora do corpo do e-mail** (pixel de rastreio) e entra a partir do salto 1. A regra
+  vale para **as duas** passadas — a bruta reencontrava o mesmo endereço no texto e anulava a
+  promessa; o teste pegou.
+- **A ordem passou a importar mais que o conteúdo**: sem receita não há quem escolha qual link é o
+  boleto, e gastar o orçamento nos oito rastreadores da EDP significa não achar a fatura. Pontuação
+  por sinal de documento no caminho e no rótulo — **ordenação, jamais filtro**.
+- Nenhum padrão tem quantificador aninhado (o anterior retrocedia em O(L²), achado M9).
+
+### Achados da auditoria fechados de passagem
+
+- **M5** — `.RemoveAllLoggers()` nos clientes `document-link` e `asaas-receipt`. O
+  `IHttpClientFactory` escrevia a **URI completa** do boleto em `Information`, por baixo de todo o
+  cuidado do resolvedor, que só loga o host. **Estava vazando em produção.**
+- **A4/A5** — `QrCodeScanner` lê as dimensões pelo **`SKCodec`** (cabeçalho real) antes de alocar
+  pixels: o teto anterior conferia o **dicionário do PDF**, e um JPEG de 30.000×30.000 declarado como
+  100×100 pedia 3,6 GB no `Decode`. Mais tetos de **imagens por documento** (80) e de **pixels
+  somados** (150 MP).
+- **A6** — PdfPig `0.1.15` → `0.1.16` (stack overflow em CMap malformado derruba o processo).
+- **M14** — `ReadCappedAsync` ganhou prazo próprio: com `ResponseHeadersRead` o `HttpClient.Timeout`
+  termina nos cabeçalhos e **solta** a leitura do stream (slowloris).
+- **Novo (C1)** — a imagem era aceita pelo `Content-Type` que o servidor **remoto** declarava,
+  enquanto o PDF sempre foi conferido pelo `%PDF-`. `ImageMagic` fecha a assimetria: PNG, JPEG e WEBP
+  pelos bytes. SVG fora de propósito — é XML executável, não imagem rasterizada.
+
+### O prompt do Gemini ganhou canal separado — e continua sendo mitigação, não solução
+
+O corpo do e-mail ia **concatenado cru** (`"CORPO DO E-MAIL...
+" + text`) numa parte de `text`,
+e as nossas regras iam na parte seguinte — **mesmo canal, sem fronteira**. Bastava escrever
+`REGRAS:` dentro do e-mail para falar de igual para igual com o adapter. Agora:
+
+- **`system_instruction`** (campo novo no `GeminiRequest`) carrega as regras no canal que o provedor
+  reserva para quem desenvolve — a mesma separação que o Google usa no endurecimento do Gemini.
+- **Cerca com nonce por chamada** (`GeminiPrompt.FenceUntrusted`): `[INICIO-{8 bytes hex}]`. Cerca
+  fixa estaria no repositório, e quem injeta escreveria o fechamento dentro do próprio e-mail.
+- **O texto do e-mail NÃO é alterado** — nada removido nem escapado. É de lá que saem competência e
+  descrição, e "limpar" perderia conteúdo legítimo.
+
+⚠️ **Não existe defesa oficial que elimine injeção de prompt** — nem da OWASP (LLM01 segue nº 1 em
+2025/2026) nem do Google, que descreve o assunto como defesa em camadas. Aqui as camadas são quatro,
+e o texto é **a mais fraca**: o `responseSchema` (o modelo não consegue devolver outra forma), a
+ausência de *tool calling* (não há o que uma instrução injetada acione), o DV/CRC do ADR-011 (nenhum
+candidato vira instrumento sem passar), e por último o prompt. **O que a injeção ainda alcança são os
+campos narrativos** — `payeeName`, `description`, `amount`, `dueDate` —, que não passam por dígito
+verificador e chegam à tela de quem aprova. O achado **M2** continua aberto nessa parte.
+
+Guarda de erosão: `Extraction/GeminiPromptHardeningTests` (4) — as regras no canal de sistema, a
+cerca presente, o nonce **diferente a cada chamada**, e o texto hostil chegando intacto.
+
+### 🐛 O proxy de egresso seria decoração por causa do NOSSO handler
+
+Apontado numa revisão externa e confirmado: o Dokploy liga todo serviço à overlay `dokploy-network`
+(é assim que o Traefik roteia), e **um contêiner ligado a qualquer rede não-`internal` tem rota para
+a internet** — então um proxy só é barreira se o contêiner não tiver para onde ir. Pior no nosso
+caso: o handler da escada é construído à mão e nasceu com **`UseProxy = false`**, enquanto Graph,
+Asaas e Gemini são handlers padrão e respeitam `HTTP_PROXY`. Fechar o egresso por variável de
+ambiente fecharia tudo **menos** o único cliente que busca endereço escolhido por terceiro.
+
+**`LinkResolution:Proxy`** conserta isso: preenchido, o cliente sai pelo proxy — e o **IP pinado é
+desligado**, de propósito, porque com proxy a conexão TCP é para o *proxy*, e conferir o endereço ali
+validaria o IP dele (interno, portanto recusado, derrubando toda busca). Quem passa a decidir o que é
+alcançável é o proxy.
+
+⚠️ **A captura roda DENTRO da API** (`AddHostedService` em `Program.cs:39/43/47`), e a API precisa
+estar na `dokploy-network` para receber tráfego — logo ela **não pode** ser isolada. Isolamento real
+exige um segundo *serviço* (mesma imagem, `Capture__Enabled` invertido, `dokploy-network`
+destacada). **Não é pré-requisito da entrega**: em `Mode: Allowlist` — o padrão — as travas do
+código são a barreira. Vira pré-requisito ao ligar `Open`. Passo a passo em
+[`15-resolucao-aberta-de-link.md`](BillPayment.Architecture/15-resolucao-aberta-de-link.md) §2.3.
+
+### Cliente
+
+Aviso **sempre** antes de abrir o link da quarentena ("Este link veio de um e-mail" → não informe
+senha/dados bancários/CPF completo; no máximo os primeiros dígitos para desbloquear). Aparece a cada
+toque, e não uma vez: um aviso que some deixa de existir justamente no dia em que o link é falso. A
+casca já abria só `http(s)` e em navegador **externo** — nada a mudar lá.
+
+### Verificação
+
+**1.318 unitários + 823 de integração + 398 de cliente verdes**; `dotnet build BillPayment.sln
+-p:TreatWarningsAsErrors=true` limpo. Testes-âncora: o `iframe` escrito por `document.write`
+(colhedor e escada ponta a ponta), a procedência sendo o link do e-mail e não o S3 presignado, os
+sete endereços não-roteáveis, a faixa configurada barrando o IP da própria instalação, o laço entre
+duas páginas, o orçamento estourando antes da profundidade, e o servidor que mente ser `image/png`.
+⚠️ `ScheduleAndUndoBillTests.CancellingThroughOurApi_ShouldNameThePersonInTheTrail` **falha de forma
+intermitente na suíte completa** (passa 3/3 isolada, e a suíte completa passou na re-execução) —
+**flake pré-existente, não regressão desta entrega**; investigar à parte.
+
+### ⚠️ Implantação
+
+`Mode` nasce `Allowlist` e **todas as travas acima já valem sem ligar nada**. Antes de considerar
+`Open`, siga os cinco passos de
+[`15-resolucao-aberta-de-link.md`](BillPayment.Architecture/15-resolucao-aberta-de-link.md) —
+sobretudo o **egresso default-deny**, que é a única barreira que continua de pé se o código tiver um
+defeito.
 
 ## 2026-09-09 (noite) — As 11 falhas herdadas, e o cancelamento que morria na fila em silêncio
 
@@ -1858,7 +2026,8 @@ apagar o registro do alerta.
 - [ ] **Ligar `Graph:Enabled`** — desligado por padrão. Sem ele, conectar uma fonte falha na prova de acesso (`BLP.CPS14`), por desenho.
 - [ ] **Encaminhamento do Gmail para a caixa do M365** — passo de onboarding, não de código (ADR-006): ligar no Gmail, confirmar o código que chega no M365, e **adicionar o endereço Gmail aos remetentes seguros** — encaminhamento quebra SPF/DKIM e a mensagem pode cair no lixo eletrônico.
 - [ ] **`Storage:ServiceUrl`, `AccessKey`, `SecretKey` e `AuthenticationRegion`** — balde compatível com S3 (Garage) para os artefatos capturados. **Sem isso o processamento de anexo falha alto**, de propósito: é preferível a guardar em lugar nenhum e descobrir na auditoria. O segredo vai por variável de ambiente, nunca no `appsettings.json`. **`AuthenticationRegion` não tem default e entra em `IsConfigured`**: o Garage assina SigV4 com a região `garage` (é o que o `PeopleManagement` configura contra o mesmo servidor) e o MinIO com `us-east-1` — um default estaria errado para metade dos alvos e a falha apareceria só na primeira gravação, como `SignatureDoesNotMatch` dentro do worker, lendo como credencial errada. Ver `gotchas.md`.
-- [ ] **Egresso da escada de link (`LinkResolution`)** — a única saída de rede do BC para servidor de **terceiro**. O código já traz allowlist por host+porta, bloqueio de faixa interna, recusa de redirecionamento e teto de requisições por mensagem; falta a trava de **infraestrutura**: restringir o egresso do contêiner aos hosts das receitas (ou passar por proxy de saída). Sem isso, a defesa depende inteiramente do código — e a defesa em profundidade é justamente o que sobra quando o código tem um defeito. Acrescentar host novo em `LinkResolution:Recipes` só depois de **sondar** que ele responde: configurar um host que não se sabe responder faz a escada gastar requisição em silêncio e o desfecho parecer falha do emissor.
+- [ ] **`LinkResolution__BlockedCidrs` com os IPs públicos da própria VPS** — o código recusa faixa reservada, mas não sabe que `203.0.113.10` é a sua própria API, e é justamente esse endereço que um atacante quer alcançar a partir de dentro. Descubra o IP de SAÍDA **de dentro do contêiner** (`curl -s https://api.ipify.org`) e confira o IPv6 também. Passo a passo em [`15-resolucao-aberta-de-link.md`](BillPayment.Architecture/15-resolucao-aberta-de-link.md).
+- [ ] **Egresso da escada de link (`LinkResolution`)** — ⚠️ **deixou de ser recomendação e virou PRÉ-REQUISITO se `Mode: Open` for ligado** (ADR-023). — a única saída de rede do BC para servidor de **terceiro**. O código já traz allowlist por host+porta, bloqueio de faixa interna, recusa de redirecionamento e teto de requisições por mensagem; falta a trava de **infraestrutura**: restringir o egresso do contêiner aos hosts das receitas (ou passar por proxy de saída). Sem isso, a defesa depende inteiramente do código — e a defesa em profundidade é justamente o que sobra quando o código tem um defeito. Acrescentar host novo em `LinkResolution:Recipes` só depois de **sondar** que ele responde: configurar um host que não se sabe responder faz a escada gastar requisição em silêncio e o desfecho parecer falha do emissor.
 - [ ] **Master key do cofre (`Secrets__MasterKey`)** — 32 bytes em base64, gerada por `SecretsOptions.GenerateMasterKey()` (ou pelo comando PowerShell em "Build, Run & Test"). Sem ela o BC sobe com um cofre que falha em toda operação; a Fase 1 tolera isso porque não guarda credencial de tenant, mas **a partir da fase 2 é pré-requisito de deploy**. Guarde uma **cópia cifrada fora do host** (`age`/`gpg`) — perdê-la é reconectar todas as caixas e reemitir todas as chaves de subconta (ADR-009).
 - [ ] **`Asaas__BaseUrl` de produção** — o padrão do `appsettings.json` do projeto aponta para o **sandbox** de propósito; apontar para produção é decisão explícita de quem configura. (`Asaas__ApiKey` NÃO existe mais desde 2026-08-31 — a chave é por tenant, pela API; sem a chave do tenant a consulta degrada para `Unavailable` e nenhum boleto é dado como verificado.)
 
@@ -1874,15 +2043,17 @@ apagar o registro do alerta.
 
 > Achados de [`14-auditoria-ingestao-email.md`](BillPayment.Architecture/14-auditoria-ingestao-email.md), **nenhum corrigido ainda**. A ordem é a sugerida no doc (risco eliminado ÷ esforço). Ao fechar um item, marque aqui e cite o commit; o doc 14 não muda — ele descreve o estado no commit `4fc925c0`. Antes de mexer em `QrCodeScanner`, `ExtractionBudget`, `BillValidationService`, `BillMap` ou nas filas, releia o achado correspondente.
 
-- [ ] **Bombas de parser (A4, A5, A6, M10)** — conferir dimensões pelo `SKCodec` antes de `SKBitmap.Decode` (o teto de 25 MP lê o dicionário do PDF, não o cabeçalho do JPEG); teto de imagens por página e por documento no `QrCodeScanner`; timeout de 30 s por item no `ParseAsync`; `MaxPages` no `UnlockAsync`; **PdfPig 0.1.15 → 0.1.16** (stack overflow em CMap malformado derruba o processo inteiro). Regressão obrigatória com PDF sintético de JPEG 30000×30000 declarado como 100×100.
+- [x] **Bombas de parser (A4, A5, A6)** — feito em 2026-09-10 (ADR-023): dimensões pelo `SKCodec` antes do `Decode`, tetos de imagens e de pixels somados por documento, PdfPig 0.1.16. **`MaxPages` no `UnlockAsync` (M10) segue aberto.**
+- [ ] **Bomba de parser restante (M10)** — conferir dimensões pelo `SKCodec` antes de `SKBitmap.Decode` (o teto de 25 MP lê o dicionário do PDF, não o cabeçalho do JPEG); teto de imagens por página e por documento no `QrCodeScanner`; timeout de 30 s por item no `ParseAsync`; `MaxPages` no `UnlockAsync`; **PdfPig 0.1.15 → 0.1.16** (stack overflow em CMap malformado derruba o processo inteiro). Regressão obrigatória com PDF sintético de JPEG 30000×30000 declarado como 100×100.
 - [ ] **Cota de IA esgotada não é falha (A3, M13)** — `ExtractionStatus.BudgetExhausted` é `isRetryable` e o handler lança `ProviderUnavailable`, então 3 tentativas depois o boleto legítimo cai em `Failed`; o comentário em `ProcessCaptureItemCommand.ExtractWithVisionAsync` promete o contrário. Tratar à parte: esperar a virada do dia sem contar tentativa. Não mandar `not_a_pdf` para a visão; teto diário de IA por remetente não cadastrado; contador global além do por tenant.
 - [ ] **Beneficiário desconhecido escala o risco (A1, M3)** — boleto real com o CNPJ público da vítima impresso nasce `Attention` e é aprovável sem aceite. `PayeeMatch NotFound` sem origem confiável → `Danger` ou aceite dedicado; `PayerMatch` só por CNPJ impresso → `Inconclusive` quando o beneficiário é desconhecido; resolução `Lookalike` **não** preenche `PayeeId` (hoje o sósia herda política de valor e cumpre a expectativa do fornecedor real).
 - [ ] **A varredura sobrevive a uma mensagem ruim (A7, A8)** — `MailboxMessage.From` não trunca o remetente e `CapturedMessage` lança acima de 320, sem catch por mensagem em `SyncCaptureSourceCommand`: um e-mail trava a pasta para sempre. Truncar e isolar por mensagem. Teto de 1–2 MB no corpo antes do balde (hoje todo corpo sobe sem teto, antes da triagem) e reter só com sinal.
-- [ ] **Higiene de log e de exposição (M5, M6, M7)** — `.RemoveAllLoggers()` nos clientes `document-link` e `asaas-receipt` (o `IHttpClientFactory` loga a URI completa do boleto em Information, contradizendo o "só o host" do resolvedor); `LastError` só com tipo e código estável, mensagem crua fica no log; link de remetente desconhecido sai só como `LinkHost`, sem âncora.
+- [x] **M5 (URL de boleto no log) — feito em 2026-09-10**: `.RemoveAllLoggers()` nos clientes `document-link` e `asaas-receipt`.
+- [ ] **Higiene de log e de exposição (M6, M7)** — `.RemoveAllLoggers()` nos clientes `document-link` e `asaas-receipt` (o `IHttpClientFactory` loga a URI completa do boleto em Information, contradizendo o "só o host" do resolvedor); `LastError` só com tipo e código estável, mensagem crua fica no log; link de remetente desconhecido sai só como `LinkHost`, sem âncora.
 - [ ] **Autenticar o remetente antes de confiar nele (M1)** — pendência do próprio ADR-005: pedir `internetMessageHeaders` na mensagem única, parsear `Authentication-Results`, e `OriginTrust=Passed` só com DMARC pass e domínio alinhado (senão `Inconclusive origin_unauthenticated`). `Blocked` continua bloqueando sem autenticação. Revisar o passo "remetentes seguros" do onboarding do Gmail.
 - [ ] **Cercar o corpo do e-mail no prompt (M2)** — `system_instruction` + delimitadores em `GeminiDocumentIntelligence`; check 13 (`DocumentConsistency`) nunca produz `Passed` por concordância, porque a testemunha vem da mesma fonte que o instrumento; campos de `Bill.Reading` rotulados na UI como "lido pela IA, não verificado"; `PayeeName` lido nunca no lugar do beneficiário.
 - [ ] **Dedup global e justiça entre tenants (A2, A9, M8)** — **decisão de arquitetura, reabre o ADR-008 e o bullet "Unicidade de boleto é GLOBAL"**: outro tenant importando a linha digitável primeiro deixa a captura da vítima em `Unrouted` para sempre, e o import é oráculo (409 vs 201). Mover a unicidade dura para o pagamento ou TTL na chave em `AwaitingApproval`. Claim round-robin por tenant nas filas de captura/visão. `BillingSignal` por palavra inteira e sinal duplo para remetente não cadastrado.
-- [ ] **Restante (M4, M11, M12, M14, B1–B10)** — expectativa não casa item travado de remetente desconhecido; relocação por `Message-ID` exige mesmo remetente e data; SSE ou envelope no balde (o código não pede cifra, os comentários dizem "cifrado"); timeout de leitura do corpo no resolvedor de link; faixas de IP faltantes no `SafeUrlPolicy`; magic bytes no anexo manual antes de gravar; dedup heurística para QR estático; SkiaSharp na linha corrente.
+- [ ] **Restante (M4, M11, M12, M14, B1–B10)** — expectativa não casa item travado de remetente desconhecido; relocação por `Message-ID` exige mesmo remetente e data; SSE ou envelope no balde (o código não pede cifra, os comentários dizem "cifrado"); ~~timeout de leitura do corpo no resolvedor de link~~ (M14, feito em 2026-09-10); ~~faixas de IP faltantes no `SafeUrlPolicy`~~ (feito em 2026-09-10, com três buracos de IPv6 e a lista configurável por ambiente); magic bytes no anexo manual antes de gravar; dedup heurística para QR estático; SkiaSharp na linha corrente.
 
 ### Resiliência e observabilidade
 - [ ] **Health checks** — adicionar health check do PostgreSQL (`AspNetCore.HealthChecks.NpgsqlEfCore` ou similar).

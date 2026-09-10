@@ -293,7 +293,8 @@ Services/PeopleManagement/
 - **Document Signing:** ZapSign API (with webhook callbacks at `/document/insert/signer`)
 - **File Storage:** S3-compatible (Garage.io) via AWS SDK
 - **Background Jobs:** Hangfire with PostgreSQL storage. Dashboard at `/hangfire`. Two queues: `default` and `whatsapp` (serial, 1 worker). The two `AddHangfireServer` (workers) in `Program.cs` are gated off when `ASPNETCORE_ENVIRONMENT == "IntegrationTest"` — storage/client stay registered, but no job is processed (determinism in tests).
-- **PDF Generation:** PuppeteerSharp (requires Chrome/Chromium — bundled in Docker)
+- **PDF Generation:** PuppeteerSharp. A imagem da PeopleManagement **não** instala o `google-chrome-stable`: ela baixa o `chrome-headless-shell` do Chrome for Testing num estágio separado do Dockerfile, poda os locales que não são `en-US`/`pt-BR` e copia o resultado para `/opt/chrome-headless-shell/` (441 MB → ~215 MB). A versão e o sha256 do zip são fixados em `ARG` no Dockerfile — o zip não é assinado, então **atualizar a versão exige recalcular o hash no mesmo commit**. O `PUPPETEER_EXECUTABLE_PATH` precisa apontar para esse caminho no compose e no workflow de deploy; se apontar para um arquivo inexistente o `BrowserProvider` **não falha** — cai no `BrowserFetcher` e baixa o Chrome inteiro em runtime, em silêncio.
+- **`--no-install-recommends` é obrigatório no `apt-get install` dessa imagem.** Sem ele os recommends do `xdg-utils` puxam `x11-utils` e `x11-xserver-utils`, que arrastam a pilha Mesa/LLVM (`libllvm15` sozinha tem 114 MB), o `cpp-12` e o Perl completo: ~250 MB de driver de GPU e compilador numa imagem que só imprime PDF headless.
 - **WhatsApp:** Evolution API for messaging
 - **Timezone:** `E. South America Standard Time` (Brazil)
 

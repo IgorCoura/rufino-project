@@ -47,6 +47,23 @@ internal static class QrCodeScanner
     /// </summary>
     private const long MAX_PIXELS = 25_000_000;
 
+    /// <summary>
+    /// Teto de imagens decodificadas por documento.
+    /// </summary>
+    /// <remarks>
+    /// <strong>O teto por imagem não limita a QUANTIDADE delas.</strong> Um PDF de poucos
+    /// quilobytes pode declarar centenas de imagens de 24 MP — cada uma abaixo do teto individual,
+    /// todas juntas gastando minutos de CPU do worker. Como a faixa rápida é concorrente e a de
+    /// visão é serial, um punhado desses artefatos ocupa todos os trabalhadores. Boleto real tem
+    /// dezenas de imagens; a conta de luz medida em 2026-08-11 tinha treze.
+    /// </remarks>
+    private const int MAX_IMAGES = 80;
+
+    /// <summary>
+    /// Teto de pixels somados no documento inteiro, pelo mesmo motivo do teto de imagens.
+    /// </summary>
+    private const long MAX_TOTAL_PIXELS = 150_000_000;
+
     // Um leitor por decodificação: o BarcodeReader do ZXing.Net não é thread-safe, e as faixas
     // rápida e de visão decodificam em paralelo.
     private static BarcodeReader CreateReader() => new()
@@ -77,10 +94,20 @@ internal static class QrCodeScanner
         CancellationToken cancellationToken)
     {
         var found = new List<PaymentInstrument>();
+        var decoded = 0;
+        var totalPixels = 0L;
 
         foreach (var image in images)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (decoded >= MAX_IMAGES || totalPixels >= MAX_TOTAL_PIXELS)
+            {
+                logger.LogWarning(
+                    "Leitor de QR parou em {Decoded} imagens e {Pixels} pixels: teto do documento atingido.",
+                    decoded, totalPixels);
+                break;
+            }
 
             if (image.WidthInSamples < MIN_DIMENSION || image.HeightInSamples < MIN_DIMENSION)
                 continue;
@@ -92,6 +119,9 @@ internal static class QrCodeScanner
                     image.WidthInSamples, image.HeightInSamples);
                 continue;
             }
+
+            decoded++;
+            totalPixels += (long)image.WidthInSamples * image.HeightInSamples;
 
             foreach (var (format, text) in DecodeAll(image, logger))
             {
@@ -122,18 +152,57 @@ internal static class QrCodeScanner
     /// <c>TryGetPng</c> descartaria documento legível como se precisasse de visão.
     /// </para>
     /// </remarks>
-    private static SKBitmap? ToBitmap(IPdfImage image)
+    private static SKBitmap? ToBitmap(IPdfImage image, ILogger logger)
     {
         if (image.TryGetPng(out var png) && png is not null)
         {
-            var fromPng = SKBitmap.Decode(png);
+            var fromPng = DecodeWithinBudget(png, logger);
             if (fromPng is not null)
                 return fromPng;
         }
 
         // JPEG, JPEG2000 e afins chegam prontos nos bytes brutos.
         var raw = image.RawMemory;
-        return raw.IsEmpty ? null : SKBitmap.Decode(raw.Span);
+        return raw.IsEmpty ? null : DecodeWithinBudget(raw.Span, logger);
+    }
+
+    /// <summary>
+    /// Lê as dimensões REAIS do cabeçalho antes de alocar os pixels.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>O teto de pixels do laço confere o dicionário do PDF, e o dicionário mente.</strong>
+    /// <c>/Width</c> e <c>/Height</c> são escritos por quem montou o arquivo; o que o decodificador
+    /// vai alocar está no cabeçalho da imagem embutida. Um JPEG de 30.000×30.000 declarado como
+    /// 100×100 passava pelo teto e pedia 3,6 GB na hora do <c>Decode</c> — bomba de descompressão
+    /// por anexo hostil, achado A4 da auditoria de 2026-09-03.
+    /// </para>
+    /// <para>
+    /// <c>SKCodec</c> lê só o cabeçalho, então a conferência custa bytes em vez de gigabytes.
+    /// Falha ao criar o codec devolve <c>null</c>: formato que ele não abre também não é formato
+    /// que o leitor de QR abriria.
+    /// </para>
+    /// </remarks>
+    private static SKBitmap? DecodeWithinBudget(ReadOnlySpan<byte> bytes, ILogger logger)
+    {
+        using var data = SKData.CreateCopy(bytes);
+        using var codec = SKCodec.Create(data);
+
+        if (codec is null)
+            return null;
+
+        var info = codec.Info;
+
+        if ((long)info.Width * info.Height > MAX_PIXELS)
+        {
+            logger.LogWarning(
+                "Imagem recusada pelo leitor de QR: o cabeçalho declara {Width}x{Height}, acima do teto.",
+                info.Width, info.Height);
+
+            return null;
+        }
+
+        return SKBitmap.Decode(codec);
     }
 
     /// <summary>
@@ -184,7 +253,7 @@ internal static class QrCodeScanner
     {
         try
         {
-            using var bitmap = ToBitmap(image);
+            using var bitmap = ToBitmap(image, logger);
             if (bitmap is null)
                 return [];
 

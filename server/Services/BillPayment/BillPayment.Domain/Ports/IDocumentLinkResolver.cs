@@ -8,61 +8,56 @@ using BillPayment.Domain.Extraction;
 /// <remarks>
 /// <para>
 /// <strong>É a maior superfície de ataque do BC</strong> — o único ponto em que o sistema busca,
-/// por conta própria, um endereço que veio de fora. Por isso a implementação é fechada por
-/// construção: só host explicitamente configurado, só <c>GET</c>, sem seguir redirecionamento, sem
-/// alcançar endereço de rede interna, com teto de bytes e de tempo. Nada aqui envia formulário nem
-/// preenche credencial: portal com login é a fase 5, e sem evasão de anti-bot (ADR-012).
+/// por conta própria, um endereço que veio de fora. A implementação é fechada por construção: o
+/// endereço IP é conferido no <em>connect</em> (e não no nome, que o DNS pode trocar entre a
+/// conferência e a conexão), a porta é restrita, só <c>GET</c>, sem seguir redirecionamento, sem
+/// alcançar endereço de rede interna, com teto de bytes, de tempo, de profundidade e de
+/// requisições. Nada aqui envia formulário nem preenche credencial: portal com login é a fase 5, e
+/// sem evasão de anti-bot (ADR-012).
 /// </para>
 /// <para>
-/// <strong>A allowlist é por receita, nunca derivada do remetente.</strong> Medido em 2026-08-11: a
-/// SABESP publica o PDF em <c>7az.com.br</c> e a EDP em <c>montreal.com.br</c> — terceirizadas cujo
-/// domínio não tem relação nenhuma com o do e-mail. Derivar a autorização do domínio do remetente
-/// recusaria os dois casos reais e ainda autorizaria qualquer coisa hospedada no domínio de quem
-/// mandou.
+/// <strong>Há dois regimes.</strong> No fechado, só endereço com receita nossa é buscado — a
+/// degradação segura, e o padrão. No aberto, o destino sai do e-mail, o que permite descobrir
+/// emissor novo sem cadastro manual e é também a definição de SSRF: ali o que impede o estrago são
+/// as travas acima, mais o egresso da rede.
 /// </para>
 /// <para>
 /// <strong>Não lança por documento inalcançável.</strong> Link expirado, host fora do ar ou
-/// resposta que não é documento devolvem <c>null</c> — a mensagem segue para a quarentena, como
-/// qualquer outro artefato que a cascata não resolveu.
+/// resposta que não é documento devolvem um <see cref="LinkResolution"/> que <em>diz por quê</em> —
+/// e a mensagem segue para a quarentena, como qualquer outro artefato que a cascata não resolveu.
 /// </para>
 /// </remarks>
 public interface IDocumentLinkResolver
 {
-    /// <summary>Se há alguma receita configurada. Sem receita, a escada inteira é pulada.</summary>
+    /// <summary>Se a escada busca alguma coisa nesta instalação.</summary>
     bool IsEnabled { get; }
 
     /// <summary>
-    /// Os hosts que este resolvedor sabe buscar.
+    /// Os hosts para os quais existe receita.
     /// </summary>
     /// <remarks>
-    /// Exposto porque o portão de ingestão precisa dele: um link para host desconhecido não é sinal
-    /// de boleto, já que o sistema não teria como buscar o documento — o item nasceria só para
-    /// morrer na quarentena.
+    /// <para>
+    /// Exposto porque o portão de ingestão o usa como sinal barato: link para host com receita é
+    /// evidência suficiente de que a mensagem carrega documento, sem precisar de mais nada.
+    /// </para>
+    /// <para>
+    /// <strong>No regime aberto ele continua sendo só as receitas, e isso é deliberado.</strong>
+    /// Devolver "todos os hosts" faria o portão capturar toda mensagem com qualquer link, e a fila
+    /// de quarentena — que é onde uma pessoa trabalha — deixaria de ser utilizável. Host sem
+    /// receita continua entrando pelo quarto sinal do portão, que exige evidência de cobrança.
+    /// </para>
     /// </remarks>
     IReadOnlyCollection<string> ResolvableHosts { get; }
 
     /// <param name="body">O corpo da mensagem como veio — HTML ou texto.</param>
     /// <param name="contentType">Tipo declarado do corpo.</param>
-    Task<ResolvedDocument?> ResolveAsync(
+    /// <param name="sender">
+    /// Quem mandou a mensagem, para o teto diário por remetente. Nulo dispensa o teto — é o caso
+    /// do artefato que não veio de caixa de e-mail.
+    /// </param>
+    Task<LinkResolution> ResolveAsync(
         ReadOnlyMemory<byte> body,
         string? contentType,
+        string? sender,
         CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Os links do corpo já desembrulhados de rastreador — <strong>sem tocar a rede</strong>.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Serve ao caso em que a escada não resolveu: saber <em>para onde</em> ela teria ido é o que
-    /// transforma "não consegui" numa fila de emissores a cadastrar. Sem isto, o item cai na
-    /// quarentena sem dizer de onde veio, e a informação que faltava para escrever a receita se
-    /// perde justamente no caso em que ela é necessária.
-    /// </para>
-    /// <para>
-    /// Devolve <strong>todos</strong> os links, inclusive os de host sem receita — é para eles
-    /// que existe. O desembrulho não faz requisição: seguir o redirecionamento entregaria ao
-    /// remetente a confirmação de leitura, e decodificar é mais barato e mais seguro.
-    /// </para>
-    /// </remarks>
-    IReadOnlyCollection<DocumentLink> HarvestLinks(ReadOnlyMemory<byte> body, string? contentType);
 }

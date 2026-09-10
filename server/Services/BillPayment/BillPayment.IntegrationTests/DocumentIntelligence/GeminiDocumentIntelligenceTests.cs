@@ -119,7 +119,9 @@ public sealed class GeminiDocumentIntelligenceTests
     }
 
     // O corpo do e-mail viaja junto como parte de texto — é dele que saem competência e descrição
-    // quando o documento não as traz.
+    // quando o documento não as traz. Desde 2026-09-10 ele vai CERCADO e rotulado como não
+    // confiável, porque é o único conteúdo da requisição escrito por quem mandou a mensagem; a
+    // estrutura da cerca tem suíte própria em `Extraction/GeminiPromptHardeningTests`.
     [Fact]
     public async Task ExtractAsync_WithSupplementalText_ShouldSendItAlongsideTheDocument()
     {
@@ -127,7 +129,7 @@ public sealed class GeminiDocumentIntelligenceTests
 
         await ExtractAsync(handler, supplemental: "Sua fatura de agosto chegou");
 
-        Assert.Contains("CORPO DO E-MAIL", handler.LastRequestBody!, StringComparison.Ordinal);
+        Assert.Contains("corpo do e-mail", handler.LastRequestBody!, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("fatura de agosto", handler.LastRequestBody, StringComparison.Ordinal);
     }
 

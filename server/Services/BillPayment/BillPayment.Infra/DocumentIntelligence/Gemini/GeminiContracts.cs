@@ -11,9 +11,22 @@ using System.Text.Json.Serialization;
 /// pacote do provedor no <c>.csproj</c> é exatamente o acoplamento que o ADR-013 existe para
 /// evitar. Trocar de IA não deve exigir remover dependência de build.
 /// </remarks>
+/// <param name="SystemInstruction">
+/// O canal que o provedor reserva para instrução de quem desenvolve.
+/// </param>
+/// <remarks>
+/// <strong>Separar os canais não elimina injeção de prompt — reduz.</strong> O modelo continua
+/// processando tudo pela mesma atenção, e nenhum fornecedor promete o contrário. O que este campo
+/// dá é a distinção que o Google explicitamente usa no endurecimento do Gemini: instrução de
+/// desenvolvedor num lugar, dado de terceiro noutro. Antes disto as regras iam como mais uma parte
+/// de <c>text</c>, indistinguíveis do corpo do e-mail que vinha logo acima.
+/// </remarks>
 internal sealed record GeminiRequest(
     [property: JsonPropertyName("contents")] IReadOnlyList<GeminiContent> Contents,
-    [property: JsonPropertyName("generationConfig")] GeminiGenerationConfig GenerationConfig);
+    [property: JsonPropertyName("generationConfig")] GeminiGenerationConfig GenerationConfig,
+    [property: JsonPropertyName("system_instruction")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    GeminiContent? SystemInstruction = null);
 
 internal sealed record GeminiContent(
     [property: JsonPropertyName("parts")] IReadOnlyList<GeminiPart> Parts);

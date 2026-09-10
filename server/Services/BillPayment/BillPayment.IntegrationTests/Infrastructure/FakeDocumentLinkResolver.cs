@@ -33,6 +33,15 @@ internal sealed class FakeDocumentLinkResolver : IDocumentLinkResolver
     /// <summary>O documento devolvido. Nulo por padrão — o desfecho mais comum.</summary>
     public ResolvedDocument? Result { get; set; }
 
+    /// <summary>
+    /// O desfecho devolvido quando não há documento.
+    /// </summary>
+    /// <remarks>
+    /// <c>NoRecipe</c> por padrão porque é o caso que a suíte mais exercita: emissor que a escada
+    /// não sabe buscar. Quem quer provar o teto ou a recusa de rede troca por outro.
+    /// </remarks>
+    public LinkResolutionOutcome FailureOutcome { get; set; } = LinkResolutionOutcome.NoRecipe;
+
     /// <summary>Quantas vezes foi chamado — é o que prova que o degrau anterior resolveu sozinho.</summary>
     public int CallCount { get; private set; }
 
@@ -41,20 +50,35 @@ internal sealed class FakeDocumentLinkResolver : IDocumentLinkResolver
 
     public IReadOnlyCollection<string> ResolvableHosts => Hosts;
 
-    /// <summary>Os links que a colheita devolve. Vazio por padrão, como um corpo sem link.</summary>
-    public List<DocumentLink> Harvested { get; } = [];
+    /// <summary>
+    /// O endereço que a escada reporta como procedência — o link do e-mail, não o último salto.
+    /// </summary>
+    public DocumentLink? Candidate { get; set; }
 
-    public IReadOnlyCollection<DocumentLink> HarvestLinks(ReadOnlyMemory<byte> body, string? contentType)
-        => Harvested;
+    /// <summary>O remetente recebido, para conferir que o teto diário é alimentado.</summary>
+    public string? LastSender { get; private set; }
 
-    public Task<ResolvedDocument?> ResolveAsync(
+    public Task<LinkResolution> ResolveAsync(
         ReadOnlyMemory<byte> body,
         string? contentType,
+        string? sender,
         CancellationToken cancellationToken)
     {
         CallCount++;
         LastBody = System.Text.Encoding.UTF8.GetString(body.Span);
+        LastSender = sender;
 
-        return Task.FromResult(Result);
+        if (!IsEnabled)
+            return Task.FromResult(LinkResolution.Disabled());
+
+        if (Result is null)
+            return Task.FromResult(LinkResolution.Failed(FailureOutcome, Candidate));
+
+        // Em produção a escada SEMPRE conhece a raiz do ramo quando resolve — é ela que vira
+        // procedência. Sem candidato explícito, o endereço do próprio documento faz esse papel,
+        // senão o dublê descreveria uma resolução sem origem, que não existe.
+        var origin = Candidate ?? DocumentLink.TryCreate(Result.SourceUrl);
+
+        return Task.FromResult(LinkResolution.Resolved(Result, origin, fetches: 1, deepestLevel: 1));
     }
 }

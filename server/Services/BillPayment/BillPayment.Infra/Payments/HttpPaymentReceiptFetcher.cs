@@ -34,6 +34,7 @@ using Microsoft.Extensions.Logging;
 /// </remarks>
 internal sealed class HttpPaymentReceiptFetcher(
     IHttpClientFactory httpClientFactory,
+    SafeUrlPolicy safeUrl,
     ILogger<HttpPaymentReceiptFetcher> logger) : IPaymentReceiptFetcher
 {
     public const string CLIENT_NAME = "asaas-receipt";
@@ -58,7 +59,7 @@ internal sealed class HttpPaymentReceiptFetcher(
         // A URL vem do provedor, mas é dado de fora mesmo assim — a mesma SafeUrlPolicy da
         // escada de links fecha o SSRF (host interno, metadados de nuvem, rebinding). Recusar é
         // desfecho definitivo, não indisponibilidade: a URL não vai melhorar.
-        if (!await SafeUrlPolicy.IsPubliclyRoutableAsync(uri.Host, cancellationToken))
+        if (await safeUrl.ResolvePinnedAddressAsync(uri.Host, cancellationToken) is null)
         {
             logger.LogWarning("Comprovante em {Host} recusado pela política de URL segura.", uri.Host);
             return ReceiptFetchResult.NotFound("unsafe_receipt_url");

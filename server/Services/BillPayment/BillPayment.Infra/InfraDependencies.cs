@@ -13,6 +13,9 @@ using BillPayment.Domain.Ports;
 using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.TrustedOrigins;
+using System.Net;
+using System.Net.Sockets;
+using Microsoft.Extensions.Logging;
 using Amazon.S3;
 using BillPayment.Infra.Asaas;
 using BillPayment.Infra.BankDirectory;
@@ -36,6 +39,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 public static class InfraDependencies
 {
@@ -285,20 +289,48 @@ public static class InfraDependencies
         if (options.Recipes.Count == 0)
             options.Recipes = DefaultLinkRecipes();
 
+        if (options.AllowedPorts.Count == 0)
+            options.AllowedPorts = [80, 443];
+
         services.Configure<LinkResolutionOptions>(o =>
         {
             o.Enabled = options.Enabled;
+            o.Mode = options.Mode;
             o.TimeoutSeconds = options.TimeoutSeconds;
+            o.ReadTimeoutSeconds = options.ReadTimeoutSeconds;
+            o.TotalTimeoutSeconds = options.TotalTimeoutSeconds;
             o.MaxBytes = options.MaxBytes;
             o.MaxFetchesPerMessage = options.MaxFetchesPerMessage;
+            o.MaxFetchesPerHost = options.MaxFetchesPerHost;
+            o.MaxDepth = options.MaxDepth;
+            o.MaxFetchesPerSenderPerDay = options.MaxFetchesPerSenderPerDay;
+            o.Proxy = options.Proxy;
+            o.AllowedPorts = options.AllowedPorts;
+            o.BlockedCidrs = options.BlockedCidrs;
+            o.AllowedCidrs = options.AllowedCidrs;
+            o.BlockedHosts = options.BlockedHosts;
             o.Recipes = options.Recipes;
         });
 
-        if (!options.Enabled || options.Recipes.Count == 0)
+        // A política é registrada SEMPRE, mesmo com a escada desligada: quem também depende dela
+        // é o buscador de comprovante, cuja URL vem do provedor mas é dado de fora do mesmo jeito.
+        // Singleton porque compila as faixas UMA vez — e falha alto no arranque se alguma for
+        // inválida, em vez de ignorar em silêncio uma faixa que ninguém percebeu que não vale.
+        services.AddSingleton<SafeUrlPolicy>();
+
+        // No regime aberto a escada existe sem receita nenhuma — e por isso a condição de desligar
+        // deixou de ser "sem receita".
+        var hasSomewhereToGo = options.Mode == LinkResolutionMode.Open || options.Recipes.Count > 0;
+
+        if (!options.Enabled || !hasSomewhereToGo)
         {
             services.AddSingleton<IDocumentLinkResolver, NullDocumentLinkResolver>();
             return;
         }
+
+        // O teto por remetente só significa alguma coisa se o contador for o mesmo entre
+        // requisições — mesma razão do ExtractionBudget.
+        services.AddSingleton<SenderFetchBudget>();
 
         services.AddHttpClient(HttpDocumentLinkResolver.CLIENT_NAME, http =>
             {
@@ -308,13 +340,90 @@ public static class InfraDependencies
                 // tem direito de saber quem está buscando e de bloquear se quiser.
                 http.DefaultRequestHeaders.UserAgent.ParseAdd("RufinoBillPayment/1.0 (+contas-a-pagar)");
             })
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-            {
-                AllowAutoRedirect = false,
-                UseCookies = false,
-            });
+            .ConfigurePrimaryHttpMessageHandler(provider => BuildPinnedHandler(provider))
+
+            // A URL do boleto é credencial ao portador, e os loggers padrão do IHttpClientFactory
+            // escrevem a URI COMPLETA em Information — por baixo de todo o cuidado do resolvedor,
+            // que só loga o host. Achado M5 da auditoria de 2026-09-03.
+            .RemoveAllLoggers();
 
         services.AddScoped<IDocumentLinkResolver, HttpDocumentLinkResolver>();
+    }
+
+    /// <summary>
+    /// O handler que disca no IP já conferido, em vez de deixar o nome ser resolvido outra vez.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>É isto que fecha o DNS rebinding, e não há como fechar em outro lugar.</strong>
+    /// Conferir o host e devolver o NOME para a biblioteca HTTP resolver de novo deixa uma janela
+    /// entre a conferência e a conexão — e o DNS que responde nela não é nosso. Com o
+    /// <c>ConnectCallback</c>, a segunda resolução deixa de existir.
+    /// </para>
+    /// <para>
+    /// <strong>O TLS continua sendo validado contra o NOME.</strong> O <c>SocketsHttpHandler</c>
+    /// faz o handshake depois que este retorno entrega o stream, usando o host da requisição para
+    /// SNI e para conferir o certificado — pinar o IP não afrouxa nada disso.
+    /// </para>
+    /// </remarks>
+    private static SocketsHttpHandler BuildPinnedHandler(IServiceProvider provider)
+    {
+        var policy = provider.GetRequiredService<SafeUrlPolicy>();
+        var logger = provider.GetRequiredService<ILogger<SafeUrlPolicy>>();
+        var proxy = provider.GetRequiredService<IOptions<LinkResolutionOptions>>().Value.Proxy;
+
+        var handler = new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            UseCookies = false,
+            AutomaticDecompression = DecompressionMethods.All,
+            ConnectTimeout = TimeSpan.FromSeconds(10),
+        };
+
+        // Com proxy, quem decide o que é alcançável é ELE: a conexão que este processo abre é para
+        // o proxy, e conferir o endereço aqui validaria o IP do próprio proxy — interno, portanto
+        // recusado, derrubando toda busca. Sem proxy, o IP pinado é a barreira.
+        if (!string.IsNullOrWhiteSpace(proxy))
+        {
+            handler.UseProxy = true;
+            handler.Proxy = new WebProxy(proxy);
+
+            logger.LogInformation(
+                "Escada de link sai por proxy; a conferência de endereço passa a ser dele, não do processo.");
+
+            return handler;
+        }
+
+        handler.UseProxy = false;
+        handler.ConnectCallback = async (context, cancellationToken) =>
+            {
+                var host = context.DnsEndPoint.Host;
+                var address = await policy.ResolvePinnedAddressAsync(host, cancellationToken);
+
+                if (address is null)
+                {
+                    logger.LogWarning(
+                        "Endereço de documento recusado: {Host} não resolve para um endereço público permitido.",
+                        host);
+
+                    throw new HttpRequestException($"Endereço recusado pela política de rede: {host}");
+                }
+
+                var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+
+                try
+                {
+                    await socket.ConnectAsync(new IPEndPoint(address, context.DnsEndPoint.Port), cancellationToken);
+                    return new NetworkStream(socket, ownsSocket: true);
+                }
+                catch
+                {
+                    socket.Dispose();
+                    throw;
+                }
+            };
+
+        return handler;
     }
 
     /// <summary>
@@ -344,6 +453,26 @@ public static class InfraDependencies
             Port = 443,
             PathPrefix = "/i/",
             DirectDocument = false,
+        },
+
+        // Acessórias (DTX Sistemas): a página do GED responde 200 text/html 3,7 KB sem
+        // autenticação, e o documento está num `<iframe>` escrito por `document.write` — NENHUMA
+        // âncora na página inteira. É o caso que motivou a passada bruta do colhedor: a versão que
+        // só lia `<a href>` chegava aqui e voltava de mãos vazias. Sondado em 2026-09-10: o iframe
+        // aponta para o balde S3 do emissor, que devolve 200 application/pdf 160 KB.
+        //
+        // O FollowHosts é o subdomínio do balde, não `amazonaws.com`: o genérico autorizaria o
+        // balde de qualquer pessoa que tenha uma conta na AWS.
+        //
+        // ⚠️ A URL do S3 é presignada com `X-Amz-Expires=120` — vale DOIS MINUTOS. Por isso a
+        // procedência gravada é a do `/getguia.php`, que é estável, e não a do segundo salto.
+        new LinkRecipe
+        {
+            Host = "app.acessorias.com",
+            Port = 443,
+            PathPrefix = "/getguia.php",
+            DirectDocument = false,
+            FollowHosts = ["acessorias.s3.us-east-2.amazonaws.com"],
         },
 
         // Condomínio (BRCondos): o endereço do boleto responde uma página. Sondado: 200,
@@ -419,10 +548,15 @@ public static class InfraDependencies
         // O comprovante sai por URL absoluta (capability URL do provedor), então o cliente não
         // tem BaseAddress. Sem retry: a retentativa é da reentrega do outbox, com backoff.
         services.AddHttpClient(HttpPaymentReceiptFetcher.CLIENT_NAME, http =>
-        {
-            http.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
-            http.DefaultRequestHeaders.UserAgent.ParseAdd(AsaasOptions.USER_AGENT);
-        });
+            {
+                http.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+                http.DefaultRequestHeaders.UserAgent.ParseAdd(AsaasOptions.USER_AGENT);
+            })
+
+            // A URL do comprovante é capability URL do provedor — credencial ao portador, como a
+            // do boleto. Os loggers padrão do IHttpClientFactory a escreveriam completa em
+            // Information, contradizendo o "nunca persistida nem logada" do handler (achado M5).
+            .RemoveAllLoggers();
         services.AddScoped<IPaymentReceiptFetcher, HttpPaymentReceiptFetcher>();
 
         // Scoped porque o cofre (ISecretVault) é scoped — vive sobre o DbContext da requisição.

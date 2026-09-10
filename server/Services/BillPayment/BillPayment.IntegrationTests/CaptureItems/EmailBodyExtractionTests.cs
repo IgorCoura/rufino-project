@@ -213,7 +213,7 @@ public sealed class EmailBodyExtractionTests : BaseIntegrationTest
     public async Task Process_WhenAnUnknownIssuerSendsABillByLink_ShouldQuarantineInsteadOfVanishing()
     {
         _links.Result = null;
-        _links.Harvested.Add(DocumentLink.TryCreate(UnknownIssuerUrl)!);
+        _links.Candidate = DocumentLink.TryCreate(UnknownIssuerUrl)!;
 
         var itemId = await SeedAsync(
             "cobrancas+6292297@asaas.com",
@@ -235,7 +235,7 @@ public sealed class EmailBodyExtractionTests : BaseIntegrationTest
     public async Task Process_WhenTheLinkHasNoRecipe_ShouldRecordTheHostItWouldHaveFetched()
     {
         _links.Result = null;
-        _links.Harvested.Add(DocumentLink.TryCreate(UnknownIssuerUrl)!);
+        _links.Candidate = DocumentLink.TryCreate(UnknownIssuerUrl)!;
 
         var itemId = await SeedAsync(
             "cobrancas+6292297@asaas.com",
@@ -255,7 +255,7 @@ public sealed class EmailBodyExtractionTests : BaseIntegrationTest
     public async Task Process_WhenAnUnknownLinkCarriesNoBillingSignal_ShouldStillDrop()
     {
         _links.Result = null;
-        _links.Harvested.Add(DocumentLink.TryCreate("https://www.loja.com.br/oferta")!);
+        _links.Candidate = DocumentLink.TryCreate("https://www.loja.com.br/oferta")!;
 
         var itemId = await SeedAsync(
             "marketing@loja.com.br",
@@ -276,7 +276,7 @@ public sealed class EmailBodyExtractionTests : BaseIntegrationTest
     public async Task AttachArtifact_OnAQuarantinedItem_ShouldTurnItIntoABill()
     {
         _links.Result = null;
-        _links.Harvested.Add(DocumentLink.TryCreate(UnknownIssuerUrl)!);
+        _links.Candidate = DocumentLink.TryCreate(UnknownIssuerUrl)!;
 
         await SeedPayerProfileAsync();
 
@@ -304,7 +304,7 @@ public sealed class EmailBodyExtractionTests : BaseIntegrationTest
     public async Task AttachArtifact_ShouldPreserveTheSourceUrl()
     {
         _links.Result = null;
-        _links.Harvested.Add(DocumentLink.TryCreate(UnknownIssuerUrl)!);
+        _links.Candidate = DocumentLink.TryCreate(UnknownIssuerUrl)!;
 
         var itemId = await SeedUnreachableBillAsync();
         await ProcessAsync(itemId);
@@ -322,7 +322,7 @@ public sealed class EmailBodyExtractionTests : BaseIntegrationTest
     public async Task AttachArtifact_ShouldNotGoBackToTheMailbox()
     {
         _links.Result = null;
-        _links.Harvested.Add(DocumentLink.TryCreate(UnknownIssuerUrl)!);
+        _links.Candidate = DocumentLink.TryCreate(UnknownIssuerUrl)!;
 
         var itemId = await SeedUnreachableBillAsync();
         await ProcessAsync(itemId);
@@ -342,7 +342,7 @@ public sealed class EmailBodyExtractionTests : BaseIntegrationTest
     public async Task AttachArtifact_WhenTheDocumentIsNotABill_ShouldKeepTheFile()
     {
         _links.Result = null;
-        _links.Harvested.Add(DocumentLink.TryCreate(UnknownIssuerUrl)!);
+        _links.Candidate = DocumentLink.TryCreate(UnknownIssuerUrl)!;
 
         var itemId = await SeedUnreachableBillAsync();
         await ProcessAsync(itemId);
@@ -360,7 +360,7 @@ public sealed class EmailBodyExtractionTests : BaseIntegrationTest
     public async Task Dismiss_ShouldRemoveTheItemFromTheQueueWithAnAuthor()
     {
         _links.Result = null;
-        _links.Harvested.Add(DocumentLink.TryCreate(UnknownIssuerUrl)!);
+        _links.Candidate = DocumentLink.TryCreate(UnknownIssuerUrl)!;
 
         var itemId = await SeedUnreachableBillAsync();
         await ProcessAsync(itemId);

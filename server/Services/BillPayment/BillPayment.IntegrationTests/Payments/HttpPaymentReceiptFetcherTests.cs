@@ -1,9 +1,11 @@
 namespace BillPayment.IntegrationTests.Payments;
 
 using System.Net;
+using BillPayment.Infra.Extraction.Links;
 using BillPayment.Infra.Payments;
 using BillPayment.IntegrationTests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 /// <summary>
 /// A URL do comprovante vem do provedor, mas é dado de fora mesmo assim: a
@@ -147,8 +149,13 @@ public sealed class HttpPaymentReceiptFetcherTests
 
     // Endereço literal e público (TEST-NET-3): passa pela SafeUrlPolicy sem consultar DNS, o que
     // mantém o teste offline e determinístico.
-    private const string HOST = "203.0.113.10";
-    private const string FOREIGN_HOST = "198.51.100.7";
+    // Endereços ROTEÁVEIS de propósito. Antes eram 203.0.113.10 e 198.51.100.7 (TEST-NET-3 e
+    // TEST-NET-2), escolhidos por serem reservados para documentação — e foi justamente isso que
+    // os tornou inválidos quando a SafeUrlPolicy passou a recusar faixa não-roteável: um host que
+    // resolve para TEST-NET é erro de configuração ou sonda, nunca um provedor de verdade.
+    // Nenhum pacote sai daqui: o transporte é dublê.
+    private const string HOST = "8.8.8.8";
+    private const string FOREIGN_HOST = "9.9.9.9";
 
     private const string RECEIPT_PATH = "/comprovantes/h/UElYX1RSQU5TQUNUSU9OX0RPTkU";
     private const string PDF_PATH = "/transactionReceipt/pdf/7077419209677481";
@@ -185,5 +192,6 @@ public sealed class HttpPaymentReceiptFetcherTests
     private static HttpPaymentReceiptFetcher BuildFetcher(HttpMessageHandler handler)
         => new(
             new StubHttpClientFactory(handler),
+            new SafeUrlPolicy(Options.Create(new LinkResolutionOptions())),
             NullLogger<HttpPaymentReceiptFetcher>.Instance);
 }

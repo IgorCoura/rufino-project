@@ -79,15 +79,24 @@ internal sealed class GeminiDocumentIntelligence(
         if (payload.SupplementalText is { } supplemental)
         {
             var text = payload.SupplementalTextIsHtml ? HtmlText.ToPlainText(supplemental) : supplemental;
+
+            // O corpo do e-mail é escrito por QUEM MANDOU A MENSAGEM — é o único conteúdo desta
+            // requisição cuja origem é hostil por hipótese. Ia concatenado cru num `text`,
+            // indistinguível das nossas regras, que vinham na parte seguinte; bastava escrever
+            // "REGRAS:" dentro do e-mail para falar no mesmo canal. A cerca de nonce marca a
+            // fronteira, e a instrução de sistema diz o que ela significa.
             if (!string.IsNullOrWhiteSpace(text))
-                parts.Add(GeminiPart.FromText("CORPO DO E-MAIL QUE TROUXE O DOCUMENTO:\n" + text));
+                parts.Add(GeminiPart.FromText(GeminiPrompt.FenceUntrusted("o corpo do e-mail que trouxe o documento", text)));
         }
 
+        // As regras por último: é a posição mais próxima da geração, e a que o conteúdo de
+        // terceiro não consegue empurrar para longe alongando o próprio texto.
         parts.Add(GeminiPart.FromText(GeminiPrompt.Build(hints)));
 
         var request = new GeminiRequest(
             [new GeminiContent(parts)],
-            new GeminiGenerationConfig("application/json", GeminiPrompt.ResponseSchema, Temperature: 0));
+            new GeminiGenerationConfig("application/json", GeminiPrompt.ResponseSchema, Temperature: 0),
+            new GeminiContent([GeminiPart.FromText(GeminiPrompt.SystemInstruction)]));
 
         return await SendAsync(request, payload.MediaType, content.Length, cancellationToken);
     }
