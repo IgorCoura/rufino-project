@@ -34,8 +34,7 @@ internal sealed class BillRevalidationBackgroundService(
 {
     private readonly BillRevalidationOptions _options = options.Value;
 
-    /// <summary>Ciclos seguidos que reivindicaram boleto e não conseguiram resolver nenhum.</summary>
-    private int _blockedStreak;
+    private readonly BlockedCycleStreak _blocked = new(options.Value.BlockedStreakAlertThreshold);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -67,22 +66,37 @@ internal sealed class BillRevalidationBackgroundService(
         }
     }
 
+    /// <summary>
+    /// Um ciclo, com uma saída só: o desfecho é sempre registrado, inclusive o de fila vazia.
+    /// Zerar a contagem ali dentro foi o defeito que tornava o alerta inalcançável.
+    /// </summary>
     private async Task RunCycleAsync(CancellationToken stoppingToken)
     {
         var claimed = await ClaimAsync(stoppingToken);
-        if (claimed.Count == 0)
-        {
-            _blockedStreak = 0;
-            return;
-        }
+        var resolvedAny = claimed.Count > 0 && await RevalidateBatchAsync(claimed, stoppingToken);
 
+        if (!_blocked.Record(claimed.Count, resolvedAny) || !logger.IsEnabled(LogLevel.Warning))
+            return;
+
+        // Não há teto de tentativas — o que existe é este aviso. Desistir deixaria o boleto em
+        // Extremo Perigo para sempre por causa de uma queda que já passou.
+        logger.LogWarning(
+            "A consulta oficial não responde há {Cycles} ciclos de revalidação; {Count} boleto(s) seguem sem verificação.",
+            _blocked.Cycles,
+            claimed.Count);
+    }
+
+    /// <summary>Revalida o lote em série. Devolve se alguma consulta respondeu.</summary>
+    private async Task<bool> RevalidateBatchAsync(
+        IReadOnlyList<PendingBillRevalidation> claimed, CancellationToken stoppingToken)
+    {
         var unavailableStreak = 0;
         var resolvedAny = false;
 
         foreach (var pending in claimed)
         {
             if (stoppingToken.IsCancellationRequested)
-                return;
+                return resolvedAny;
 
             var outcome = await RevalidateOneAsync(pending, stoppingToken);
 
@@ -109,30 +123,7 @@ internal sealed class BillRevalidationBackgroundService(
             break;
         }
 
-        TrackBlockedStreak(claimed.Count, resolvedAny);
-    }
-
-    /// <summary>
-    /// Não há teto de tentativas — o que existe é alerta. Desistir deixaria o boleto em Extremo
-    /// Perigo para sempre por causa de uma queda que já passou.
-    /// </summary>
-    private void TrackBlockedStreak(int claimedCount, bool resolvedAny)
-    {
-        if (resolvedAny)
-        {
-            _blockedStreak = 0;
-            return;
-        }
-
-        _blockedStreak++;
-
-        if (_blockedStreak >= _options.BlockedStreakAlertThreshold && logger.IsEnabled(LogLevel.Warning))
-        {
-            logger.LogWarning(
-                "A consulta oficial não responde há {Cycles} ciclos de revalidação; {Count} boleto(s) seguem sem verificação.",
-                _blockedStreak,
-                claimedCount);
-        }
+        return resolvedAny;
     }
 
     private async Task<IReadOnlyList<PendingBillRevalidation>> ClaimAsync(CancellationToken stoppingToken)

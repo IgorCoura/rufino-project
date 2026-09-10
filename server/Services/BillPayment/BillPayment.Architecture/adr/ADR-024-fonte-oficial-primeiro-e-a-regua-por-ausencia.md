@@ -90,7 +90,9 @@ defensáveis e, se ele cair para Atenção, juntas abrem a porta.
 ### D4 — A ausência de consulta se resolve sozinha
 
 `BillRevalidationBackgroundService` reconsulta os boletos parados em `lookup_unavailable`, com
-backoff exponencial e teto de uma hora. Sem ela, D2 seria uma armadilha operacional: o aviso
+backoff exponencial e teto de doze horas — que não é o que um boleto espera, e sim onde a cadência
+para de crescer: as tentativas acontecem em 5 min, 15 min, 35 min, 1h15, 2h35, 5h15 e 10h35, e o
+teto só é alcançado depois de cerca de um dia e meio de provedor fora. Sem ela, D2 seria uma armadilha operacional: o aviso
 "revalide mais tarde" viraria trabalho manual que ninguém faz, e o boleto ficaria exigindo a
 alçada máxima por um incidente já terminado.
 
@@ -104,7 +106,10 @@ Quatro regras dela que não podem erodir:
 3. **Aborto precoce do ciclo** após N indisponibilidades seguidas. O cliente de consulta tem
    disjuntor por cliente nomeado, e martelá-lo derrubaria junto as validações interativas.
 4. **Sem teto de tentativas.** Desistir deixaria o boleto em Extremo Perigo para sempre por causa
-   de uma queda que passou. O que cresce é a espera, e o que alerta é o log.
+   de uma queda que passou. O que cresce é a espera, e o que alerta é o log — e o alerta conta
+   **ciclos que tentaram**, nunca ciclos do relógio: com o backoff crescendo, a fila vazia é o
+   desfecho normal, e tratá-la como "nada travado" zerava a contagem e tornava o aviso
+   inalcançável (`BlockedCycleStreak`).
 
 ### D5 — O check 13 pesa conforme a força da fonte oficial e a procedência da leitura
 

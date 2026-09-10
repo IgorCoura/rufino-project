@@ -785,10 +785,24 @@ boleto ficaria exigindo a alçada máxima por um incidente já terminado. Quatro
 3. **Aborto precoce** após N indisponibilidades seguidas: o cliente de consulta tem disjuntor por
    cliente nomeado, e martelá-lo derrubaria junto as validações **interativas** de quem está na tela.
 4. **Sem teto de tentativas** — o oposto da fila de leitura. Desistir deixaria o boleto em Extremo
-   Perigo para sempre por uma queda que passou; o que cresce é a espera (5 min dobrando, teto 1 h),
-   e o que alerta é o log. **ADO direto** pelo mesmo motivo da fila de leitura, e a tentativa é
-   contada na SAÍDA. `updated_at` não é tocado: ele significa mudança de negócio, e uma varredura
-   de cinco em cinco minutos o tornaria inútil (é a lição do `LastSweptAt`).
+   Perigo para sempre por uma queda que passou; o que cresce é a espera (5 min dobrando, **teto de
+   12 h**), e o que alerta é o log. **ADO direto** pelo mesmo motivo da fila de leitura, e a
+   tentativa é contada na SAÍDA. `updated_at` não é tocado: ele significa mudança de negócio, e uma
+   varredura de cinco em cinco minutos o tornaria inútil (é a lição do `LastSweptAt`).
+
+⚠️ **O teto de 12 h não é o que um boleto espera — é onde a cadência para de crescer.** As
+tentativas acontecem em 5 min, 15 min, 35 min, 1h15, 2h35, 5h15 e 10h35; o teto só é alcançado na
+oitava falha seguida, cerca de um dia e meio de provedor fora. O botão Revalidar continua
+disponível o tempo todo, e o boleto segue aprovável com a alçada máxima.
+
+🐛 **A contagem de ciclos travados era zerada por ciclo vazio, e o alerta era inalcançável**
+(corrigido no mesmo dia, logo após a entrega). Fila vazia é o desfecho NORMAL assim que o backoff
+de um boleto passa do intervalo da varredura — o que acontece já na terceira tentativa —, então o
+contador nunca passava de 2. A regra virou tipo próprio, `BlockedCycleStreak`: **só zera quem
+resolve, só conta quem tentou**, e ciclo vazio não mexe em nada. Com isso o limiar de 6 passa a
+significar cerca de duas horas e meia de provedor fora. Regressão em
+`Bills/BlockedCycleStreakTests` — a primeira classe da suíte a exercitar código de worker, e por
+isso o `BillPayment.API` ganhou `InternalsVisibleTo`, no mesmo molde da Infra.
 
 ### A régua distingue ausência de CADASTRO de ausência de IDENTIDADE
 

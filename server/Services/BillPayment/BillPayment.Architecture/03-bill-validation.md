@@ -115,7 +115,7 @@ Três motivos, porque pedem **ações diferentes** de quem aprova:
 | `lookup_not_configured` | o tenant não vinculou a chave do provedor | vincular a conta no Perfil do Pagador |
 
 `BillRevalidationBackgroundService` reconsulta sozinho os boletos parados no primeiro motivo, com
-espera dobrando e teto de uma hora, e o vínculo da conta devolve à fila os do terceiro. Sem essa
+espera dobrando e teto de doze horas, e o vínculo da conta devolve à fila os do terceiro. Sem essa
 varredura o aviso "revalide mais tarde" seria trabalho manual que ninguém faz.
 
 ### 4. `LookupConsistency`
