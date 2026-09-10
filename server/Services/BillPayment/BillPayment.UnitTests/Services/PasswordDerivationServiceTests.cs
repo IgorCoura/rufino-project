@@ -1,5 +1,6 @@
 namespace BillPayment.UnitTests.Services;
 
+using BillPayment.Domain.Extraction;
 using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.Services;
 using BillPayment.Domain.SharedKernel;
@@ -30,17 +31,59 @@ public class PasswordDerivationServiceTests
         return profile;
     }
 
-    // De um CNPJ saem os três formatos que os emissores usam: 5 dígitos, a raiz e o documento
-    // inteiro — nessa ordem, do mais comum para o menos.
+    // De um CNPJ saem os cinco formatos que os emissores usam, do prefixo mais curto ao documento
+    // inteiro. 3 e 4 entraram em 2026-09-10, contra documento real do acervo.
     [Fact]
-    public void Derive_ForCompany_ShouldProduceTheThreeCnpjFormatsInOrder()
+    public void Derive_ForCompany_ShouldProduceTheFiveCnpjFormatsInOrder()
     {
         var candidates = PasswordDerivationService.Derive(CompanyProfile());
 
-        Assert.Equal(3, candidates.Count);
-        Assert.Equal("11222", candidates[0].Value);
-        Assert.Equal("11222333", candidates[1].Value);
-        Assert.Equal(Cnpj, candidates[2].Value);
+        Assert.Equal(
+            ["112", "1122", "11222", "11222333", Cnpj],
+            candidates.Select(c => c.Value).ToArray());
+    }
+
+    // REGRESSÃO (2026-09-10, achado do usuário): boleto cifrado cuja senha são os QUATRO primeiros
+    // dígitos do CNPJ. Sem o prefixo na lista a senha certa nunca era oferecida ao parser, e o
+    // documento virava pdf_locked por ausência de candidata — não por senha errada.
+    [Fact]
+    public void Derive_ForCompany_ShouldOfferTheFourDigitPrefix()
+    {
+        var candidates = PasswordDerivationService.Derive(CompanyProfile());
+
+        var fourDigits = Assert.Single(candidates, c => c.DerivedFrom == "cnpj_first_4_primary");
+        Assert.Equal("1122", fourDigits.Value);
+    }
+
+    // A régua de prova forte do degrau 0: prefixo curto abre o documento, mas não sustenta sozinho
+    // a atribuição ao tenant — 3 dígitos são mil possibilidades.
+    [Theory]
+    [InlineData("cnpj_first_3_primary", true)]
+    [InlineData("cnpj_first_4_primary", true)]
+    [InlineData("cnpj_first_5_primary", false)]
+    [InlineData("cnpj_first_8_primary", false)]
+    [InlineData("cnpj_full_primary", false)]
+    [InlineData("cpf_first_4_additional_1", true)]
+    [InlineData("cpf_first_11_additional_1", false)]
+    [InlineData("empty", false)]
+    [InlineData(null, false)]
+    public void IsShortPrefixProof_ShouldOnlyFlagPrefixesBelowTheThreshold(string? label, bool expected)
+        => Assert.Equal(expected, PasswordCandidate.IsShortPrefixProof(label));
+
+    // Todo rótulo produzido pela derivação é legível pela régua que o consome — o acoplamento que
+    // a LabelForDocument existe para garantir.
+    [Fact]
+    public void Derive_ShouldProduceLabelsTheStrengthRulerUnderstands()
+    {
+        var candidates = PasswordDerivationService.Derive(CompanyProfile(Cpf));
+
+        // Os prefixos curtos são exatamente os dois primeiros de cada documento.
+        var shortOnes = candidates
+            .Where(c => PasswordCandidate.IsShortPrefixProof(c.DerivedFrom))
+            .Select(c => c.Value)
+            .ToArray();
+
+        Assert.Equal(["112", "1122", "529", "5299"], shortOnes);
     }
 
     // Cada candidata carrega o rótulo do campo que a gerou — é ele, e nunca a senha, que vira
@@ -55,16 +98,17 @@ public class PasswordDerivationServiceTests
         Assert.Contains(candidates, c => c.DerivedFrom == "cnpj_full_primary");
     }
 
-    // CPF tem quatro formatos, e o de 6 dígitos cobre o padrão de algumas concessionárias.
+    // CPF tem cinco formatos, e o de 6 dígitos cobre o padrão de algumas concessionárias.
     [Fact]
-    public void Derive_ForIndividual_ShouldProduceTheFourCpfFormats()
+    public void Derive_ForIndividual_ShouldProduceTheFiveCpfFormats()
     {
         var profile = PayerProfile.Register(Tenant, PayerKind.Individual, "IGOR TESTE", Cpf, OccurredAt);
 
         var candidates = PasswordDerivationService.Derive(profile);
 
-        Assert.Equal(4, candidates.Count);
-        Assert.Equal(["529", "52998", "529982", Cpf], candidates.Select(c => c.Value).ToArray());
+        Assert.Equal(
+            ["529", "5299", "52998", "529982", Cpf],
+            candidates.Select(c => c.Value).ToArray());
     }
 
     // Documentos adicionais entram depois do principal: filial, ou o CPF do titular junto do
@@ -78,7 +122,8 @@ public class PasswordDerivationServiceTests
         Assert.Contains(candidates, c => c.DerivedFrom.EndsWith("_additional_0", StringComparison.Ordinal));
 
         // O principal continua vindo antes — é dele que a senha sai na maioria dos casos.
-        Assert.StartsWith("11222", candidates[0].Value, StringComparison.Ordinal);
+        Assert.EndsWith("_primary", candidates[0].DerivedFrom, StringComparison.Ordinal);
+        Assert.StartsWith(candidates[0].Value, Cnpj, StringComparison.Ordinal);
     }
 
     // Duas filiais com a mesma raiz gerariam a mesma candidata; tentar duas vezes só gastaria o

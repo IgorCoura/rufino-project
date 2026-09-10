@@ -273,7 +273,12 @@ public sealed class ScheduleAndUndoBillTests : BaseIntegrationTest, IDisposable
         await DrainOutboxAsync();
 
         var bill = await LoadAsync(billId);
-        var entry = bill.History[^1];
+
+        // Ordenado, e não `History[^1]`: a coleção owned NÃO garante ordem por si — é por isso que
+        // o DTO do detalhe ordena explicitamente. Lendo o último item cru, este teste passava ou
+        // reprovava conforme a ordem que o Postgres devolvia, que varia com o que rodou antes na
+        // suíte. Intermitência observada em 2026-09-10, em rodadas com o código idêntico.
+        var entry = bill.History.OrderBy(h => h.OccurredAt).Last();
 
         Assert.Equal(BillAction.Unscheduled, entry.Action);
         Assert.Equal(BillActionOrigin.User, entry.Origin);

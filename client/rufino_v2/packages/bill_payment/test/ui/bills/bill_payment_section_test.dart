@@ -358,6 +358,50 @@ void main() {
     });
   });
 
+  // O terceiro irmão do cinto de relógio: o retrato pode vencer ENTRE abrir a
+  // folha e confirmar. A recusa não fecha a folha — ela oferece a saída, que é
+  // uma só, com o formulário de pé.
+  group('approve sheet — stale snapshot refused mid-flight', () {
+    testWidgets('a BIL06 refusal offers Revalidar agora inside the sheet',
+        (tester) async {
+      repository.detail = billDetail(
+        status: BillStatuses.awaitingApproval,
+        dueDate: DateTime.now().add(const Duration(days: 30)),
+        lastConsultedAt: DateTime.now(),
+      );
+      repository.scriptedApproveRefusals.add(
+        const BillPaymentRuleException(
+          'A consulta oficial tem 22h e precisa ser refeita antes da aprovação.',
+          code: 'BLP.BIL06',
+        ),
+      );
+
+      await pumpDetail(tester, billScopes: const ['view', 'approve', 'validate']);
+      await tester.ensureVisible(find.text('Aprovar e agendar…'));
+      await tester.tap(find.text('Aprovar e agendar…'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Autorizar e agendar'));
+      await tester.pumpAndSettle();
+
+      // A folha NÃO fechou, e o aviso traz o botão que resolve.
+      expect(find.text('Autorizar e agendar pagamento'), findsOneWidget);
+      expect(
+        find.byKey(const Key('sheet-stale-snapshot-refusal')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const Key('sheet-revalidate-button')));
+      await tester.pumpAndSettle();
+
+      expect(repository.calls, contains('revalidateBill:bill-1'));
+
+      // Revalidou: o aviso sai e a folha segue aberta para confirmar de novo.
+      expect(find.byKey(const Key('sheet-stale-snapshot-refusal')), findsNothing);
+      expect(find.text('Autorizar e agendar pagamento'), findsOneWidget);
+    });
+  });
+
   group('approve sheet — schedule preview (informative)', () {
     testWidgets('the sheet shows when the payment will execute, naming the '
         'slide', (tester) async {

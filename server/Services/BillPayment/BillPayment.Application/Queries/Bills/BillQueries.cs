@@ -1,5 +1,6 @@
 ﻿namespace BillPayment.Application.Queries.Bills;
 
+using BillPayment.Application.Bills.Commands;
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Lookups;
@@ -7,8 +8,19 @@ using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
-internal sealed class BillQueries(BillPaymentDbContext context, UnlockedArtifactReader artifacts) : IBillQueries
+/// <remarks>
+/// <strong>A política de aprovação entra aqui por um motivo só</strong>: resolver o prazo de
+/// validade do retrato ANTES de a tela ver o boleto. Enquanto o cliente replicava o prazo numa
+/// constante própria, mudar a configuração do servidor fazia a tela passar a mentir sobre quando
+/// "Aprovar" e "Agendar" ainda valem. É leitura da mesma opção que os dois comandos consomem —
+/// nenhuma regra nova mora nesta classe.
+/// </remarks>
+internal sealed class BillQueries(
+    BillPaymentDbContext context,
+    UnlockedArtifactReader artifacts,
+    IOptions<ApprovalOptions> approval) : IBillQueries
 {
     public const int DEFAULT_LIMIT = 50;
     public const int MAX_LIMIT = 200;
@@ -104,13 +116,14 @@ internal sealed class BillQueries(BillPaymentDbContext context, UnlockedArtifact
                 : new BillPartyDto(beneficiary.Name, beneficiary.TradingName, beneficiary.TaxId?.Formatted()),
             bill.PayableAmount?.Amount,
             bill.Lookup?.OriginalAmount?.Amount,
-            ToDateTime(bill.DueDate),
+            bill.DueDate,
             bill.Lookup?.BankCode?.Value
                 ?? (barcode is not null && barcode.DigitableLine.Kind.CarriesBankCode
                     ? barcode.DigitableLine.BankCode.Value
                     : null),
-            ToDateTime(bill.Lookup?.MinimumScheduleDate),
+            bill.Lookup?.MinimumScheduleDate,
             bill.LastConsultedAt?.UtcDateTime,
+            SnapshotExpiryOf(bill),
 
             ToReadingDto(bill.Reading),
             bill.ReadingState.Name,
@@ -137,7 +150,7 @@ internal sealed class BillQueries(BillPaymentDbContext context, UnlockedArtifact
                     bill.Approval.Decision.Name,
                     bill.Approval.DecidedAt,
                     bill.Approval.Note),
-            ToDateTime(bill.ScheduledFor),
+            bill.ScheduledFor,
             new BillOriginDto(
                 bill.Origin.SourceKind.Name,
                 bill.Origin.SourceId,
@@ -198,8 +211,14 @@ internal sealed class BillQueries(BillPaymentDbContext context, UnlockedArtifact
         return parsed is not null;
     }
 
-    private static DateTime? ToDateTime(DateOnly? date)
-        => date?.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+    /// <summary>
+    /// Quando o retrato deste boleto vence, pela política vigente. Nulo sem consulta — é a mesma
+    /// leitura que <c>Bill.EnsureSnapshotIsFresh</c> faz, que não cobra prazo de retrato ausente.
+    /// </summary>
+    private DateTime? SnapshotExpiryOf(Bill bill)
+        => bill.LastConsultedAt is { } consultedAt
+            ? consultedAt.UtcDateTime + approval.Value.ToPolicy().MaxSnapshotAge
+            : null;
 
     private static BillPartyDto? ToPartyDto(LookupParty? party)
         => party is null
@@ -219,8 +238,8 @@ internal sealed class BillQueries(BillPaymentDbContext context, UnlockedArtifact
                 snapshot.Fee?.Amount,
                 snapshot.AllowChangeValue,
                 snapshot.IsOverdue,
-                ToDateTime(snapshot.DueDate),
-                ToDateTime(snapshot.MinimumScheduleDate),
+                snapshot.DueDate,
+                snapshot.MinimumScheduleDate,
                 snapshot.ConsultedAt.UtcDateTime);
 
     private static PixLookupDto? ToPixLookupDto(PixLookupSnapshot? snapshot)
@@ -237,7 +256,7 @@ internal sealed class BillQueries(BillPaymentDbContext context, UnlockedArtifact
                 snapshot.Interest?.Amount,
                 snapshot.Fine?.Amount,
                 snapshot.Discount?.Amount,
-                ToDateTime(snapshot.DueDate),
+                snapshot.DueDate,
                 snapshot.ExpirationDate?.UtcDateTime,
                 snapshot.ConsultedAt.UtcDateTime);
 
@@ -251,7 +270,7 @@ internal sealed class BillQueries(BillPaymentDbContext context, UnlockedArtifact
                 reading.PayeeTaxId?.Formatted(),
                 reading.AccountReference,
                 reading.Amount,
-                ToDateTime(reading.DueDate),
+                reading.DueDate,
                 reading.BillingPeriodText,
                 reading.Competence?.Year,
                 reading.Competence?.Month,
@@ -320,7 +339,7 @@ internal sealed class BillQueries(BillPaymentDbContext context, UnlockedArtifact
             bill.Risk?.Name,
             beneficiary,
             bill.PayableAmount?.Amount ?? declared?.Amount,
-            ToDateTime(bill.DueDate),
+            bill.DueDate,
             barcode is not null && barcode.DigitableLine.Kind.CarriesBankCode
                 ? barcode.DigitableLine.BankCode.Value
                 : null,

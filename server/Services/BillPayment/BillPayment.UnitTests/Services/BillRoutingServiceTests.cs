@@ -271,4 +271,53 @@ public class BillRoutingServiceTests
         Assert.Same(RoutingConfidence.Strong, decision.Confidence);
         Assert.Null(decision.PayerTaxId);
     }
+
+    // 2026-09-10: com a derivação tentando 3 e 4 dígitos, "abriu" deixou de ser prova conclusiva
+    // por si — três dígitos são mil possibilidades. Atribui, porque a candidata saiu do cadastro
+    // DESTE tenant, mas como Weak: a aprovação humana passa a ver que a rota foi inferida.
+    [Fact]
+    public void Route_WhenUnlockedByAShortPrefixAlone_ShouldPromoteAsWeak()
+    {
+        var decision = BillRoutingService.Route(
+            Extraction(parties: [Party(PayeeCnpj)], unlockedBy: "cnpj_first_3_primary"),
+            PayerProfileMother.Register(),
+            NoExclusivePayees);
+
+        Assert.Same(RoutingOutcome.Promote, decision.Outcome);
+        Assert.Same(RoutingConfidence.Weak, decision.Confidence);
+        Assert.Equal(BillRoutingService.REASON_PASSWORD_DERIVED_SHORT_PREFIX, decision.Reason);
+        Assert.Null(decision.PayerTaxId);
+    }
+
+    // Duas evidências fracas que apontam para o mesmo lado somam: o prefixo curto abriu E o
+    // documento do tenant está impresso na página. Aí o degrau 0 volta a ser conclusivo.
+    [Fact]
+    public void Route_WhenAShortPrefixOpensAndTheTaxIdIsAlsoPrinted_ShouldPromoteAsStrong()
+    {
+        var decision = BillRoutingService.Route(
+            Extraction(parties: [Party(OwnCnpj)], unlockedBy: "cnpj_first_4_primary"),
+            PayerProfileMother.Register(),
+            NoExclusivePayees);
+
+        Assert.Same(RoutingConfidence.Strong, decision.Confidence);
+        Assert.Equal(BillRoutingService.REASON_PASSWORD_DERIVED, decision.Reason);
+        Assert.Equal(OwnCnpj, decision.PayerTaxId?.Value);
+    }
+
+    // A razão de o prefixo curto NÃO decidir no degrau 0: o documento dizendo, sob rótulo, que o
+    // pagador é outro precisa poder vencer. Com prefixo longo o degrau 0 retorna antes e a
+    // quarentena nunca acontece — aqui ela acontece, e é o lado seguro.
+    [Fact]
+    public void Route_WhenAShortPrefixOpensButThePayerIsLabelledAsAnother_ShouldBeForeign()
+    {
+        var decision = BillRoutingService.Route(
+            Extraction(
+                parties: [Party(SomeoneElsesCnpj, underPayerLabel: true)],
+                unlockedBy: "cnpj_first_3_primary"),
+            PayerProfileMother.Register(),
+            NoExclusivePayees);
+
+        Assert.Same(RoutingOutcome.Foreign, decision.Outcome);
+        Assert.Equal(BillRoutingService.REASON_PAYER_IS_ANOTHER, decision.Reason);
+    }
 }

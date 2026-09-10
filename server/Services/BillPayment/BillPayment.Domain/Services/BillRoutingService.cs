@@ -119,6 +119,12 @@ public static class BillRoutingService
     /// <summary>Abriu o PDF com senha derivada do documento do tenant (degrau 0, doc 09).</summary>
     public const string REASON_PASSWORD_DERIVED = "password_derived";
 
+    /// <summary>
+    /// Abriu com um prefixo curto do documento do tenant, e o documento não está impresso na
+    /// página: atribui, mas sem a força do degrau 0 (2026-09-10).
+    /// </summary>
+    public const string REASON_PASSWORD_DERIVED_SHORT_PREFIX = "password_derived_short_prefix";
+
     /// <summary>Documento fiscal do tenant impresso no artefato (degrau 1).</summary>
     public const string REASON_PAYER_TAX_ID = "payer_tax_id";
 
@@ -167,7 +173,15 @@ public static class BillRoutingService
         // respondia "o documento não traz o pagador" sobre um artefato que trazia (medido em
         // 2026-08-26, no boleto BBZ-COND). Nulo continua sendo desfecho válido: PDF que abre por
         // senha sem repetir o documento no corpo existe, e ali não há o que informar.
-        if (!string.IsNullOrEmpty(extraction.UnlockedBy))
+        // Prefixo CURTO é a exceção, e ela não é teórica: desde 2026-09-10 a derivação tenta 3 e 4
+        // dígitos, e com três dígitos o espaço é de mil valores — "abriu" passa a poder ser
+        // coincidência. Com o documento do tenant TAMBÉM impresso na página as duas evidências
+        // juntas seguem conclusivas; sozinho, o prefixo curto não decide aqui e a escada continua,
+        // para que o degrau 1 negativo ainda possa dizer "o pagador é outro". A atribuição fraca
+        // espera no fim, no lugar da quarentena.
+        var shortPrefixOnly = PasswordCandidate.IsShortPrefixProof(extraction.UnlockedBy) && own is null;
+
+        if (!string.IsNullOrEmpty(extraction.UnlockedBy) && !shortPrefixOnly)
             return RoutingDecision.Promote(RoutingConfidence.Strong, REASON_PASSWORD_DERIVED, own?.TaxId);
 
         // Degrau 1 — o documento fiscal do tenant impresso no artefato. Cobre 93,3% do corpus.
@@ -189,6 +203,14 @@ public static class BillRoutingService
         {
             return RoutingDecision.Promote(RoutingConfidence.Weak, REASON_EXCLUSIVE_PAYEE);
         }
+
+        // O prefixo curto que não decidiu no degrau 0 vale aqui: a senha saiu do cadastro DESTE
+        // tenant e abriu, o que é mais do que nada — só não é conclusivo. Entra como Weak, depois
+        // de o degrau 1 negativo ter tido a sua vez, e antes da quarentena: mandar para a fila de
+        // reivindicação um documento que abriu com dado do próprio tenant seria pedir ao usuário
+        // que reivindicasse o que o sistema já sabe ser provavelmente dele.
+        if (shortPrefixOnly)
+            return RoutingDecision.Promote(RoutingConfidence.Weak, REASON_PASSWORD_DERIVED_SHORT_PREFIX);
 
         // Degrau 4 — fila de reivindicação. Nenhum boleto vira Bill sem rota determinada; não
         // existe atribuição por default ao dono da fonte.

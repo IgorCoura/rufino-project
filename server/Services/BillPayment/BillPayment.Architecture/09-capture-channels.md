@@ -34,7 +34,9 @@ Isso resolve, de graça, parte do problema de roteamento em caixa compartilhada.
 | Situação | Confiança |
 |---|---|
 | Abriu com o **documento completo** (CPF ou CNPJ inteiro) de um `PayerProfile` | `Strong` — conclusivo |
-| Abriu com um **prefixo** (5 ou 8 dígitos) de um `PayerProfile` | `Strong`, mas registrar o prefixo na evidência: colisão é improvável entre poucos tenants, não impossível |
+| Abriu com um **prefixo de 5 dígitos ou mais** de um `PayerProfile` | `Strong`, mas registrar o prefixo na evidência: colisão é improvável entre poucos tenants, não impossível |
+| Abriu com um **prefixo curto** (3 ou 4 dígitos) e o documento do tenant **não** está impresso na página | `Weak`, motivo `password_derived_short_prefix` (2026-09-10) — mil valores possíveis não sustentam atribuição conclusiva, e o degrau 1 negativo ainda pode dizer "o pagador é outro" |
+| Abriu com um **prefixo curto** e o documento do tenant **também** está impresso | `Strong` — duas evidências fracas apontando para o mesmo lado |
 | Abriu com senha **aprendida** para aquele `Payee` | `Learned` |
 | Não abriu com nenhum candidato | segue para os degraus normais; item vai para `Unrouted` com motivo `pdf_locked` |
 
@@ -44,11 +46,15 @@ Gerados a partir do `PayerProfile` do tenant da fonte **e** dos demais tenants q
 
 1. **Senha vazia** — cobre PDF com apenas *owner password* (bloqueia edição, não leitura). Sempre primeiro: é o caso mais comum e o mais barato.
 2. Senha aprendida para aquele `Payee` (ver abaixo).
-3. CNPJ: 5 primeiros dígitos → 8 primeiros (raiz) → 14 completos.
-4. CPF: 3 primeiros → 5 primeiros → 6 primeiros → 11 completos.
+3. CNPJ: 3 primeiros → 4 primeiros → 5 primeiros → 8 primeiros (raiz) → 14 completos.
+4. CPF: 3 primeiros → 4 primeiros → 5 primeiros → 6 primeiros → 11 completos.
 5. Data de nascimento do titular, quando cadastrada: `ddmmaaaa` → `ddmmaa` → `ddmm`.
 
-**Teto rígido de candidatos por documento** (config, default 40) e parada no primeiro acerto. Isso é *derivação*, não força bruta: os candidatos vêm de dados que o tenant já cadastrou, e o teto existe para que um PDF hostil não vire um laço caro.
+**Teto rígido de candidatos por documento** (config, default 60) e parada no primeiro acerto. Isso é *derivação*, não força bruta: os candidatos vêm de dados que o tenant já cadastrou, e o teto existe para que um PDF hostil não vire um laço caro.
+
+> **Os prefixos de 3 e 4 dígitos entraram em 2026-09-10, contra documento real** (achado do usuário): um boleto cifrado do acervo abre com os **quatro** primeiros dígitos do CNPJ, e como o prefixo não estava na lista a senha certa nunca era oferecida ao parser — o documento virava `pdf_locked`, que se lê como "a senha não bate" quando a verdade era "ninguém tentou a senha certa". A medição de 2026-08-11 só tinha visto 5 e 3, e a ausência do 4 passou por regra em vez de por amostra pequena. **O teto subiu de 40 para 60 no mesmo commit**: a lista é montada percorrendo cada documento fiscal com todos os prefixos, e dois prefixos novos por documento aproximariam o teto — truncando justamente o fim da fila, onde vivem os documentos adicionais, que a mesma medição mostrou abrindo 7 dos 11 PDFs cifrados.
+
+> **Prefixo curto abre documento, e não prova propriedade.** Com três dígitos o espaço é de mil valores, e prefixos de CNPJ não se distribuem por igual — "abriu" passa a poder ser coincidência. Por isso o degrau 0 do roteamento deixou de tratar como conclusivo o que abriu com menos de 5 dígitos: a senha continua sendo tentada, mas sozinha ela promove como **`Weak`** (motivo `password_derived_short_prefix`), e só volta a `Strong` quando o documento do tenant **também** está impresso na página. A régua vive em `PasswordCandidate.STRONG_PREFIX_MIN_LENGTH`, junto do construtor do rótulo que ela lê.
 
 ### Regras
 
@@ -60,9 +66,9 @@ Gerados a partir do `PayerProfile` do tenant da fonte **e** dos demais tenants q
 
 ### Testes obrigatórios
 
-PDF com owner password apenas (abre vazio); PDF com senha = 5 dígitos do CNPJ do tenant certo; PDF com senha derivada do **outro** tenant da mesma caixa (deve classificar `ForeignPayer`, não falhar); PDF que não abre com nenhum candidato (deve virar `Unrouted` com `pdf_locked`, sem estourar o teto em tempo).
+PDF com owner password apenas (abre vazio); PDF com senha = 5 dígitos do CNPJ do tenant certo; **PDF com senha = 4 dígitos do CNPJ** (2026-09-10, e a contraprova: sem a candidata de 4 dígitos o mesmo arquivo volta a ser `pdf_locked`); PDF com senha derivada do **outro** tenant da mesma caixa (deve classificar `ForeignPayer`, não falhar); PDF que não abre com nenhum candidato (deve virar `Unrouted` com `pdf_locked`, sem estourar o teto em tempo).
 
-O **fixture cifrado versionado** (`IntegrationTests/Extraction/EncryptedPdfFixture.cs`, RC4 de 40 bits como os emissores usam) existe desde 2026-08-28 e sustenta os quatro casos: nenhuma biblioteca do BC escreve PDF cifrado, então antes dele o caminho da senha só era conferido à mão contra o acervo real.
+O **fixture cifrado versionado** (`IntegrationTests/Extraction/EncryptedPdfFixture.cs`, RC4 de 40 bits como os emissores usam) existe desde 2026-08-28 e sustenta os casos: nenhuma biblioteca do BC escreve PDF cifrado, então antes dele o caminho da senha só era conferido à mão contra o acervo real. Desde 2026-09-10 há **dois** documentos ali, com senha de 5 e de 4 dígitos — o mesmo corpo, só `/O` e `/U` recomputados, que têm 32 bytes fixos e por isso não invalidam a `xref`. O arquivo documenta como regerá-los; o gerador foi conferido reproduzindo o fixture original byte a byte.
 
 ---
 

@@ -26,6 +26,64 @@ void main() {
 
       expect(detail.isSnapshotStaleAt(now), isTrue);
     });
+
+    test('the deadline the server resolved wins over the local constant', () {
+      // O retrato tem 1 hora pela conta local, e ainda assim venceu: quem manda é a
+      // política do servidor, que pode ter sido encurtada.
+      final detail = _detail(
+        lastConsultedAt: now.subtract(const Duration(hours: 1)),
+        snapshotExpiresAt: now.subtract(const Duration(minutes: 5)),
+      );
+
+      expect(detail.isSnapshotStaleAt(now), isTrue);
+    });
+
+    test('a deadline still ahead keeps the snapshot fresh past twelve hours',
+        () {
+      final detail = _detail(
+        lastConsultedAt: now.subtract(const Duration(hours: 20)),
+        snapshotExpiresAt: now.add(const Duration(hours: 4)),
+      );
+
+      expect(detail.isSnapshotStaleAt(now), isFalse);
+    });
+  });
+
+  group('BillDetail schedule gate', () {
+    test('schedule is enabled on an approved bill with a fresh snapshot', () {
+      final detail = _detail(
+        status: BillStatuses.approved,
+        lastConsultedAt: now.subtract(const Duration(hours: 1)),
+      );
+
+      expect(detail.canScheduleAt(now), isTrue);
+    });
+
+    // A regressão relatada: o boleto aprovado ficava com "Agendar…" habilitado e o
+    // clique voltava BLP.BIL06, porque o aviso de retrato velho era gated em
+    // acceptsDecision — que um aprovado não satisfaz.
+    test('schedule is disabled when the snapshot went stale', () {
+      final detail = _detail(
+        status: BillStatuses.approved,
+        lastConsultedAt: now.subtract(const Duration(hours: 13)),
+      );
+
+      expect(detail.acceptsScheduling, isTrue,
+          reason: 'status alone still allows it — the snapshot is what blocks');
+      expect(detail.canScheduleAt(now), isFalse);
+      expect(detail.acceptsValidation, isTrue,
+          reason: 'revalidation must be offered as the way back');
+    });
+
+    test('schedule is disabled once a date was already picked', () {
+      final detail = _detail(
+        status: BillStatuses.approved,
+        lastConsultedAt: now,
+        scheduledFor: DateTime(2026, 8, 20),
+      );
+
+      expect(detail.canScheduleAt(now), isFalse);
+    });
   });
 
   group('BillDetail approval gate', () {
@@ -111,7 +169,9 @@ void main() {
 BillDetail _detail({
   String status = BillStatuses.awaitingApproval,
   DateTime? lastConsultedAt,
+  DateTime? snapshotExpiresAt,
   DateTime? minimumScheduleDate,
+  DateTime? scheduledFor,
   List<BillCheck> checks = const [],
 }) {
   return BillDetail(
@@ -126,7 +186,9 @@ BillDetail _detail({
     ),
     createdAt: DateTime(2026, 8, 1),
     lastConsultedAt: lastConsultedAt,
+    snapshotExpiresAt: snapshotExpiresAt,
     minimumScheduleDate: minimumScheduleDate,
+    scheduledFor: scheduledFor,
   );
 }
 

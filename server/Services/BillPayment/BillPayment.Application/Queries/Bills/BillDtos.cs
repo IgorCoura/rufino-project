@@ -5,9 +5,19 @@
 /// quem os tem, paga.
 /// </summary>
 /// <remarks>
+/// <para>
 /// A ordem dos campos espelha a ordem de leitura que o doc 03 exige da tela: identidade do
 /// beneficiário primeiro, origem por último. Origem confiável nunca compensa beneficiário
 /// errado, e a interface não deve sugerir o contrário.
+/// </para>
+/// <para>
+/// <strong>Dia de calendário trafega como <c>DateOnly</c>; instante, como <c>DateTime</c> em
+/// UTC.</strong> A distinção é o contrato, não estilo: até 2026-09-10 os dias saíam convertidos
+/// para meia-noite UTC, e o cliente — que formata em hora local — mostrava o dia ANTERIOR em todo
+/// fuso a oeste de Greenwich. O vencimento aparecia certo só na evidência do check, que é texto
+/// montado no servidor. Os demais read models do BC (expectativas, ordens de pagamento, prévia de
+/// agendamento) sempre usaram <c>DateOnly</c>; este era o destoante.
+/// </para>
 /// </remarks>
 public sealed record BillDetailDto(
     Guid Id,
@@ -18,10 +28,25 @@ public sealed record BillDetailDto(
     BillPartyDto? Beneficiary,
     decimal? Amount,
     decimal? OriginalAmount,
-    DateTime? DueDate,
+    DateOnly? DueDate,
     string? BankCode,
-    DateTime? MinimumScheduleDate,
+    DateOnly? MinimumScheduleDate,
     DateTime? LastConsultedAt,
+
+    /// <summary>
+    /// O instante em que o retrato da consulta deixa de sustentar aprovação e agendamento — já
+    /// resolvido contra a política vigente (<c>Approval:MaxSnapshotAgeHours</c>). Nulo quando
+    /// nunca houve consulta: não há prazo correndo sobre retrato que não existe.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Existe para a tela parar de replicar o prazo.</strong> O cliente carregava uma
+    /// constante de 12 horas espelhando a configuração do servidor, e bastava mudar um dos dois
+    /// para a tela passar a mentir — habilitando "Agendar…" num retrato que o servidor ia recusar
+    /// com <c>BLP.BIL06</c>, ou o contrário. Vem resolvido, e não como número de horas, porque
+    /// comparar dois instantes é a única conta que o cliente precisa fazer.
+    /// </remarks>
+    DateTime? SnapshotExpiresAt,
+
     BillReadingDto? Reading,
 
     /// <summary>
@@ -40,7 +65,7 @@ public sealed record BillDetailDto(
     BillLookupsDto Lookups,
     IReadOnlyList<BillCheckDto> Checks,
     BillApprovalDto? Approval,
-    DateTime? ScheduledFor,
+    DateOnly? ScheduledFor,
     BillOriginDto Origin,
     DateTime CreatedAt,
 
@@ -84,7 +109,7 @@ public sealed record BillReadingDto(
     string? PayeeTaxId,
     string? AccountReference,
     decimal? Amount,
-    DateTime? DueDate,
+    DateOnly? DueDate,
     string? BillingPeriod,
     int? CompetenceYear,
     int? CompetenceMonth,
@@ -108,8 +133,8 @@ public sealed record BankSlipLookupDto(
     decimal? Fee,
     bool AllowChangeValue,
     bool IsOverdue,
-    DateTime? DueDate,
-    DateTime? MinimumScheduleDate,
+    DateOnly? DueDate,
+    DateOnly? MinimumScheduleDate,
     DateTime ConsultedAt);
 
 /// <summary>O retrato do <c>pix/qrCodes/decode</c> — a fonte autoritativa do trilho Pix.</summary>
@@ -124,8 +149,14 @@ public sealed record PixLookupDto(
     decimal? Interest,
     decimal? Fine,
     decimal? Discount,
-    DateTime? DueDate,
+    DateOnly? DueDate,
+
+    /// <summary>
+    /// Quando o QR deixa de valer. <strong>É instante, não dia</strong> — o Pix dinâmico expira na
+    /// hora, e truncar para dia aqui esconderia a hora que decide se ainda dá para pagar.
+    /// </summary>
     DateTime? ExpiresAt,
+
     DateTime ConsultedAt);
 
 /// <summary>
@@ -156,7 +187,7 @@ public sealed record BillDto(
     string? RiskLevel,
     BillPartyDto? Beneficiary,
     decimal? Amount,
-    DateTime? DueDate,
+    DateOnly? DueDate,
     string? BankCode,
     BillOriginDto Origin,
     DateTime CreatedAt,

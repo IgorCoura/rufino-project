@@ -325,9 +325,11 @@ Regras que o handler **não** pode quebrar (doutrina do `CLAUDE.md`):
 
 O `LookupSnapshot` envelhece: valor de boleto vencido muda todo dia. Regras:
 
-- Snapshot com mais de **N horas** (config, default 12) na hora da aprovação → a aprovação é recusada com `BLP.BIL06` e a UI dispara revalidação automática.
+- Snapshot com mais de **N horas** (config, default 12) é recusado com `BLP.BIL06` **na aprovação e no agendamento** — os dois, desde que o ADR-018 separou os atos e abriu uma janela entre eles. O prazo resolvido viaja no detalhe (`snapshotExpiresAt`), para a tela parar de replicar o número e desabilitar os dois botões com o motivo à vista em vez de deixar o clique bater no 409.
 - Revalidar **substitui** o snapshot e reexecuta todos os checks. Snapshots anteriores ficam na trilha de auditoria (tabela append-only `bill_lookup_history`), nunca são sobrescritos em silêncio.
-- Revalidação que muda o valor de um Bill já `Approved` mas ainda não `Scheduled` derruba a aprovação de volta para `AwaitingApproval` — mudança de valor invalida o consentimento dado.
+- **Revalidação que não muda nada PRESERVA a aprovação** (2026-09-10, decisão do usuário). "Nada" são duas coisas: o desfecho das catorze verificações (`Outcome` + `Severity` + `ReasonCode`; a `Evidence` fica fora, porque muda a cada consulta) **e** o valor a pagar, comparado com o que ficou gravado na decisão. Qualquer das duas diferente leva o boleto de volta a `AwaitingApproval`. Era incondicional até então, e o efeito era um laço: renovar o retrato para poder agendar custava a aprovação, sempre.
+- **Valor diferente derruba mesmo com as catorze idênticas** — e é por isso que a segunda metade existe: `AmountMatch` compara contra a política do beneficiário, não contra o número que o aprovador viu, então num boleto vencido ele passa todo dia enquanto o valor sobe.
+- **Boleto com data escolhida não revalida** (`BLP.BIL41`): está a caminho do provedor, e o caminho de volta é cancelar o agendamento, que é ato de gente.
 
 ## Matriz de decisão
 

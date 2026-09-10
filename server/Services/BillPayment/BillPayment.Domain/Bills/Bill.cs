@@ -416,9 +416,11 @@ public sealed class Bill : AggregateRoot<BillId>
 
     /// <summary>A verificação ainda pode ser refeita sem desfazer decisão de ninguém.</summary>
     /// <remarks>
-    /// <c>AcceptsValidation</c> inclui <c>Approved</c>, e revalidar ali derruba a aprovação. Para
-    /// um enriquecimento de fundo isso é inaceitável — quem decide é gente, e um retrato que
-    /// chegou atrasado não pode desfazer a decisão em silêncio.
+    /// <c>AcceptsValidation</c> inclui <c>Approved</c>, e revalidar ali <strong>pode</strong>
+    /// derrubar a aprovação — desde 2026-09-10 só quando algo muda, mas um retrato que chegou
+    /// atrasado é exatamente o que muda o desfecho de <c>DocumentConsistency</c>. Para um
+    /// enriquecimento de fundo isso continua inaceitável: quem decide é gente, e a decisão não se
+    /// desfaz em silêncio.
     /// </remarks>
     public bool AcceptsSilentRevalidation
         => Status == BillStatus.Captured || Status == BillStatus.AwaitingApproval;
@@ -470,17 +472,35 @@ public sealed class Bill : AggregateRoot<BillId>
     /// cobertura. Verificação que não se aplica entra como <c>Skipped</c> com motivo.
     /// </para>
     /// <para>
-    /// <strong>Revalidar um boleto já aprovado derruba a aprovação</strong> — para
-    /// <c>AwaitingApproval</c> ou <c>Rejected</c>, conforme o resultado. O doc 03 condiciona
-    /// isso a "quando o valor muda"; aqui é incondicional, de propósito: o consentimento foi
-    /// dado contra um retrato que acabou de ser substituído, e reconfirmar um pagamento é
-    /// barato perto de pagar o valor errado por causa de uma comparação de snapshot que
-    /// silenciosamente não pegou a diferença.
+    /// <strong>Revalidar um boleto aprovado só derruba a aprovação quando algo mudou</strong>
+    /// (2026-09-10). Até então derrubava incondicionalmente, e isso fechava um laço sem saída: o
+    /// agendamento reconfere o frescor do retrato (ADR-018), revalidar era o único jeito de
+    /// renová-lo, e revalidar custava a aprovação — então agendar um boleto aprovado no dia
+    /// anterior exigia aprovar de novo, todas as vezes.
+    /// </para>
+    /// <para>
+    /// O que conta como "mudou" são <strong>duas</strong> coisas, e a segunda não é zelo: o
+    /// desfecho de qualquer das catorze verificações, <em>e</em> o valor a pagar. As verificações
+    /// podem sair idênticas enquanto o valor sobe — é o que acontece todo dia num boleto vencido,
+    /// porque <c>AmountMatch</c> compara contra a política do beneficiário e não contra o número
+    /// que o aprovador viu. Sem a segunda metade, "nada mudou" autorizaria um débito maior que o
+    /// consentido.
+    /// </para>
+    /// <para>
+    /// A comparação das verificações olha desfecho, severidade e motivo — <strong>não a
+    /// evidência</strong>, que é texto com valores e datas dentro e mudaria em toda rodada,
+    /// zerando o efeito da regra.
     /// </para>
     /// </remarks>
     public ValidationOutcome RecordChecks(IReadOnlyCollection<CheckResult> results, DateTime occurredAt)
     {
         EnsureAcceptsValidation();
+
+        // Boleto com data escolhida está a caminho do provedor, e revalidar mexeria no veredito
+        // de algo que já não se desfaz por aqui. Antes desta guarda o boleto caía para
+        // AwaitingApproval SEM perder a data — aguardando aprovação com ordem em voo.
+        if (ScheduledFor is not null || PaymentOrderId is not null)
+            throw BillErrors.ValidationNotAllowedWhileScheduled();
 
         var accepted = new List<CheckResult>();
         foreach (var result in results ?? [])
@@ -501,6 +521,12 @@ public sealed class Bill : AggregateRoot<BillId>
         if (missing.Count > 0)
             throw BillErrors.IncompleteCheckCoverage(string.Join(", ", missing));
 
+        // Antes de substituir o conjunto, porque depois a comparação não tem mais com o quê
+        // comparar. Só importa em boleto aprovado — nos outros status não há aprovação a preservar.
+        var approvalStands = Status == BillStatus.Approved
+            && ChecksMatch(accepted)
+            && PayableAmountMatchesApproval();
+
         _checks.Clear();
         _checks.AddRange(accepted.Select(r => BillCheck.From(r, occurredAt)));
 
@@ -517,19 +543,73 @@ public sealed class Bill : AggregateRoot<BillId>
 
         var from = Status;
 
-        TransitionTo(BillStatus.AwaitingApproval);
+        if (!approvalStands)
+            TransitionTo(BillStatus.AwaitingApproval);
+
         UpdatedAt = occurredAt;
 
         // A trilha registra TODA validação, inclusive a que não muda o status: revalidar é um
-        // ato que alguém pediu e cujo resultado explica por que a aprovação anterior caiu.
+        // ato que alguém pediu, e o resultado explica por que a aprovação anterior caiu — ou por
+        // que ela ficou de pé, que é a pergunta que alguém vai fazer meses depois.
+        var note = $"Risco {Risk?.Name ?? "não classificado"}; "
+            + $"{blocking.Count} bloqueio(s), {attention} atenção"
+            + (approvalStands ? "; nada mudou, aprovação mantida" : string.Empty);
+
         _history.Add(BillHistoryEntry.Record(
-            BillAction.Validated, BillActionOrigin.System, from, Status, null, null, occurredAt,
-            $"Risco {Risk?.Name ?? "não classificado"}; {blocking.Count} bloqueio(s), {attention} atenção"));
+            BillAction.Validated, BillActionOrigin.System, from, Status, null, null, occurredAt, note));
 
         AddDomainEvent(new BillValidatedDomainEvent(Id, TenantId, attention, occurredAt));
 
-        return ValidationOutcome.Of(BillStatus.AwaitingApproval, risk, blocking.Count, attention);
+        return ValidationOutcome.Of(Status, risk, blocking.Count, attention, approvalStands);
     }
+
+    /// <summary>
+    /// O conjunto que chegou diz o mesmo que o gravado? Desfecho, severidade e motivo, por tipo.
+    /// </summary>
+    /// <remarks>
+    /// <strong>A evidência fica de fora de propósito</strong>: ela é o texto que explica a decisão
+    /// ao humano, e carrega valores e datas que mudam a cada consulta. Incluí-la faria toda
+    /// revalidação parecer mudança e a preservação da aprovação nunca aconteceria. O
+    /// <c>EvaluatedAt</c> fica de fora pelo mesmo motivo, mais óbvio ainda.
+    /// </remarks>
+    private bool ChecksMatch(List<CheckResult> incoming)
+    {
+        if (_checks.Count != incoming.Count)
+            return false;
+
+        foreach (var result in incoming)
+        {
+            var current = _checks.Find(c => c.Type == result.Type);
+
+            if (current is null
+                || current.Outcome != result.Outcome
+                || current.Severity != result.Severity
+                || !string.Equals(current.ReasonCode, result.ReasonCode, StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// O valor a pagar agora é o mesmo contra o qual a aprovação foi dada?
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Aprovação anterior à gravação do valor (<c>AmountAtDecision</c> nulo num boleto que TEM
+    /// valor) responde <strong>false</strong>: sem saber contra o que a pessoa consentiu, manter a
+    /// aprovação seria presumir. Boleto legado revalidado cai uma vez para a fila de decisão, e da
+    /// próxima aprovação em diante a preservação funciona.
+    /// </para>
+    /// <para>
+    /// Valor ausente nos dois lados é igualdade honesta: a consulta não resolveu valor nem antes
+    /// nem agora, e nada mudou.
+    /// </para>
+    /// </remarks>
+    private bool PayableAmountMatchesApproval()
+        => Approval?.AmountAtDecision == PayableAmount?.Amount;
 
     /// <summary>
     /// Um humano autoriza o pagamento. <strong>É o único caminho para o dinheiro sair</strong>
@@ -563,7 +643,9 @@ public sealed class Bill : AggregateRoot<BillId>
 
         var from = Status;
 
-        Approval = ApprovalRecord.Approve(approvedBy, occurredAt, note, Risk);
+        // O valor vai junto porque é contra ele que o consentimento foi dado — é o que permite a
+        // revalidação saber se o número mudou desde então (e não só se as catorze mudaram).
+        Approval = ApprovalRecord.Approve(approvedBy, occurredAt, note, Risk, PayableAmount?.Amount);
         Status = BillStatus.Approved;
         UpdatedAt = occurredAt;
 

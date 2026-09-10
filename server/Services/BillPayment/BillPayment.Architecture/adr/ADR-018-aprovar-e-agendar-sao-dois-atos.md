@@ -38,6 +38,16 @@ refeito.
 - **O frescor do retrato é reconferido no agendamento**, e não é redundância: separar os atos
   abriu uma janela entre eles, e é no agendamento que o dinheiro anda. Aprovar ontem contra um
   retrato de ontem é legítimo; agendar hoje contra aquele mesmo retrato não é.
+
+  > **Consequência que só apareceu em uso, e o conserto dela (2026-09-10).** A janela tem saída —
+  > revalidar —, mas revalidar derrubava a aprovação incondicionalmente: agendar um boleto aprovado
+  > no dia anterior exigia aprovar de novo, todas as vezes, e a tela nem avisava (o aviso de
+  > retrato velho era condicionado a "aceita decisão", que um aprovado não satisfaz, então o botão
+  > ficava habilitado e o clique voltava `BLP.BIL06`). Duas correções fecham o laço: a revalidação
+  > **preserva** a aprovação quando as catorze verificações e o valor a pagar não mudam (ver
+  > [`03-bill-validation.md`](../03-bill-validation.md)), e a tela passa a desabilitar "Agendar…"
+  > com o motivo à vista, usando o prazo que o servidor resolve em `snapshotExpiresAt`. Boleto que
+  > já tem data não revalida (`BLP.BIL41`) — ali o caminho é cancelar o agendamento.
 - `Approved` passa a comportar dois significados — *sem data* (esperando agendamento) e *com data*
   (ordem a caminho). **Não** criamos status novo: custaria aresta na máquina, migração e mudança
   em todo o espelho do ADR-002 para expressar o que `ScheduledFor` já diz.

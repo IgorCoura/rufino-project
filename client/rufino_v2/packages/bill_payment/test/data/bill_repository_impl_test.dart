@@ -229,6 +229,65 @@ void main() {
       expect(detail.origin.senderAddress, 'cobranca@edp.com.br');
     });
 
+    // REGRESSÃO (2026-09-10): o vencimento aparecia um dia a menos. O servidor mandava
+    // o dia como instante de meia-noite UTC, `formatDate` chamava `.toLocal()`, e em
+    // UTC-3 o dia 25 virava 24. O `_day` do mapper lê os três números como escritos, e
+    // o teste roda com a zona do runner — por isso compara os CAMPOS, não o instante.
+    test('a calendar day keeps its day in any timezone', () {
+      final detail = BillMapper.detailFromJson({
+        'id': 'bill-day',
+        'status': 'Approved',
+        'kind': 'BankSlip',
+        'rail': 'Boleto',
+        'dueDate': '2026-06-25',
+        'minimumScheduleDate': '2026-06-22',
+        'scheduledFor': '2026-06-24',
+        'lastConsultedAt': '2026-06-20T09:00:00Z',
+        'snapshotExpiresAt': '2026-06-20T21:00:00Z',
+        'checks': const [],
+        'origin': {
+          'sourceKind': 'Mailbox',
+          'receivedAt': '2026-06-20T09:00:00Z',
+        },
+        'createdAt': '2026-06-20T09:00:00Z',
+      });
+
+      expect((detail.dueDate!.year, detail.dueDate!.month, detail.dueDate!.day),
+          (2026, 6, 25));
+      expect(detail.dueDate!.isUtc, isFalse,
+          reason: 'a day is local midnight, never an instant in UTC');
+      expect(
+        (detail.minimumScheduleDate!.month, detail.minimumScheduleDate!.day),
+        (6, 22),
+      );
+      expect((detail.scheduledFor!.month, detail.scheduledFor!.day), (6, 24));
+
+      // O instante continua instante: convertê-lo para dia apagaria a hora de que o
+      // prazo de validade do retrato depende.
+      expect(detail.lastConsultedAt, DateTime.utc(2026, 6, 20, 9));
+      expect(detail.snapshotExpiresAt, DateTime.utc(2026, 6, 20, 21));
+    });
+
+    // Cinto: se o servidor voltar a mandar o dia como instante, o mapper ainda lê o dia
+    // que está escrito em vez de deslocá-lo pelo fuso.
+    test('a day sent as midnight UTC is still read as that day', () {
+      final bill = BillMapper.fromJson({
+        'id': 'bill-legacy-day',
+        'status': 'AwaitingApproval',
+        'kind': 'BankSlip',
+        'rail': 'Boleto',
+        'dueDate': '2026-06-25T00:00:00Z',
+        'origin': {
+          'sourceKind': 'Mailbox',
+          'receivedAt': '2026-06-20T09:00:00Z',
+        },
+        'createdAt': '2026-06-20T09:00:00Z',
+      });
+
+      expect((bill.dueDate!.month, bill.dueDate!.day), (6, 25));
+      expect(bill.dueDate!.isUtc, isFalse);
+    });
+
     test('carries the reading status so the detail can say it is queued', () {
       final detail = BillMapper.detailFromJson({
         'id': 'bill-3',

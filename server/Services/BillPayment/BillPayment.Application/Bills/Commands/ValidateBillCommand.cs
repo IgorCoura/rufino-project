@@ -36,8 +36,18 @@ public sealed record ValidateBillCommand(Guid TenantId, Guid BillId) : ITenantSc
 /// o worker teria de deduzir isso do nível de risco, que confunde "não consegui verificar" com
 /// "verifiquei e é ruim".
 /// </param>
+/// <param name="ApprovalPreserved">
+/// A aprovação que existia continuou de pé — nada que o aprovador consentiu mudou nesta rodada
+/// (2026-09-10). É o que permite à tela dizer "pode agendar" em vez de mandar aprovar de novo.
+/// </param>
 public sealed record ValidateBillResponse(
-    Guid Id, string Status, string Risk, int BlockingFailures, int AttentionItems, bool LookupResolved);
+    Guid Id,
+    string Status,
+    string Risk,
+    int BlockingFailures,
+    int AttentionItems,
+    bool LookupResolved,
+    bool ApprovalPreserved);
 
 /// <summary>
 /// O handler faz <strong>orquestração</strong> e nada mais: consulta as portas, carrega os
@@ -114,7 +124,8 @@ public sealed class ValidateBillCommandHandler(
         return new ValidateBillResponse(
             bill.Id.Value, outcome.Status.Name, outcome.Risk.Name,
             outcome.BlockingFailures, outcome.AttentionItems,
-            LookupResolved: bankSlipResult?.IsResolved == true || pixResult?.IsResolved == true);
+            LookupResolved: bankSlipResult?.IsResolved == true || pixResult?.IsResolved == true,
+            ApprovalPreserved: outcome.ApprovalPreserved);
     }
 
     /// <summary>
@@ -185,5 +196,5 @@ public sealed class ValidateBillIdentifiedCommandHandler(
     : IdentifiedCommandHandler<ValidateBillCommand, ValidateBillResponse>(mediator, requestManager, logger)
 {
     protected override ValidateBillResponse CreateResultForDuplicateRequest()
-        => new(Guid.Empty, string.Empty, string.Empty, 0, 0, LookupResolved: false);
+        => new(Guid.Empty, string.Empty, string.Empty, 0, 0, LookupResolved: false, ApprovalPreserved: false);
 }

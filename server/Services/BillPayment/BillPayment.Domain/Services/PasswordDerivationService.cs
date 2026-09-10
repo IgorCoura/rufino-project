@@ -27,11 +27,29 @@ using BillPayment.Domain.SharedKernel;
 /// </remarks>
 public static class PasswordDerivationService
 {
-    /// <summary>Prefixos de CNPJ que os emissores usam. 8 é a raiz; 14 é o documento inteiro.</summary>
-    private static readonly int[] CnpjPrefixes = [5, 8, 14];
+    /// <summary>
+    /// Prefixos de CNPJ que os emissores usam. 8 é a raiz; 14 é o documento inteiro.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>3 e 4 entraram em 2026-09-10, contra documento real</strong> (achado do usuário):
+    /// um boleto cifrado do acervo abre com os <em>quatro</em> primeiros dígitos, e sem o prefixo
+    /// na lista a senha certa nunca era tentada — o PDF ficava <c>pdf_locked</c> por ausência de
+    /// candidata, não por senha errada. A medição anterior (11 PDFs, 2026-08-11) só tinha visto
+    /// 5 e 3, e a ausência do 4 passou por regra em vez de por amostra pequena.
+    /// </para>
+    /// <para>
+    /// <strong>Prefixo curto abre documento e não prova propriedade.</strong> Abrir continua
+    /// valendo — é para isso que a candidata existe —, mas o degrau 0 do roteamento deixa de
+    /// tratar como prova forte o que abriu com menos de
+    /// <see cref="PasswordCandidate.STRONG_PREFIX_MIN_LENGTH"/> dígitos: três são mil
+    /// possibilidades, e acerto pode ser coincidência.
+    /// </para>
+    /// </remarks>
+    private static readonly int[] CnpjPrefixes = [3, 4, 5, 8, 14];
 
     /// <summary>Prefixos de CPF. 6 cobre o formato "seis primeiros" de algumas concessionárias.</summary>
-    private static readonly int[] CpfPrefixes = [3, 5, 6, 11];
+    private static readonly int[] CpfPrefixes = [3, 4, 5, 6, 11];
 
     public static IReadOnlyList<PasswordCandidate> Derive(PayerProfile? profile)
     {
@@ -78,8 +96,8 @@ public static class PasswordDerivationService
             if (!seen.Add(value))
                 continue;
 
-            var suffix = length == digits.Length ? "full" : $"first_{length}";
-            candidates.Add(PasswordCandidate.From(value, $"{label}_{suffix}_{origin}"));
+            candidates.Add(PasswordCandidate.From(
+                value, PasswordCandidate.LabelForDocument(label, length, digits.Length, origin)));
         }
     }
 }

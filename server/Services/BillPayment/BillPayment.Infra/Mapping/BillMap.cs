@@ -311,6 +311,14 @@ internal sealed class BillMap : IEntityTypeConfiguration<Bill>
             approval.Property(a => a.RiskAtDecision)
                 .HasColumnName("approval_risk_at_decision")
                 .HasConversion(r => r!.Id, id => Enumeration.FromValue<RiskLevel>(id));
+
+            // Escalar, e não um Money owned: owned de 2º nível aqui gravaria NULL (ver o comentário
+            // dos instrumentos acima), e um valor aprovado que vira NULL em silêncio faria a
+            // revalidação concluir "nada mudou" sempre — justamente o contrário do que o campo
+            // existe para garantir.
+            approval.Property(a => a.AmountAtDecision)
+                .HasColumnName("approval_amount_at_decision")
+                .HasPrecision(18, 2);
         });
 
         builder.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();

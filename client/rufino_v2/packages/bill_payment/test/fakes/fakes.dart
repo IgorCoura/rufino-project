@@ -904,6 +904,7 @@ BillDetail billDetail({
   String status = BillStatuses.awaitingApproval,
   String? riskLevel,
   DateTime? lastConsultedAt,
+  DateTime? snapshotExpiresAt,
   DateTime? minimumScheduleDate,
   DateTime? dueDate,
   List<BillCheck> checks = const [],
@@ -930,6 +931,7 @@ BillDetail billDetail({
     ),
     createdAt: DateTime(2026, 8, 1),
     lastConsultedAt: lastConsultedAt,
+    snapshotExpiresAt: snapshotExpiresAt,
     minimumScheduleDate: minimumScheduleDate,
   );
 }

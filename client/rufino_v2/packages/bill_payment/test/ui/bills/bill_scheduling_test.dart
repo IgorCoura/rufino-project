@@ -21,12 +21,13 @@ void main() {
     required List<String> billScopes,
     DateTime? scheduledFor,
     List<BillHistoryEntry> history = const [],
+    DateTime? lastConsultedAt,
   }) async {
     repository.detail = billDetail(
       status: status,
       scheduledFor: scheduledFor,
       history: history,
-      lastConsultedAt: DateTime.now(),
+      lastConsultedAt: lastConsultedAt ?? DateTime.now(),
     );
     final viewModel = BillDetailViewModel(
       repository: repository,
@@ -115,6 +116,47 @@ void main() {
       );
 
       expect(find.widgetWithText(FilledButton, 'Agendar…'), findsNothing);
+    });
+
+    // A REGRESSÃO RELATADA (2026-09-10): aprovado com retrato vencido mostrava o botão
+    // habilitado e o clique voltava BLP.BIL06 — sem aviso, porque o banner só aparecia
+    // para quem aceita decisão, e aprovado não aceita.
+    testWidgets('a stale snapshot disables Agendar and says why',
+        (tester) async {
+      await pumpBill(
+        tester,
+        status: BillStatuses.approved,
+        billScopes: const ['view', 'schedule', 'validate'],
+        lastConsultedAt: DateTime.now().subtract(const Duration(hours: 22)),
+      );
+
+      final button = tester.widget<FilledButton>(
+        find.byKey(const Key('bill-schedule-button')),
+      );
+      expect(button.onPressed, isNull);
+
+      // O aviso aparece, e manda revalidar — e o botão de revalidar está à mão.
+      expect(find.byKey(const Key('bill-stale-snapshot-notice')), findsOneWidget);
+      expect(
+        find.textContaining('revalide antes de agendar'),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(OutlinedButton, 'Revalidar'), findsOneWidget);
+    });
+
+    testWidgets('a fresh snapshot leaves Agendar enabled', (tester) async {
+      await pumpBill(
+        tester,
+        status: BillStatuses.approved,
+        billScopes: const ['view', 'schedule'],
+        lastConsultedAt: DateTime.now().subtract(const Duration(hours: 2)),
+      );
+
+      final button = tester.widget<FilledButton>(
+        find.byKey(const Key('bill-schedule-button')),
+      );
+      expect(button.onPressed, isNotNull);
+      expect(find.byKey(const Key('bill-stale-snapshot-notice')), findsNothing);
     });
 
     // Sem a alçada de agendamento o botão SOME — a de aprovar não a implica.

@@ -26,7 +26,7 @@ internal sealed record BillContract(
     string Rail,
     BillPartyContract? Beneficiary,
     decimal? Amount,
-    DateTime? DueDate,
+    DateOnly? DueDate,
     string? BankCode,
     BillOriginContract Origin,
     DateTime CreatedAt);
@@ -59,7 +59,8 @@ internal sealed record ValidateBillResponseContract(
     Guid Id,
     string Status,
     int BlockingFailures,
-    int AttentionItems);
+    int AttentionItems,
+    bool ApprovalPreserved = false);
 
 internal sealed record BillPartyContract(string? Name, string? TradingName, string? TaxId);
 
@@ -82,13 +83,14 @@ internal sealed record BillDetailContract(
     BillPartyContract? Beneficiary,
     decimal? Amount,
     decimal? OriginalAmount,
-    DateTime? DueDate,
+    DateOnly? DueDate,
     string? BankCode,
-    DateTime? MinimumScheduleDate,
+    DateOnly? MinimumScheduleDate,
     DateTime? LastConsultedAt,
+    DateTime? SnapshotExpiresAt,
     IReadOnlyList<BillCheckContract> Checks,
     BillApprovalContract? Approval,
-    DateTime? ScheduledFor,
+    DateOnly? ScheduledFor,
     BillOriginContract Origin,
     DateTime CreatedAt,
     IReadOnlyList<BillHistoryEntryContract> History);

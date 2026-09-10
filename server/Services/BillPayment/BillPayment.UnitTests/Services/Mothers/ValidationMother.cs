@@ -138,12 +138,13 @@ internal static class ValidationMother
         DateOnly? dueDate = null,
         DateOnly? minimumScheduleDate = null,
         bool isOverdue = false,
-        LookupParty? beneficiary = null)
+        LookupParty? beneficiary = null,
+        Money? amount = null)
         => LookupSnapshot.Create(
             beneficiary ?? LookupParty.From(LookupMother.BENEFICIARY_NAME, null, LookupMother.BENEFICIARY_CNPJ),
             ConsultedAt,
             bankCode: new BankCode(BarcodeBankCode),
-            amount: BarcodeAmount,
+            amount: amount ?? BarcodeAmount,
             originalAmount: BarcodeAmount,
             dueDate: dueDate ?? (BarcodeDueDate is { } d ? DateOnly.FromDateTime(d) : null),
             isOverdue: isOverdue,
