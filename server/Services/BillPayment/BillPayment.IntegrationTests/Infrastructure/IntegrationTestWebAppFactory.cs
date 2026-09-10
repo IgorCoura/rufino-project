@@ -100,6 +100,11 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
         // query direto.
         builder.UseSetting("BillReading:Enabled", "false");
 
+        // A varredura de revalidação nasce LIGADA pelo mesmo motivo, e pela mesma razão não pode
+        // rodar solta aqui: reivindicaria boletos que os testes acabaram de semear, contaria
+        // tentativas e empurraria o backoff. Quem exercita a fila chama a query direto.
+        builder.UseSetting("BillRevalidation:Enabled", "false");
+
         // A fila de submissão de pagamentos (fase 3) também vem LIGADA por padrão — e é a que
         // menos pode rodar solta numa suíte: reivindicaria ordens que os testes acabaram de
         // semear e contaria tentativas. Quem exercita a fila chama a query/command direto.

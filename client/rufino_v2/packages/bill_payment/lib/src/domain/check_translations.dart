@@ -89,8 +89,20 @@ String? checkReasonMessage(String? reasonCode) => switch (reasonCode) {
 
       // Consulta oficial.
       'lookup_unavailable' =>
-        'A consulta oficial estava indisponível. Revalide mais tarde.',
-      'lookup_unresolved' => 'O provedor não reconheceu este documento.',
+        'Não foi possível verificar este boleto: a consulta oficial não '
+            'respondeu. Não há indício contra ele — há ausência de qualquer '
+            'confirmação sobre quem recebe, quanto e quando, e é isso que o '
+            'coloca em Extremo Perigo. Revalide mais tarde: respondendo a '
+            'consulta, a classificação cai sozinha.',
+      'lookup_unresolved' =>
+        'O provedor oficial não reconhece este documento. Título registrado é '
+            'sempre reconhecido, então revalidar não muda este resultado — e um '
+            'documento que ninguém registrou é o sinal mais forte de fabricação '
+            'que o sistema consegue dar.',
+      'lookup_not_configured' =>
+        'Esta conta ainda não vinculou a chave do provedor de pagamentos, '
+            'então nenhum boleto pode ser verificado. Revalidar não resolve: '
+            'vincule a conta no Perfil do Pagador e revalide depois.',
       'lookup_bank_mismatch' =>
         'O banco da consulta diverge do impresso no documento.',
       'lookup_amount_mismatch' =>
@@ -106,6 +118,9 @@ String? checkReasonMessage(String? reasonCode) => switch (reasonCode) {
       'payee_lookalike' =>
         'O nome parece o de um beneficiário conhecido, mas o documento é de '
             'outro. Possível golpe.',
+      'payee_same_cnpj_root' =>
+        'A cobrança veio de outra filial do beneficiário cadastrado — mesma '
+            'raiz de CNPJ. Confira e, se for o caso, cadastre a filial.',
       'payee_name_divergence' =>
         'O nome na consulta diverge do cadastro do beneficiário.',
       'payee_not_identified' =>
@@ -135,6 +150,17 @@ String? checkReasonMessage(String? reasonCode) => switch (reasonCode) {
         'O beneficiário impresso no documento NÃO é o que a consulta oficial '
             'devolveu. Forte indício de boleto adulterado — confira antes de '
             'qualquer coisa.',
+      'document_payee_from_email_body' =>
+        'O beneficiário divergente foi lido no CORPO DO E-MAIL, não no '
+            'documento — e o corpo é escrito por quem enviou a mensagem. '
+            'Confira o documento antes de decidir.',
+      'document_payee_suspicion' =>
+        'O beneficiário impresso no documento não é o que o Pix vai pagar. '
+            'Pode ser erro de leitura ou documento adulterado — confira o '
+            'documento antes de aprovar.',
+      'document_payee_is_the_payer' =>
+        'O único beneficiário lido no documento é o CNPJ do próprio pagador — '
+            'leitura descartada, sem nada a confrontar.',
       'document_amount_divergence' =>
         'O valor impresso no documento diverge do valor registrado.',
       'document_due_date_divergence' =>

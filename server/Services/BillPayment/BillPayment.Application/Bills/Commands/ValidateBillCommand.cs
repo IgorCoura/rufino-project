@@ -30,8 +30,14 @@ public sealed record ValidateBillCommand(Guid TenantId, Guid BillId) : ITenantSc
 /// deixaram de descrever o desfecho: com falha advisory, aviso e inconclusivo valendo Perigo,
 /// "zero bloqueios" passou a conviver com <c>Danger</c>.
 /// </param>
+/// <param name="LookupResolved">
+/// Algum trilho teve resposta da consulta oficial nesta rodada. É o que a varredura de
+/// revalidação lê para saber se o boleto saiu da fila ou se o provedor continua fora — sem ele,
+/// o worker teria de deduzir isso do nível de risco, que confunde "não consegui verificar" com
+/// "verifiquei e é ruim".
+/// </param>
 public sealed record ValidateBillResponse(
-    Guid Id, string Status, string Risk, int BlockingFailures, int AttentionItems);
+    Guid Id, string Status, string Risk, int BlockingFailures, int AttentionItems, bool LookupResolved);
 
 /// <summary>
 /// O handler faz <strong>orquestração</strong> e nada mais: consulta as portas, carrega os
@@ -108,7 +114,8 @@ public sealed class ValidateBillCommandHandler(
 
         return new ValidateBillResponse(
             bill.Id.Value, outcome.Status.Name, outcome.Risk.Name,
-            outcome.BlockingFailures, outcome.AttentionItems);
+            outcome.BlockingFailures, outcome.AttentionItems,
+            LookupResolved: bankSlipResult?.IsResolved == true || pixResult?.IsResolved == true);
     }
 
     /// <summary>
@@ -179,5 +186,5 @@ public sealed class ValidateBillIdentifiedCommandHandler(
     : IdentifiedCommandHandler<ValidateBillCommand, ValidateBillResponse>(mediator, requestManager, logger)
 {
     protected override ValidateBillResponse CreateResultForDuplicateRequest()
-        => new(Guid.Empty, string.Empty, string.Empty, 0, 0);
+        => new(Guid.Empty, string.Empty, string.Empty, 0, 0, LookupResolved: false);
 }

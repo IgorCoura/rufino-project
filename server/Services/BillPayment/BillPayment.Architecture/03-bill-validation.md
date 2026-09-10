@@ -99,9 +99,32 @@ Motivo de ser bloqueante: pagamento duplicado é irreversível na prática. O ca
 
 ### 3. `LookupAvailability`
 
-A consulta é obrigatória. Se o provedor está fora do ar ou a linha não é consultável, o check fica `Failed` (bloqueante) — o boleto fica visível como **Perigo** com motivo `lookup_unavailable` e um botão de revalidar (ADR-015). **Nunca** cai para "aprova sem consulta" *em silêncio*: aprovar sem consulta passou a ser possível, mas só com o aceite explícito gravado na trilha.
+A consulta é obrigatória, e falhar aqui leva o boleto a **Extremo Perigo** desde 2026-09-10
+(`CheckSeverity.Critical`, [ADR-024](adr/ADR-024-fonte-oficial-primeiro-e-a-regua-por-ausencia.md)).
+Era Perigo, e a promoção é deliberada: sem resposta ninguém confirmou quem recebe, quanto e quando,
+e quem conseguisse derrubar ou saturar a consulta ganharia justamente a janela em que o boleto não
+pode ser conferido. **Nunca** cai para "aprova sem consulta" *em silêncio*: aprovar sem consulta
+continua possível, agora com a alçada máxima e o aceite explícito gravado na trilha.
+
+Três motivos, porque pedem **ações diferentes** de quem aprova:
+
+| Motivo | Significa | O que resolve |
+|---|---|---|
+| `lookup_unavailable` | provedor fora do ar, timeout, circuito aberto | esperar — e a varredura de revalidação espera sozinha |
+| `lookup_unresolved` | o provedor respondeu que **não conhece** o título | nada; título registrado é sempre reconhecido |
+| `lookup_not_configured` | o tenant não vinculou a chave do provedor | vincular a conta no Perfil do Pagador |
+
+`BillRevalidationBackgroundService` reconsulta sozinho os boletos parados no primeiro motivo, com
+espera dobrando e teto de uma hora, e o vínculo da conta devolve à fila os do terceiro. Sem essa
+varredura o aviso "revalide mais tarde" seria trabalho manual que ninguém faz.
 
 ### 4. `LookupConsistency`
+
+**Compara o trilho que TIVER retrato.** Havendo código de barras e retrato do boleto, compara os
+dois; faltando o retrato do boleto, cai para a comparação do Pix em vez de sair `Skipped`
+(corrigido em 2026-09-10 — o ramo do Pix era inalcançável sempre que existisse um código de
+barras, e é em arrecadação, onde o boleto não resolve e o decode resolve, que isso mais custava).
+Só sai `Skipped` quando nenhum dos dois lados é comparável.
 
 Compara o que dá para ler offline com o que o sistema bancário devolveu:
 
@@ -121,13 +144,14 @@ Tolerância: nenhuma para banco; centavos exatos para valor original; ±1 dia pa
 2. Sem `Payee` com esse TaxId → `Inconclusive`, motivo `payee_not_registered`. A tela oferece "cadastrar como beneficiário" na aprovação, e a partir do próximo boleto o check passa. **Não é falha** — beneficiário novo é rotina.
 3. Com `Payee`: TaxId igual → `Passed`. TaxId igual mas `Payee` inativo → `Failed` (`payee_inactive`).
 4. Nome muito diferente do cadastro e dos aliases, com TaxId igual → `Passed` com evidência da divergência de nome + oferta de aprender o alias. Razão social muda; CNPJ não.
-5. TaxId diferente de todos os cadastros mas nome parecido com um cadastrado (distância de edição baixa sobre nome normalizado) → `Failed` com motivo `payee_lookalike`. **Este é o cenário de fraude de boleto** e é o que justifica a severidade bloqueante do check.
+5. TaxId diferente de todos os cadastros **mas de mesma raiz de CNPJ** que um deles → `Warning` com motivo `payee_same_cnpj_root` e severidade `Notice` (teto de Atenção). A raiz é atribuída pela Receita a um único inscrito: é a MESMA pessoa jurídica cobrando por outra filial, e quem fraudaria o boleto não tem como apresentar uma raiz da vítima. Entra **antes** do passo 6 — órgão público cobra por unidade da federação (a Receita emite DAS por uma filial do Ministério da Fazenda) e rede com CNPJ por loja faz o mesmo (acrescentado em 2026-09-10).
+6. TaxId diferente de todos os cadastros **e de raiz diferente**, mas nome parecido com um cadastrado (distância de edição baixa sobre nome normalizado) → `Failed` com motivo `payee_lookalike`. **Este é o cenário de fraude de boleto** e é o que justifica a severidade bloqueante do check.
 
 #### Arrecadação não tem documento — o check degrada para nome
 
 **Medido:** a consulta oficial devolve `beneficiaryCpfCnpj` nulo em **100%** dos boletos de arrecadação, e `companyName` preenchido em 100% ([doc 12](12-official-lookup-coverage.md)). Parte disso é estrutural: o código de barras de arrecadação carrega identificador de convênio, não CNPJ.
 
-Então os passos 1 a 5 acima, que giram em torno do TaxId, **não se aplicam a `BillKind.Utility`**. O que resta:
+Então os passos 1 a 6 acima, que giram em torno do TaxId, **não se aplicam a `BillKind.Utility`** — exceto no documento híbrido, cujo decode Pix devolve o CNPJ do recebedor. O que resta:
 
 - Sem `Payee` cujo `MatchesName` case com `companyName`/`beneficiaryName` → `Inconclusive`, motivo `payee_not_registered`, mesmo fluxo de "cadastrar como beneficiário".
 - Casou por nome → **`Passed` rebaixado**: a evidência registra `matched_by_name_only`, e a tela de aprovação precisa mostrar isso como **verificação parcial**, não como o mesmo "verificado" da cobrança bancária. Nome é falsificável; documento não é.
@@ -154,7 +178,8 @@ Comparação: `DigitableLine.BankCode` ∈ `Payee.AcceptedBanks`.
 - **Trilho Pix** → a instituição vem como **ISPB de 8 dígitos**, não COMPE de 3. `IBankDirectory.FromIspb` faz a tradução a partir da relação de participantes do STR publicada pelo Bacen, e aí a comparação contra `Payee.AcceptedBanks` é a mesma dos dois trilhos. ISPB sem correspondência de três dígitos → `Inconclusive` (`ispb_without_compe_code`), nunca `Failed`: instituição só de Pix é legítima.
 - **Banco desconhecido no diretório do Bacen** → `Failed`. Um código de três dígitos que não corresponde a instituição nenhuma denuncia código de barras fabricado — é o segundo filtro de plausibilidade que o [doc 08](08-boleto-corpus-findings.md) pediu, depois do guard de banco não atribuído que já vive no VO.
 - **Banco existe mas não participa da Compe** → `Warning`. Boleto liquida pela Compe; um emissor fora dela é anomalia que merece o olho do aprovador sem bloquear, porque a tabela do Bacen pode estar mais velha que a realidade.
-- `BillKind.Utility` → `Skipped`, motivo `bank_not_available_for_utility`. **Não é escolha de desenho, é ausência de dado.** O código de barras de arrecadação não tem campo de banco em posição nenhuma — as posições 1–3 são produto (`8`), segmento e identificador de valor —, e a consulta devolve `bank` nulo em 100% dos casos medidos. Contas de convênio liquidam fora da compensação bancária tradicional. Trocar de provedor não muda isso.
+- `BillKind.Utility` **sem QR Pix** → `Skipped`, motivo `bank_not_available_for_utility`. **Não é escolha de desenho, é ausência de dado.** O código de barras de arrecadação não tem campo de banco em posição nenhuma — as posições 1–3 são produto (`8`), segmento e identificador de valor —, e a consulta devolve `bank` nulo em 100% dos casos medidos. Contas de convênio liquidam fora da compensação bancária tradicional. Trocar de provedor não muda isso.
+- `BillKind.Utility` **com QR Pix** → o check **roda**, com o banco vindo do `receiverIspb` do decode (corrigido em 2026-09-10). O achado 3 do [doc 12](12-official-lookup-coverage.md) já dizia que o Pix cobre o buraco da arrecadação para o beneficiário; vale igual para o banco. Pular o check com o banco na mão fazia a tela dizer "não se aplica" enquanto o bloco da consulta oficial, logo abaixo, exibia `BANCO DO BRASIL S.A.`. **Consequência operacional:** guia híbrida cujo beneficiário não tem bancos aceitos cadastrados passa a sair `Inconclusive` (`bank_expectation_not_set`) em vez de `Skipped` — cadastrar o banco aceito é o que a leva a verde.
 
 ### 7. `AmountMatch` — o valor condiz?
 
@@ -170,7 +195,9 @@ A evidência registra **valor original × valor atualizado × juros/multa**, par
 
 ### 8. `PayerMatch` — o pagador condiz?
 
-Compara o TaxId do pagador extraído do PDF (com DV validado) contra o `PayerProfile` do tenant: `PrimaryTaxId`, `AdditionalTaxIds`, e a raiz do CNPJ quando `MatchByCnpjRoot` está ligado.
+Compara o pagador contra o `PayerProfile` do tenant — `PrimaryTaxId`, `AdditionalTaxIds`, e a raiz do CNPJ quando `MatchByCnpjRoot` está ligado.
+
+**A ordem das fontes mudou em 2026-09-10** ([ADR-024](adr/ADR-024-fonte-oficial-primeiro-e-a-regua-por-ausencia.md)): o pagador que o decode do Pix devolve é **fonte oficial** e vem antes do CNPJ inferido do PDF. Estava atrás, e por isso nunca era consultado num documento que trazia o CNPJ impresso — o check saía `Passed` com uma contradição oficial por ler. A assimetria do ADR-004 não muda: contradição bloqueia, compatibilidade não confirma.
 
 | Situação | Outcome | Severidade | Motivo |
 |---|---|---|---|
@@ -199,6 +226,8 @@ Resolve `Origin.SenderAddress` (ou o domínio do portal) contra `TrustedOrigin`,
 Sutileza que precisa estar na UI: **um remetente confiável não torna o boleto confiável** — e-mail é trivialmente falsificável no envelope e contas legítimas são comprometidas. `OriginTrust=Passed` nunca compensa `PayeeMatch=Failed`. A ordem de leitura da tela deve ser identidade do beneficiário primeiro, origem por último.
 
 ### 10. `DueDateSanity`
+
+**A data é a do agregado** (`Bill.DueDate`), não um recálculo local: o check refazia a precedência à mão, sempre pelo boleto primeiro e **pulando a linha digitável**, e a verificação 14 lia outra data no mesmo boleto (corrigido em 2026-09-10). `Bill.DueDateOrigin` diz a procedência — oficial, código de barras (protegida por DV) ou leitura por IA —, e a evidência a declara.
 
 - Vencido (`isOverdue`) → `Failed` (`overdue`) com o valor atualizado destacado. Asaas processa boleto vencido imediatamente, sem agendamento.
 - Vence hoje após o horário de corte do provedor → `Failed` (`same_day_after_cutoff`).
@@ -242,10 +271,19 @@ O par que faltava no catálogo: `LookupConsistency` compara o **parse offline** 
 | Campo | Comparação | Divergência |
 |---|---|---|
 | Beneficiário | `Reading.PayeeTaxId` (DV provado) × `Bill.Beneficiary.TaxId` | `Failed` **escalado para Blocking** (`document_payee_mismatch`) — Perigo |
+| Beneficiário lido = documento do **próprio tenant** | descartado antes de comparar (`document_payee_is_the_payer`) | nunca contradiz — ver abaixo |
 | Valor | `Reading.Amount` × `Lookup.OriginalAmount` (valor de face) | `Warning` (`document_amount_divergence`) — encargos de vencido são legítimos e **não** disparam, porque a base é o original |
 | Vencimento | `Reading.DueDate` × vencimento oficial (±1 dia) | `Warning` (`document_due_date_divergence`) |
 
 A assimetria é a mesma do `PayerMatch`: **contradição pesa, ausência nunca** — sem leitura (`Skipped`, `reading_not_available`), sem campo oficial comparável (`Inconclusive`). Erro de OCR não pode rejeitar boleto legítimo; por isso só a identidade, que o DV já provou, escala para Blocking.
+
+#### O beneficiário lido que é o próprio pagador é descartado (2026-09-10)
+
+Guia de tributo — DAS, DARF, GPS — imprime **um** par CNPJ/Razão Social, o do **contribuinte**, e não imprime beneficiário nenhum: o órgão arrecadador só existe dentro do código de barras. Diante de um campo `payeeTaxId` a preencher e de uma única parte no papel, o extrator atribuía essa parte ao beneficiário — e todo boleto de imposto nascia bloqueado como "instrumento trocado sobre documento legítimo". Foi assim que o DAS de 2026-09-21 apareceu com `02.624.917/0001-92` impresso contra `00.394.460/0058-87` na consulta.
+
+**O descarte não custa capacidade de detecção.** A fraude que o check existe para pegar imprime **sempre um terceiro** — o CNPJ para onde o dinheiro deve ir. Um "beneficiário" igual ao pagador não descreve pagamento nenhum: é a mesma impossibilidade que o check 8 usa para bloquear pelo lado oposto (`payee_is_the_payer`). Sem cadastro fiscal do tenant não há como saber, e aí **nada é descartado** — "não sei" nunca autoriza jogar fora evidência de fraude.
+
+A causa raiz foi corrigida junto, no prompt: `payerName`/`payerTaxId`/`payeeName`/`payeeTaxId` estavam no `responseSchema` e **não eram descritos em lugar nenhum** da instrução. Agora o prompt define os quatro pelos rótulos impressos e manda deixar o beneficiário vazio quando ele não está no papel. Prompt é mitigação probabilística; o descarte no domínio é a garantia.
 
 `DueDateSanity` ganhou, na mesma fase, a leitura como **última reserva** de vencimento: QR estático sem data oficial usa a impressa no documento, com a procedência declarada na evidência — e essa data alimenta o agendamento (decisão do usuário, 2026-08-27).
 
@@ -289,12 +327,28 @@ Reescrita em 2026-08-27 ([`adr/ADR-015`](adr/ADR-015-risco-classificado-humano-d
 
 Reescrita de novo em 2026-09-08 ([`adr/ADR-020`](adr/ADR-020-expectativa-na-validacao-e-a-regua-endurecida.md)). A régua deixou de ser uma cadeia de `if` dentro do agregado: **cada verificação diz sozinha quanto pesa** (`RiskLevel.Of(outcome, severity)`) e `RecordChecks` agrega pelo pior.
 
+Ajustada em 2026-09-10 ([`adr/ADR-024`](adr/ADR-024-fonte-oficial-primeiro-e-a-regua-por-ausencia.md)): a
+ausência de **consulta oficial** subiu para Extremo Perigo, e a ausência de **cadastro** desceu
+para o teto de Atenção. A ausência de **identidade** — não saber quem é o beneficiário, não saber
+de quem é o boleto — continua em Perigo, e isso é invariante: é ela que segura o boleto adulterado
+de fornecedor novo.
+
 | Situação | Status | `RiskLevel` | Aprovação |
 |---|---|---|---|
-| Alguma falha `Critical` | `AwaitingApproval` | **Extremo Perigo** | exige `acknowledgeRisk: true` **e** `approve-extreme` |
+| Alguma falha `Critical` — blacklist, origem banida **ou consulta oficial sem resposta** | `AwaitingApproval` | **Extremo Perigo** | exige `acknowledgeRisk: true` **e** `approve-extreme` |
 | Algum `Blocking`/`Advisory` = `Failed`, `Warning` ou `Inconclusive` | `AwaitingApproval` | **Perigo** (banner vermelho) | exige `acknowledgeRisk: true`; sem ele, `BLP.BIL27` (409) |
-| Só desfechos `Notice` — expectativa, prazo ou nome | `AwaitingApproval` | **Atenção** (banner âmbar) | normal |
+| Só desfechos `Notice` — expectativa, prazo, nome do beneficiário ou **ausência de cadastro** | `AwaitingApproval` | **Atenção** (banner âmbar) | normal |
 | Todos `Passed` ou `Skipped` | `AwaitingApproval` | **Seguro** (banner verde) | normal |
+
+Os desfechos com teto de Atenção acrescentados em 2026-09-10:
+
+| `ReasonCode` | Por quê |
+|---|---|
+| `bank_expectation_not_set` | o tenant nunca declarou bancos aceitos — ausência de expectativa não desmente nada |
+| `amount_policy_unbounded` | idem, para valor |
+| `routing_inferred` | informa por qual degrau o boleto chegou; não desmente |
+| `nothing_comparable` / `official_identity_not_available` / `document_payee_is_the_payer` | a leitura existe e não havia campo oficial para confrontar |
+| `document_payee_suspicion` / `document_payee_from_email_body` | divergência do impresso onde a identidade oficial já é forte, ou onde o número veio de texto de terceiro |
 
 Desfechos da verificação 14, todos com teto de Atenção:
 

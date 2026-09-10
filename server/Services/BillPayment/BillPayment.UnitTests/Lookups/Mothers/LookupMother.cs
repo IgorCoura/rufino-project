@@ -56,13 +56,14 @@ internal static class LookupMother
     public static PixLookupSnapshot PixDynamic(
         Money? totalAmount = null,
         bool canBePaid = true,
-        MaskedParty? payer = null)
+        MaskedParty? payer = null,
+        string? receiverIspb = null)
         => PixLookupSnapshot.Create(
             LookupParty.From(BENEFICIARY_NAME, tradingName: null, BENEFICIARY_CNPJ),
             ConsultedAt,
             canBePaid: canBePaid,
             isDynamic: true,
-            receiverIspb: "60701190",
+            receiverIspb: receiverIspb ?? "60701190",
             receiverIspbName: "ITAÚ UNIBANCO S.A.",
             receiverKind: TaxIdKind.CNPJ,
             amount: Brl(150.00m),

@@ -98,7 +98,9 @@ internal sealed class BillReadingSource(
         if (attempt.IsRetryable)
             return new BillReadingOutcome(attempt.Status, Reading: null, attempt.ReasonCode);
 
-        var reading = DocumentReading.FromExtraction(attempt.Document, clock.GetUtcNow());
+        // O corpo do e-mail viaja junto para o extrator, e é ele que dá a procedência: documento
+        // fiscal que só existe ali foi escrito por quem mandou a mensagem.
+        var reading = DocumentReading.FromExtraction(attempt.Document, clock.GetUtcNow(), body?.Text);
 
         return reading.HasContent
             ? new BillReadingOutcome(attempt.Status, reading, ReasonCode: null)

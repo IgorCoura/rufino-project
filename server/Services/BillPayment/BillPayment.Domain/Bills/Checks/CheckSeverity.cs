@@ -27,9 +27,23 @@ public sealed class CheckSeverity : Enumeration
     public static readonly CheckSeverity Advisory = new(2, nameof(Advisory));
 
     /// <summary>
-    /// Falha por declaração explícita do tenant (blacklist, origem bloqueada) — leva o boleto a
-    /// Extremo Perigo, um degrau acima do <see cref="Blocking"/>.
+    /// Leva o boleto a Extremo Perigo, um degrau acima do <see cref="Blocking"/>.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>São duas famílias, e não uma.</strong> A original é a <em>declaração explícita do
+    /// tenant</em> — beneficiário na blacklist, origem bloqueada: alguém aqui dentro já disse que
+    /// aquele ator é hostil. A segunda entrou em 2026-09-10 e é a <em>ausência total de
+    /// verificação</em>: a consulta oficial não respondeu, então nada foi confirmado sobre o
+    /// destino do dinheiro.
+    /// </para>
+    /// <para>
+    /// O que as une é o que elas pedem de quem aprova: alçada máxima e aceite explícito. O que as
+    /// separa é o remédio — a primeira se resolve tirando o ator da lista, a segunda se resolve
+    /// sozinha quando a consulta volta a responder. Por isso o <strong>motivo</strong> importa
+    /// tanto quanto a severidade, e a tela não pode falar de blacklist quando o caso é o outro.
+    /// </para>
+    /// </remarks>
     public static readonly CheckSeverity Critical = new(3, nameof(Critical));
 
     /// <summary>
@@ -44,10 +58,19 @@ public sealed class CheckSeverity : Enumeration
     /// alerta que importa passa batido, exatamente o que o ADR-003 mandou evitar.
     /// </para>
     /// <para>
-    /// Três coisas ficam aqui, e só elas: <strong>a expectativa</strong> (conta que ninguém
-    /// esperava), <strong>o prazo</strong> (vencido, fora do corte — problema de calendário, não
-    /// de fraude) e <strong>o nome do beneficiário</strong> (grafia divergente ou cotejo só por
-    /// nome, com a identidade confirmada em parte). Contradição entre fontes nunca chega aqui.
+    /// O que fica aqui tem uma forma só: <strong>ausência que não desmente nada</strong>. A
+    /// expectativa (conta que ninguém esperava), o prazo (vencido ou fora do corte — problema de
+    /// calendário, não de fraude), o nome do beneficiário (grafia divergente ou cotejo só por
+    /// nome) e, desde 2026-09-10, a <strong>ausência de cadastro</strong>: beneficiário sem bancos
+    /// aceitos, sem política de valor, boleto atribuído por inferência, e leitura sem campo oficial
+    /// correspondente para confrontar.
+    /// </para>
+    /// <para>
+    /// <strong>A fronteira é entre ausência de CADASTRO e ausência de IDENTIDADE.</strong> Não ter
+    /// declarado bancos aceitos é o tenant não ter configurado nada; não saber quem é o
+    /// beneficiário (<c>payee_not_registered</c>) ou de quem é o boleto
+    /// (<c>payer_not_extractable</c>) é o sistema não ter provado nada — e esses continuam
+    /// pesando como Perigo. Contradição entre fontes nunca chega aqui.
     /// </para>
     /// </remarks>
     public static readonly CheckSeverity Notice = new(4, nameof(Notice));

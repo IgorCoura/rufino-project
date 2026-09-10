@@ -38,6 +38,15 @@ public sealed class DocumentReading : ValueObject
     /// <summary>Documento do beneficiário lido, já provado pelo DV. Nulo quando ilegível.</summary>
     public TaxId? PayeeTaxId { get; private init; }
 
+    /// <summary>
+    /// Se o documento do beneficiário lido veio do corpo do e-mail — que quem enviou escreveu.
+    /// </summary>
+    /// <remarks>
+    /// É o que impede o check 13 de bloquear com base num número plantado por quem mandou a
+    /// mensagem. Apurado por procura determinística nos dígitos, nunca declarado pelo extrator.
+    /// </remarks>
+    public ReadingFieldSource PayeeTaxIdSource { get; private init; } = ReadingFieldSource.NotRead;
+
     /// <summary>Instalação, matrícula, unidade ou contrato — alimenta roteamento e expectativa.</summary>
     public string? AccountReference { get; private init; }
 
@@ -73,18 +82,26 @@ public sealed class DocumentReading : ValueObject
     /// <summary>
     /// Compõe o retrato a partir do que o extrator propôs, validando o que é validável.
     /// </summary>
-    public static DocumentReading FromExtraction(ExtractedDocument extracted, DateTimeOffset readAt)
+    /// <param name="untrustedText">
+    /// O corpo do e-mail que viajou junto do documento para o extrator. Quem o escreveu foi quem
+    /// mandou a mensagem, então documento fiscal que aparece <strong>ali</strong> não pode, por si
+    /// só, bloquear um boleto — nem calar a verificação. Nulo quando não houve corpo.
+    /// </param>
+    public static DocumentReading FromExtraction(
+        ExtractedDocument extracted, DateTimeOffset readAt, string? untrustedText = null)
     {
         ArgumentNullException.ThrowIfNull(extracted);
 
         var period = Clamp(extracted.BillingPeriod);
+        var payeeTaxId = TaxId.TryParse(extracted.PayeeTaxId, out var payee) ? payee : null;
 
         return new DocumentReading
         {
             PayerName = Clamp(extracted.PayerName),
             PayerTaxId = TaxId.TryParse(extracted.PayerTaxId, out var payer) ? payer : null,
             PayeeName = Clamp(extracted.PayeeName),
-            PayeeTaxId = TaxId.TryParse(extracted.PayeeTaxId, out var payee) ? payee : null,
+            PayeeTaxId = payeeTaxId,
+            PayeeTaxIdSource = SourceOf(payeeTaxId, untrustedText),
             AccountReference = Clamp(extracted.AccountReference),
             Amount = extracted.Amount is > 0 ? extracted.Amount : null,
             DueDate = extracted.DueDate,
@@ -94,6 +111,29 @@ public sealed class DocumentReading : ValueObject
             Notes = Clamp(extracted.Notes),
             ReadAt = readAt,
         };
+    }
+
+    /// <summary>
+    /// Os dígitos do documento lido aparecem no texto que veio de fora?
+    /// </summary>
+    /// <remarks>
+    /// A comparação é sobre <strong>só os dígitos</strong> dos dois lados, porque o e-mail escreve
+    /// CNPJ formatado, com espaço, ou partido por marcação — e a formatação não é o que importa.
+    /// Achar é conclusivo; não achar significa apenas "não veio de lá", que é o que
+    /// <see cref="ReadingFieldSource.Document"/> diz.
+    /// </remarks>
+    private static ReadingFieldSource SourceOf(TaxId? taxId, string? untrustedText)
+    {
+        if (taxId is null)
+            return ReadingFieldSource.NotRead;
+        if (string.IsNullOrWhiteSpace(untrustedText))
+            return ReadingFieldSource.Document;
+
+        var digits = string.Concat(untrustedText.Where(char.IsAsciiDigit));
+
+        return digits.Contains(taxId.Value, StringComparison.Ordinal)
+            ? ReadingFieldSource.EmailBody
+            : ReadingFieldSource.Document;
     }
 
     /// <summary>Reidrata da persistência, sem revalidar — o que entrou já foi validado.</summary>
@@ -109,13 +149,20 @@ public sealed class DocumentReading : ValueObject
         CompetencePeriod? competence,
         string? description,
         string? notes,
-        DateTimeOffset readAt)
+        DateTimeOffset readAt,
+        ReadingFieldSource? payeeTaxIdSource = null)
         => new()
         {
             PayerName = payerName,
             PayerTaxId = payerTaxId,
             PayeeName = payeeName,
             PayeeTaxId = payeeTaxId,
+
+            // Retrato gravado antes de 2026-09-10 não tem procedência. Assumir Document preserva
+            // o comportamento com que ele foi classificado — inventar EmailBody desarmaria em
+            // silêncio um bloqueio que já havia sido apurado.
+            PayeeTaxIdSource = payeeTaxIdSource
+                ?? (payeeTaxId is null ? ReadingFieldSource.NotRead : ReadingFieldSource.Document),
             AccountReference = accountReference,
             Amount = amount,
             DueDate = dueDate,
@@ -199,6 +246,7 @@ public sealed class DocumentReading : ValueObject
         yield return PayerTaxId;
         yield return PayeeName;
         yield return PayeeTaxId;
+        yield return PayeeTaxIdSource;
         yield return AccountReference;
         yield return Amount;
         yield return DueDate;

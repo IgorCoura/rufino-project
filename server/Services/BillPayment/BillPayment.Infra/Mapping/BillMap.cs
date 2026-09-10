@@ -122,6 +122,14 @@ internal sealed class BillMap : IEntityTypeConfiguration<Bill>
             .IsRequired();
 
         builder.Property(e => e.ReadingAttempts).HasColumnName("reading_attempts").IsRequired();
+
+        builder.Property(e => e.RevalidationAttempts)
+            .HasColumnName("revalidation_attempts")
+            .IsRequired();
+
+        builder.Property(e => e.RevalidationNextAttemptAt)
+            .HasColumnName("revalidation_next_attempt_at");
+
         builder.Property(e => e.ReadingLeaseExpiresAt).HasColumnName("reading_lease_expires_at");
 
         builder.Property(e => e.ReadingArrivedAfterDecision)
@@ -131,6 +139,7 @@ internal sealed class BillMap : IEntityTypeConfiguration<Bill>
         // Derivado — não é coluna. Ligá-lo ao banco criaria um segundo lugar para a regra
         // "ainda dá para revalidar sem desfazer decisão de ninguém" envelhecer.
         builder.Ignore(e => e.AcceptsSilentRevalidation);
+        builder.Ignore(e => e.DueDateOrigin);
 
         // A fila da análise por IA: pendentes, do mais antigo para o mais novo. Parcial porque só
         // um estado interessa, e a coluna é altamente seletiva.

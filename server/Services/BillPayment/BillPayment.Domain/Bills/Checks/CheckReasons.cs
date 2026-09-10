@@ -30,6 +30,13 @@ public static class CheckReasons
     // Consulta oficial.
     public const string LOOKUP_UNAVAILABLE = "lookup_unavailable";
     public const string LOOKUP_UNRESOLVED = "lookup_unresolved";
+
+    /// <summary>
+    /// Nenhum trilho pôde ser consultado porque o tenant não vinculou a chave do provedor.
+    /// Separado de <see cref="LOOKUP_UNAVAILABLE"/> porque aqui <strong>revalidar não resolve</strong>:
+    /// o aviso precisa mandar vincular a conta, não esperar.
+    /// </summary>
+    public const string LOOKUP_NOT_CONFIGURED = "lookup_not_configured";
     public const string LOOKUP_BANK_MISMATCH = "lookup_bank_mismatch";
     public const string LOOKUP_AMOUNT_MISMATCH = "lookup_amount_mismatch";
     public const string LOOKUP_DUE_DATE_MISMATCH = "lookup_due_date_mismatch";
@@ -41,6 +48,12 @@ public static class CheckReasons
     /// <summary>O tenant marcou o beneficiário na blacklist. Falha bloqueante — o boleto nasce Perigo.</summary>
     public const string PAYEE_BLACKLISTED = "payee_blacklisted";
     public const string PAYEE_LOOKALIKE = "payee_lookalike";
+
+    /// <summary>
+    /// O documento é outro CNPJ do mesmo inscrito — a raiz confere e só a filial muda. Não é
+    /// sósia: quem fraudaria o boleto não tem como apresentar uma raiz da pessoa jurídica alheia.
+    /// </summary>
+    public const string PAYEE_SAME_CNPJ_ROOT = "payee_same_cnpj_root";
     public const string PAYEE_NAME_DIVERGENCE = "payee_name_divergence";
     public const string PAYEE_NOT_IDENTIFIED = "payee_not_identified";
 
@@ -54,6 +67,7 @@ public static class CheckReasons
     public const string BANK_OUTSIDE_COMPE = "bank_outside_compe";
     public const string BANK_SOURCE_CONFLICT = "bank_source_conflict";
     public const string BANK_NOT_AVAILABLE_FOR_UTILITY = "bank_not_available_for_utility";
+
     public const string ISPB_WITHOUT_COMPE_CODE = "ispb_without_compe_code";
     public const string BANK_NOT_AVAILABLE = "bank_not_available";
 
@@ -108,6 +122,28 @@ public static class CheckReasons
     // 13. DocumentConsistency
     public const string READING_NOT_AVAILABLE = "reading_not_available";
     public const string DOCUMENT_PAYEE_MISMATCH = "document_payee_mismatch";
+
+    /// <summary>
+    /// O mesmo confronto do <see cref="DOCUMENT_PAYEE_MISMATCH"/>, mas no trilho Pix, onde a
+    /// identidade oficial é forte (o decode devolve o CNPJ do recebedor). Aviso com teto de
+    /// Atenção: divergir de uma identidade já verificada é mais provável ser erro da leitura por
+    /// IA — que ninguém certifica — do que documento adulterado.
+    /// </summary>
+    public const string DOCUMENT_PAYEE_SUSPICION = "document_payee_suspicion";
+
+    /// <summary>
+    /// O documento fiscal divergente veio do CORPO DO E-MAIL, que quem enviou escreveu. Aviso, e
+    /// nunca bloqueio: bloquear com base nele daria a quem manda a mensagem o poder de travar os
+    /// pagamentos de quem a recebe.
+    /// </summary>
+    public const string DOCUMENT_PAYEE_FROM_EMAIL_BODY = "document_payee_from_email_body";
+
+    /// <summary>
+    /// A leitura por IA atribuiu ao beneficiário o documento do PRÓPRIO pagador. É defeito de
+    /// leitura, não contradição: guia de tributo imprime um só par CNPJ/Razão Social, e ele é o
+    /// do contribuinte.
+    /// </summary>
+    public const string DOCUMENT_PAYEE_IS_THE_PAYER = "document_payee_is_the_payer";
     public const string DOCUMENT_AMOUNT_DIVERGENCE = "document_amount_divergence";
     public const string DOCUMENT_DUE_DATE_DIVERGENCE = "document_due_date_divergence";
     public const string OFFICIAL_IDENTITY_NOT_AVAILABLE = "official_identity_not_available";

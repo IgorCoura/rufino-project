@@ -2,6 +2,7 @@ namespace BillPayment.Infra.Mapping;
 
 using System.Text.Json;
 using BillPayment.Domain.Bills;
+using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -42,7 +43,8 @@ internal static class ReadingConversions
                     reading.Competence?.Month,
                     reading.Description,
                     reading.Notes,
-                    reading.ReadAt),
+                    reading.ReadAt,
+                    reading.PayeeTaxIdSource.Id),
                 Json);
 
     private static DocumentReading? Deserialize(string? json)
@@ -67,7 +69,13 @@ internal static class ReadingConversions
                 : null,
             record.Description,
             record.Notes,
-            record.ReadAt);
+            record.ReadAt,
+
+            // Ausente nos retratos gravados antes de 2026-09-10; a factory assume Document, que é
+            // como eles foram classificados.
+            record.PayeeTaxIdSourceId is { } sourceId
+                ? Enumeration.FromValue<ReadingFieldSource>(sourceId)
+                : null);
     }
 
     private sealed record ReadingRecord(
@@ -83,5 +91,6 @@ internal static class ReadingConversions
         int? CompetenceMonth,
         string? Description,
         string? Notes,
-        DateTimeOffset ReadAt);
+        DateTimeOffset ReadAt,
+        int? PayeeTaxIdSourceId = null);
 }

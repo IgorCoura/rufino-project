@@ -75,6 +75,35 @@ public sealed class BillReadingEnrichmentTests : BaseIntegrationTest
         Assert.Equal(7, detail.Reading.CompetenceMonth);
     }
 
+    // REGRESSÃO (DAS do Ministério da Fazenda, 2026-09-10): guia de imposto imprime UM par
+    // CNPJ/Razão Social, o do contribuinte, e a leitura por IA o atribuía ao beneficiário. Sem
+    // consulta oficial resolvida, a lista de boletos anunciava o PAGADOR como quem vai receber o
+    // dinheiro. O retrato preserva o que foi lido — quem descarta é a projeção.
+    [Fact]
+    public async Task List_WhenTheReadingNamesThePayerAsPayee_ShouldNotShowHimAsBeneficiary()
+    {
+        await SeedTrustedOriginAsync();
+        await SeedPayerProfileAsync();
+        _vision.Result = ExtractedDocument.From(
+            payeeName: "RUFINO EMPREITEIRA",
+            payeeTaxId: TenantCnpj,
+            description: "DAS Simples Nacional");
+
+        var itemId = await SeedAsync(PdfWith("Banco Itau", TenantCnpj, ValidBankSlip));
+        var result = await ProcessAsync(itemId);
+        Assert.NotNull(result.BillId);
+
+        var bill = await LoadBillAsync(result.BillId!.Value);
+        Assert.Equal(TenantCnpj, bill.Reading!.PayeeTaxId!.Value);
+
+        using var scope = _services.CreateScope();
+        var queries = scope.ServiceProvider.GetRequiredService<IBillQueries>();
+        var page = await queries.ListAsync(Tenant.Value, status: null, cursor: null, limit: 20);
+
+        var listed = page.Items.Single(b => b.Id == result.BillId.Value);
+        Assert.Null(listed.Beneficiary);
+    }
+
     // A captura nunca é refém da IA: modelo devolvendo vazio, o boleto nasce mesmo assim — sem
     // retrato, e com o vencimento da linha digitável intacto.
     [Fact]

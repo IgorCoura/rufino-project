@@ -2,6 +2,59 @@
 
 Registro de correções e lições aprendidas neste BC (ver regra em CLAUDE.md → Self-Correction).
 
+## Preferir uma fonte não é o mesmo que confrontar duas — e confundir isso já custou quatro checks
+
+**Quando:** 2026-09-10, ao procurar se o defeito do banco recebedor se repetia em outro lugar.
+
+**O que aconteceu:** quatro verificações preferiam o dado do documento ao da consulta oficial, ou
+descartavam a fonte que respondeu porque a outra não respondeu — o check 4 saía `Skipped` num
+documento cujo Pix estava inteiramente comparável, o 6 confrontava com o cadastro um banco que não
+ia receber nada, o 8 lia o CNPJ inferido do PDF antes do pagador oficial do decode, e o 10 refazia
+a precedência de vencimento à mão e produzia uma data diferente da que a verificação 14 lia.
+
+**Por que é traiçoeiro:** a regra "use sempre a consulta oficial" parece universal e **não é**. Os
+checks fazem três coisas diferentes com os dados:
+
+| Função | Checks | Regra |
+|---|---|---|
+| Decidir contra o cadastro | 5, 6, 7, 14 | Oficial do trilho que paga → outro trilho → nunca o documento |
+| Confrontar fonte contra fonte | 4, 12, 13 | O documento entra **por definição** — confrontar é o objetivo |
+| Preencher lacuna | 10 | Oficial → linha digitável (DV) → leitura por IA, com a procedência na evidência |
+
+Aplicar a primeira regra ao segundo grupo **desliga** os checks; não aplicá-la ao primeiro é o
+defeito acima. Antes de mexer em precedência de fonte, pergunte qual das três aquele check faz.
+
+**Sintoma que denuncia o quarto caso:** dois lugares calculando o mesmo valor consolidado. Se o
+agregado já expõe (`Bill.DueDate`, `Bill.PayableAmount`, `Bill.Beneficiary`), recalcular no check é
+como as duas respostas divergem sem ninguém perceber.
+
+## Campo que está no `responseSchema` e não está no prompt é campo que o modelo inventa
+
+**Quando:** 2026-09-10, num DAS do Simples Nacional que o sistema acusava de boleto adulterado.
+
+**O que aconteceu:** `GeminiPrompt.ResponseSchema` declarava `payerName`, `payerTaxId`,
+`payeeName` e `payeeTaxId`; o texto do `Build` explicava `digitableLines`, `pixPayloads`,
+`documentKind`, `accountReference`, `billingPeriod` e `description` — e parava aí. Os quatro campos
+de parte iam para o modelo **sem definição nenhuma**. Guia de tributo imprime um só par CNPJ/Razão
+Social, o do **contribuinte**, e nenhum beneficiário; o modelo preenchia o beneficiário com o
+pagador. O check 13 comparava esse número com o CNPJ da consulta oficial e reprovava como
+"instrumento trocado sobre documento legítimo", escalando para `Blocking`: **todo boleto de imposto
+nascia bloqueado**, com a evidência apontando o CNPJ da própria empresa.
+
+**Por que é traiçoeiro:** o `responseSchema` obriga a **forma**, não o significado, e a forma
+estava perfeita — string válida, DV correto, campo preenchido. Nada no funil determinístico tinha
+o que reprovar: o ADR-011 protege o que vira instrumento de pagamento, e nome e documento de parte
+são justamente os campos narrativos que ele não alcança (achado M2 da auditoria de 2026-09-03).
+
+**As duas lições:**
+
+1. **Todo campo do `responseSchema` precisa de uma linha no prompt.** O que não é definido é
+   preenchido por analogia — e a analogia mais próxima costuma ser a parte errada.
+2. **Prompt é mitigação, nunca garantia.** A correção que vale é determinística e mora no domínio:
+   `EvaluateDocumentConsistency` descarta o "beneficiário" que é documento do próprio tenant,
+   porque ninguém emite cobrança contra si mesmo. Corrigir só o prompt deixaria o bloqueio voltar
+   na próxima troca de modelo.
+
 ## Smart Enum dentro de Domain Event: o outbox grava e não consegue ler de volta
 
 **Quando:** 2026-09-09, ao investigar por que o espelho do cancelamento nunca disparava.

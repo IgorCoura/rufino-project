@@ -27,8 +27,18 @@ public sealed class CheckType : Enumeration
     /// <summary>Já pagamos — ou já vamos pagar — este mesmo compromisso? Busca <strong>global</strong>.</summary>
     public static readonly CheckType Duplicate = new(2, nameof(Duplicate), CheckSeverity.Blocking);
 
-    /// <summary>A consulta oficial respondeu? Nunca cai para "aprova sem consulta".</summary>
-    public static readonly CheckType LookupAvailability = new(3, nameof(LookupAvailability), CheckSeverity.Blocking);
+    /// <summary>
+    /// A consulta oficial respondeu? Nunca cai para "aprova sem consulta".
+    /// </summary>
+    /// <remarks>
+    /// <strong>É <see cref="CheckSeverity.Critical"/> desde 2026-09-10, e a promoção é
+    /// deliberada</strong> (decisão do usuário). Sem resposta da consulta ninguém confirmou quem
+    /// recebe, quanto e quando — e um atacante que consiga derrubar ou saturar a consulta ganharia
+    /// uma janela para aprovar o que não pode ser verificado. Errar fechado aqui custa fila
+    /// parada; errar aberto custa pagamento. Nenhum desfecho deste check é ausência: ou a consulta
+    /// respondeu, ou não respondeu.
+    /// </remarks>
+    public static readonly CheckType LookupAvailability = new(3, nameof(LookupAvailability), CheckSeverity.Critical);
 
     /// <summary>O que dá para ler offline bate com o que o sistema bancário devolveu?</summary>
     public static readonly CheckType LookupConsistency = new(4, nameof(LookupConsistency), CheckSeverity.Blocking);

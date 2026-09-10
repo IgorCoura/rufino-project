@@ -87,6 +87,7 @@ public static class ApplicationDependencies
         services.AddScoped<IDomainEventHandler<BillSchedulingRequestedDomainEvent>, CreatePaymentOrderOnBillSchedulingRequestedHandler>();
         services.AddScoped<IDomainEventHandler<BillDecisionUndoneDomainEvent>, RevalidateOnBillDecisionUndoneHandler>();
         services.AddScoped<IDomainEventHandler<AsaasAccountLinkedDomainEvent>, ProvisionWebhookOnAsaasAccountLinkedHandler>();
+        services.AddScoped<IDomainEventHandler<AsaasAccountLinkedDomainEvent>, ReleaseBillsOnAsaasAccountLinkedHandler>();
         services.AddScoped<IDomainEventHandler<BillCancelledDomainEvent>, CancelPaymentOrderOnBillCancelledHandler>();
         services.AddScoped<IDomainEventHandler<PaymentOrderScheduledDomainEvent>, LinkBillOnPaymentOrderScheduledHandler>();
         services.AddScoped<IDomainEventHandler<PaymentOrderPaidDomainEvent>, ReflectPaymentPaidOnBillHandler>();
@@ -104,6 +105,7 @@ public static class ApplicationDependencies
         services.AddScoped<ITrustedOriginQueries, TrustedOriginQueries>();
         services.AddScoped<IBillQueries, BillQueries>();
         services.AddScoped<IBillReadingWorkQueries, BillReadingWorkQueries>();
+        services.AddScoped<IBillRevalidationWorkQueries, BillRevalidationWorkQueries>();
 
         // Compartilhado pela fila de análise e pelo pedido manual de reler — duas cópias
         // divergiriam, e a divergência apareceria como "pela fila lê, pelo botão não".

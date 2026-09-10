@@ -70,10 +70,12 @@ public sealed class ValidateBillTests : BaseIntegrationTest, IDisposable
         Assert.Equal(BeneficiaryCnpj, bill.Lookup!.Beneficiary.TaxId!.Value);
     }
 
-    // ADR-015: consulta indisponível classifica como Perigo com o motivo — a aprovação exige o
-    // aceite explícito, e nunca cai para "aprova sem consulta" em silêncio.
+    // Consulta indisponível classifica como EXTREMO PERIGO com o motivo (decisão do usuário,
+    // 2026-09-10). Era Perigo até então, e a mudança é deliberada: sem resposta ninguém confirmou
+    // o destino do dinheiro, e quem conseguisse derrubar a consulta ganharia a janela para aprovar
+    // o que não pode ser conferido. Nunca cai para "aprova sem consulta" em silêncio.
     [Fact]
-    public async Task ImportThenDrainOutbox_WhenTheLookupIsUnavailable_ShouldClassifyAsDangerWithTheReason()
+    public async Task ImportThenDrainOutbox_WhenTheLookupIsUnavailable_ShouldClassifyAsExtremeDangerWithTheReason()
     {
         _lookups.BankSlipResult = BillLookupResult.Unavailable("timeout", null, ConsultedAt);
 
@@ -83,7 +85,7 @@ public sealed class ValidateBillTests : BaseIntegrationTest, IDisposable
         var bill = await LoadAsync(billId);
 
         Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
-        Assert.Same(RiskLevel.Danger, bill.Risk);
+        Assert.Same(RiskLevel.ExtremeDanger, bill.Risk);
         Assert.Contains(
             bill.Checks,
             c => c.Type == CheckType.LookupAvailability && c.ReasonCode == CheckReasons.LOOKUP_UNAVAILABLE);

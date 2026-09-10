@@ -1,5 +1,6 @@
 namespace BillPayment.Infra.Asaas;
 
+using BillPayment.Domain.Lookups;
 using BillPayment.Domain.Ports;
 using BillPayment.Domain.Secrets;
 using Microsoft.Extensions.Logging;
@@ -26,7 +27,11 @@ internal sealed class AsaasClientProvider(
     ISecretVault vault,
     ILogger<AsaasClientProvider> logger)
 {
-    public const string TENANT_KEY_NOT_CONFIGURED = "tenant_key_not_configured";
+    /// <summary>
+    /// O domínio reconhece este motivo pelo nome (verificação 3 decide o aviso a partir dele),
+    /// então a constante mora lá e aqui é só repasse.
+    /// </summary>
+    public const string TENANT_KEY_NOT_CONFIGURED = LookupReasons.TENANT_KEY_NOT_CONFIGURED;
     public const string CREDENTIAL_UNRESOLVABLE = "credential_unresolvable";
 
     public const string TENANT_KEY_NOT_CONFIGURED_MESSAGE =

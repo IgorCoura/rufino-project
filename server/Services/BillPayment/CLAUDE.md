@@ -35,7 +35,7 @@ O design rationale do BC vive em `BillPayment.Architecture/`. O ponto de entrada
 | [`14-auditoria-ingestao-email.md`](BillPayment.Architecture/14-auditoria-ingestao-email.md) | **Segurança:** auditoria de 2026-09-03 da ingestão por e-mail — 33 achados com arquivo:linha, todos **abertos**; o status vive na seção "Auditoria da ingestão por e-mail" do checklist abaixo |
 | [`adr/`](BillPayment.Architecture/adr/) | ADR-001 a ADR-020 — o **porquê** de cada decisão estrutural |
 
-**Antes de propor mudança estrutural, leia o ADR correspondente.** Decisões já fechadas e greppáveis: Asaas como provedor de consulta *e* pagamento (ADR-001), com **uma conta por tenant, trazida pelo próprio tenant** (ADR-016 — o desenho de subconta criada pela plataforma do doc 07 foi substituído); `Bill` e `PaymentOrder` como Aggregates separados (ADR-002); verificação como entidade com evidência e quatro resultados, não booleano (ADR-003); pagador **não** é verificável por fonte oficial, mas **bloqueia quando contradiz** (ADR-004); confiança é do remetente, não da caixa (ADR-005); só Microsoft Graph; **Gmail entra por encaminhamento**, sem adapter (ADR-006); nenhum pagamento sem `UserId` autorizando (ADR-007); fonte compartilhada = uma `CaptureSource` por tenant, isolamento por construção (ADR-008); **sem cofre por ora — env vars + `secrets.json`**, envelope encryption no Postgres permanece (ADR-009); **QR Pix é o trilho preferencial**, divergência entre QR e código de barras bloqueia (ADR-010); **IA extrai candidatos, DV + consulta oficial decidem** (ADR-011); **DDA está fora** — portais depois de esgotar fatura digital, **sem evasão de anti-bot** (ADR-012); **Gemini atrás de porta agnóstica** (ADR-013); **o sistema sabe o que espera receber e avisa quando não recebeu** (ADR-014); **a validação classifica Seguro/Atenção/Perigo e NUNCA rejeita — quem decide é o humano, e Perigo exige aceite explícito gravado na trilha** (ADR-015); **a conta Asaas é do tenant, trazida e provada por ele — sem chave-plataforma e sem fallback global**, com webhook, saldo e whitelist por conta (ADR-016); **política de agendamento: submissão só das 9h às 18h e vencido exige confirmação explícita gravada na trilha** (ADR-017, com as 24h de antecedência REMOVIDAS pelo ADR-021); **aprovar e agendar são DOIS atos com alçadas diferentes, cancelar agendamento devolve a `Approved`, e recusa/cancelamento se desfazem com revalidação automática** (ADR-018); **webhook POR TENANT, com o payload tratado como aviso e a ordem RELIDA no provedor** (ADR-019); **a expectativa entra na validação como a 14ª verificação e a régua de risco endurece — o que era Atenção virou Perigo, e só expectativa, prazo e nome do beneficiário ficam com teto de Atenção** (ADR-020); **a antecedência de 24h sai, a janela vira 9h–18h e ela só bloqueia "pagar hoje" — porque é sobre a hora da SUBMISSÃO, não a do pagamento, que é do Asaas — com a tela oferecendo quatro datas prontas resolvidas pelo servidor** (ADR-021); **o dreno de eventos deixa de ter lista de tipos, existe varredura periódica que reconcilia a ASSINATURA do webhook no provedor, curar NÃO troca o token e a rotação é trimestral** (ADR-022); **a escada de link ganha regime ABERTO opcional, a allowlist deixa de ser a fronteira de segurança e ela desce para o IP pinado no connect mais o egresso da rede** (ADR-023).
+**Antes de propor mudança estrutural, leia o ADR correspondente.** Decisões já fechadas e greppáveis: Asaas como provedor de consulta *e* pagamento (ADR-001), com **uma conta por tenant, trazida pelo próprio tenant** (ADR-016 — o desenho de subconta criada pela plataforma do doc 07 foi substituído); `Bill` e `PaymentOrder` como Aggregates separados (ADR-002); verificação como entidade com evidência e quatro resultados, não booleano (ADR-003); pagador **não** é verificável por fonte oficial, mas **bloqueia quando contradiz** (ADR-004); confiança é do remetente, não da caixa (ADR-005); só Microsoft Graph; **Gmail entra por encaminhamento**, sem adapter (ADR-006); nenhum pagamento sem `UserId` autorizando (ADR-007); fonte compartilhada = uma `CaptureSource` por tenant, isolamento por construção (ADR-008); **sem cofre por ora — env vars + `secrets.json`**, envelope encryption no Postgres permanece (ADR-009); **QR Pix é o trilho preferencial**, divergência entre QR e código de barras bloqueia (ADR-010); **IA extrai candidatos, DV + consulta oficial decidem** (ADR-011); **DDA está fora** — portais depois de esgotar fatura digital, **sem evasão de anti-bot** (ADR-012); **Gemini atrás de porta agnóstica** (ADR-013); **o sistema sabe o que espera receber e avisa quando não recebeu** (ADR-014); **a validação classifica Seguro/Atenção/Perigo e NUNCA rejeita — quem decide é o humano, e Perigo exige aceite explícito gravado na trilha** (ADR-015); **a conta Asaas é do tenant, trazida e provada por ele — sem chave-plataforma e sem fallback global**, com webhook, saldo e whitelist por conta (ADR-016); **política de agendamento: submissão só das 9h às 18h e vencido exige confirmação explícita gravada na trilha** (ADR-017, com as 24h de antecedência REMOVIDAS pelo ADR-021); **aprovar e agendar são DOIS atos com alçadas diferentes, cancelar agendamento devolve a `Approved`, e recusa/cancelamento se desfazem com revalidação automática** (ADR-018); **webhook POR TENANT, com o payload tratado como aviso e a ordem RELIDA no provedor** (ADR-019); **a expectativa entra na validação como a 14ª verificação e a régua de risco endurece — o que era Atenção virou Perigo, e só expectativa, prazo e nome do beneficiário ficam com teto de Atenção** (ADR-020); **a antecedência de 24h sai, a janela vira 9h–18h e ela só bloqueia "pagar hoje" — porque é sobre a hora da SUBMISSÃO, não a do pagamento, que é do Asaas — com a tela oferecendo quatro datas prontas resolvidas pelo servidor** (ADR-021); **o dreno de eventos deixa de ter lista de tipos, existe varredura periódica que reconcilia a ASSINATURA do webhook no provedor, curar NÃO troca o token e a rotação é trimestral** (ADR-022); **a escada de link ganha regime ABERTO opcional, a allowlist deixa de ser a fronteira de segurança e ela desce para o IP pinado no connect mais o egresso da rede** (ADR-023); **para DECIDIR contra o cadastro vale a consulta oficial do trilho que paga e nunca o documento, consulta sem resposta é EXTREMO PERIGO com varredura que a reconsulta sozinha, e a régua separa ausência de CADASTRO (teto de Atenção) de ausência de IDENTIDADE (Perigo)** (ADR-024).
 
 ### Três regras que não podem erodir
 
@@ -727,6 +727,197 @@ ignorada"). Duas lacunas daquele trabalho já haviam sido corrigidas aqui porque
 verificação desta entrega: o `FakeAuthorizationServerClient` não conhecia os escopos
 `schedule`/`undo-decision`, e os testes de alçada de risco aprovavam **com data** sem pedir a
 alçada de agendamento.
+
+## 2026-09-10 (3) — A fonte oficial vem primeiro, e a régua distingue que ausência é (ADR-024)
+
+Seis fases, todas nas quatro camadas + cliente. Saiu de um comentário do usuário sobre o
+diagnóstico da guia de imposto: *"sempre que for pix, deve utilizar as informações da consulta
+oficial para fazer as verificações"*. Procurando o padrão, ele estava quebrado em **quatro**
+verificações — e ao consertá-lo apareceram duas decisões de política que o usuário fechou.
+Racional completo no [`ADR-024`](BillPayment.Architecture/adr/ADR-024-fonte-oficial-primeiro-e-a-regua-por-ausencia.md).
+
+### 🐛 O mesmo defeito, quatro vezes: preferir o documento à consulta oficial
+
+| Check | O que fazia | O que faz |
+|---|---|---|
+| 4 `LookupConsistency` | Com código de barras e consulta do boleto indisponível, saía `Skipped` — o ramo do Pix era **inalcançável** sempre que existisse um código de barras | Cai para a comparação do Pix; só pula quando nenhum lado é comparável |
+| 6 `ReceivingBankMatch` | Confrontava com o cadastro o banco do **código de barras** mesmo num documento que liquida por Pix | O banco segue o trilho que paga |
+| 8 `PayerMatch` | Lia o CNPJ inferido do PDF **antes** do pagador que o decode do Pix devolve | Fonte oficial primeiro; a assimetria do ADR-004 não muda |
+| 10 `DueDateSanity` | Refazia a precedência à mão, pelo boleto primeiro e **pulando a linha digitável** | Lê `Bill.DueDate`; `Bill.DueDateOrigin` declara a procedência |
+
+O 4 é o mais caro dos quatro: é em **arrecadação** que a consulta do boleto mais falha e o decode
+responde. E o 10 produzia **duas datas diferentes na mesma apuração** — a verificação 14 já lia o
+consolidado do agregado.
+
+🔑 **A regra que os une, e que evita o próximo:** os checks fazem três coisas diferentes com os
+dados. **Decidir contra o cadastro** (5, 6, 7, 14) é oficial do trilho que paga → outro trilho →
+nunca o documento. **Confrontar fonte contra fonte** (4, 12, 13) tem o documento por definição —
+confrontar é o objetivo. **Preencher lacuna** (10) é oficial → linha digitável (protegida por DV) →
+leitura por IA, com a procedência dita na evidência. Sem essa distinção, "use sempre o oficial" e
+"o check 13 compara documento com oficial" se contradizem.
+
+### Consulta oficial sem resposta é Extremo Perigo
+
+Decisão do usuário, contra a minha proposta inicial de promover só `lookup_unresolved`: *"se não um
+atacante poderia utilizar a brecha de serviço indisponível para aprovar boleto fraudulento"*.
+`CheckType.LookupAvailability` passou de `Blocking` para **`CheckSeverity.Critical`**.
+
+`CheckSeverity.Critical` tem agora **duas famílias** — declaração explícita do tenant, e ausência
+total de verificação. O que as separa é o remédio, e por isso o **motivo** virou três, com ações
+diferentes: `lookup_unavailable` (esperar), `lookup_unresolved` (nada; título registrado é sempre
+reconhecido) e **`lookup_not_configured`** (vincular a conta). O aviso de cada um diz exatamente
+isso — prometer "revalide mais tarde" a quem não vinculou a chave seria mentira.
+
+⚠️ **O banner de Extremo Perigo do cliente afirmava que o boleto estava na lista de bloqueio.**
+Passaria a ser falso na maioria dos casos; foi reescrito.
+
+### A varredura que torna o aviso verdadeiro
+
+`BillRevalidationBackgroundService` + `IBillRevalidationWorkQueries` (`BillRevalidation:Enabled`,
+**ligado por padrão**, desligado na suíte). Sem ele a decisão acima seria armadilha operacional: o
+boleto ficaria exigindo a alçada máxima por um incidente já terminado. Quatro regras:
+
+1. **Só `AcceptsSilentRevalidation`** (`Captured`/`AwaitingApproval`). Revalidar um `Approved`
+   derruba a aprovação — um worker fazendo isso desfaz decisão humana em silêncio.
+2. **Só `lookup_unavailable`.** O `unresolved` devolveria o mesmo e martelaria o provedor; o
+   `not_configured` não depende do tempo — quem o libera é o evento de vínculo da conta
+   (`ReleaseBillsOnAsaasAccountLinkedHandler`), e só para o tenant que vinculou.
+3. **Aborto precoce** após N indisponibilidades seguidas: o cliente de consulta tem disjuntor por
+   cliente nomeado, e martelá-lo derrubaria junto as validações **interativas** de quem está na tela.
+4. **Sem teto de tentativas** — o oposto da fila de leitura. Desistir deixaria o boleto em Extremo
+   Perigo para sempre por uma queda que passou; o que cresce é a espera (5 min dobrando, teto 1 h),
+   e o que alerta é o log. **ADO direto** pelo mesmo motivo da fila de leitura, e a tentativa é
+   contada na SAÍDA. `updated_at` não é tocado: ele significa mudança de negócio, e uma varredura
+   de cinco em cinco minutos o tornaria inútil (é a lição do `LastSweptAt`).
+
+### A régua distingue ausência de CADASTRO de ausência de IDENTIDADE
+
+Teto de Atenção para `bank_expectation_not_set`, `amount_policy_unbounded`, `routing_inferred` e os
+desfechos do check 13 sem campo oficial para confrontar. Antes os três primeiros levavam a Perigo,
+e um boleto **cujos dados oficiais batiam com o cadastro** ainda assim exigia "assumo o risco" —
+que é como o alerta que importa passa batido (ADR-003).
+
+⚠️ **`payee_not_registered` e `payer_not_extractable` continuam em Perigo, e isso é invariante.**
+Não ter declarado bancos aceitos é o tenant não ter configurado nada; não saber quem é o
+beneficiário é o sistema não ter provado nada. É o primeiro que segura o boleto adulterado de
+fornecedor novo depois da mudança seguinte — rebaixá-lo abriria a porta que ela deixa entreaberta.
+
+### O check 13 pesa conforme a força da fonte oficial e a procedência da leitura
+
+| Situação | Desfecho |
+|---|---|
+| Divergência no **trilho boleto** | `Failed` + `Blocking` (`document_payee_mismatch`) |
+| Divergência no **trilho Pix** | `Warning` + `Notice` (`document_payee_suspicion`) |
+| Documento fiscal vindo do **corpo do e-mail** | `Warning` + `Notice` (`document_payee_from_email_body`) |
+| Documento fiscal igual ao do **próprio tenant** | descartado antes de comparar |
+
+No boleto a consulta devolve menos — em arrecadação, nada de documento —, e o impresso sustenta
+parte da verificação. No Pix o decode devolve o CNPJ do recebedor e a identidade já está verificada
+sem o papel.
+
+🔑 **A procedência (`ReadingFieldSource`) é apurada procurando os dígitos no corpo do e-mail, nunca
+perguntando ao extrator** — perguntar seria confiar no mesmo canal que a injeção controla. Fecha
+metade do achado M2 de 2026-09-03: sem ela, quem manda o e-mail podia plantar um documento fiscal
+para **travar** os pagamentos de quem recebe, ou casá-lo de propósito com o oficial para **calar** a
+verificação. Retrato gravado antes disto reidrata como `Document`, que é como foi classificado.
+
+### ⚠️ Implantação
+
+- **Distribuir `bill-approver-extreme` ANTES do deploy.** Durante uma indisponibilidade do provedor,
+  todos os boletos passam a exigir a alçada máxima. É *fail closed* por decisão explícita — mas quem
+  só tem `approve-danger` para de aprovar.
+- **Tenant sem chave Asaas vinculada terá 100% dos boletos em Extremo Perigo**, com o aviso mandando
+  vincular a conta. Comportamento correto; precisa estar no roteiro de onboarding.
+- **Varredura de revalidação em massa no deploy**: a régua nova só vale para boleto revalidado.
+- Migração `BillRevalidationQueue` (duas colunas em `bills`); nada mais.
+
+**Testes:** 1.350 unitários (+9), 833 de integração (+9) e 398 de cliente verdes; build com
+`TreatWarningsAsErrors` limpo. Classes novas: `Services/OfficialSourcePrecedenceTests` (a regra das
+três funções, com as quatro regressões) e `Bills/BillRevalidationQueueTests`. Testes-âncora: o
+híbrido cujo boleto não respondeu e o Pix sim, o banco do trilho que paga, o pagador oficial
+vencendo a inferência do PDF, a data do agregado, o boleto **aprovado** que a varredura nunca
+reivindica, a ausência de cadastro em Atenção com a contraprova de que ausência de identidade segue
+em Perigo, e o documento fiscal plantado no corpo do e-mail que avisa em vez de bloquear.
+
+⚠️ **Três testes de integração foram REESCRITOS de propósito** — eles construíam um boleto "em
+Perigo" derrubando a consulta oficial, que agora vale Extremo Perigo. Passaram a construí-lo com a
+consulta respondendo e o beneficiário não cadastrado, que é Perigo de verdade.
+
+## 2026-09-10 (2) — A guia de imposto que o sistema acusava de fraude: o pagador lido como beneficiário
+
+Relatado sobre um **DAS do Simples Nacional** (`boleto-MINISTERIO-DA-FAZENDA-2026-09-21.pdf`):
+"o sistema está confundindo os dados do pagador como se fosse do beneficiário". O boleto estava em
+**Perigo**, com duas verificações reprovando e uma terceira dizendo "não se aplica" sobre um dado
+que a tela exibia logo abaixo. **Três defeitos independentes**, cada um bastando para o sintoma.
+
+### 🐛 A leitura por IA atribuía o contribuinte ao beneficiário, e o check 13 chamava isso de fraude
+
+O DAS imprime **um** par CNPJ/Razão Social — `02.624.917/0001-92 / RUFINO …`, o **contribuinte** —
+e não imprime beneficiário nenhum: o órgão arrecadador só existe dentro do código de barras. O
+check 13 comparava esse número com o `00.394.460/0058-87` da consulta oficial e reprovava como
+**"instrumento trocado sobre documento legítimo"**, escalando para `Blocking`. **Todo boleto de
+imposto nascia bloqueado.**
+
+- **Causa raiz no prompt**: `payerName`, `payerTaxId`, `payeeName` e `payeeTaxId` estavam no
+  `responseSchema` e **não eram descritos em lugar nenhum** da instrução — o `Build` explicava
+  `digitableLines`, `pixPayloads`, `documentKind`, `accountReference`, `billingPeriod` e
+  `description`, e parava aí. Um transcritor com um campo de beneficiário a preencher e uma só
+  parte no papel preenche com o que tem. O prompt agora define os quatro pelos rótulos impressos e
+  manda **deixar o beneficiário vazio** quando ele não está no documento (regras 6 e 7).
+- **A garantia é determinística, não o prompt**: `EvaluateDocumentConsistency` descarta
+  `Reading.PayeeTaxId` quando ele é um documento do próprio tenant. **Não custa detecção** — a
+  fraude imprime SEMPRE um terceiro, o CNPJ para onde o dinheiro deve ir; "beneficiário igual ao
+  pagador" não descreve pagamento nenhum, que é a mesma impossibilidade que o check 8 usa para
+  bloquear pelo lado oposto (`payee_is_the_payer`). Sem cadastro fiscal **nada é descartado**:
+  "não sei" não autoriza jogar fora evidência de fraude.
+- **A projeção da lista tinha o mesmo buraco**: `BillQueries.BeneficiaryOf` cai para
+  `Reading.PayeeName`/`PayeeTaxId` quando a consulta oficial não resolveu, e anunciava o **pagador**
+  como quem vai receber o dinheiro. A guarda ali é **aggregate-local** (o `ExtractedPayer` da
+  escada e o `PayerTaxId` da própria leitura) — o cadastro fiscal vive noutro agregado, e quem o
+  confronta é o Domain Service. `GetDetailAsync` **não** usa esse fallback (lê só o oficial), então
+  o defeito aparecia na lista e no nome do arquivo baixado, não no detalhe.
+- Motivo novo: `document_payee_is_the_payer`, com tradução no cliente.
+
+### 🐛 "Possível golpe" numa cobrança de rotina: filial não é sósia
+
+A Receita emite a guia por uma filial do Ministério da Fazenda e o cadastro guardava outra. Como o
+documento não casava em cheio, a resolução caía direto na detecção de sósia e a tela anunciava
+**"O nome parece o de um beneficiário conhecido, mas o documento é de outro. Possível golpe."**
+
+`PayeeMatchKind.SameCnpjRoot` (id 5) entra **entre** `ByTaxId` e `Lookalike`, que é exatamente o
+que separa os dois: a raiz do CNPJ é atribuída pela Receita a **um único inscrito**, então mesma
+raiz é a mesma pessoa jurídica em outra filial, e quem fraudaria o boleto não tem como apresentar
+uma raiz da vítima. Sai como `Warning` com severidade **`Notice`** (teto de Atenção), dizendo qual
+filial cobrou e qual está cadastrada — motivo `payee_same_cnpj_root`. **Blacklist e inatividade
+continuam vencendo**, e raiz diferente continua sendo sósia bloqueante (contraprova em teste).
+
+A noção de raiz saiu de dentro do `PayerProfile` (onde era `private static RootOf` + uma const) e
+virou `TaxId.SharesCnpjRootWith` no SharedKernel — o `OwnsByCnpjRoot` delega para lá. **CPF nunca
+casa por raiz**, e o guard está no VO.
+
+### 🐛 O check de banco dizia "não se aplica" com o banco na tela
+
+`EvaluateReceivingBankMatch` tinha um `return Skipped` para `BillKind.Utility` **antes** de olhar o
+Pix — e o código logo abaixo já sabia derivar o banco do `receiverIspb` (`bank = fromBarcode ??
+BankFromPix(context)`). Resultado: a guia dizia "Arrecadação não carrega banco" enquanto o bloco da
+consulta oficial, na mesma tela, exibia `BANCO DO BRASIL S.A.`. O achado 3 do doc 12 já registrava
+que **o Pix cobre o buraco da arrecadação** para o beneficiário; vale igual para o banco. Agora o
+`Skipped` (mesmo motivo `bank_not_available_for_utility`) só sai quando **não há QR Pix**.
+
+⚠️ **Consequência operacional, deliberada:** guia híbrida cujo beneficiário não tem bancos aceitos
+cadastrados passa de `Skipped` (Seguro) para `Inconclusive` `bank_expectation_not_set`, que a régua
+do ADR-020 pesa como **Perigo**. Cadastrar o banco aceito do beneficiário é o que a leva a verde —
+é o fluxo que o check existe para exercer. A régua **não foi afrouxada**: `Notice` continua
+reservado à expectativa, ao prazo e ao nome do beneficiário (ADR-020), mais a filial acima.
+
+**Testes:** 1.330 unitários (+12) e 824 de integração (+1) verdes; `dotnet build BillPayment.sln
+-p:TreatWarningsAsErrors=true` limpo. Testes-âncora: a leitura que aponta o próprio pagador não
+acusa instrumento trocado (com as duas contraprovas — terceiro continua bloqueando, e sem cadastro
+fiscal nada é descartado), a filial do mesmo inscrito saindo Atenção contra o sósia de raiz alheia
+saindo Perigo, e a guia híbrida usando o banco do decode. ⚠️
+`ScheduleAndUndoBillTests.CancellingThroughOurApi_ShouldNameThePersonInTheTrail` **falhou na suíte
+completa e passou isolada (11/11)** — é o flake pré-existente já registrado na seção anterior, não
+regressão desta entrega.
 
 ## 2026-09-10 — O boleto que estava a dois cliques e a escada não alcançava (ADR-023)
 
@@ -1771,7 +1962,7 @@ Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC t
 - **Os cinco Ids paginados implementam `IComparable<T>` e os operadores de ordem** (`BillId`, `PayeeId`, `TrustedOriginId`, `CaptureSourceId`, `CaptureItemId`) — sem isso a comparação do desempate não compila, e o EF não teria o que traduzir. **A ordem que vale é a do `uuid` no Postgres**, não a destes operadores: `Guid.CompareTo` do .NET compara por campos e as duas sequências não coincidem. É inofensivo porque `ORDER BY` e `WHERE` são ambos avaliados no banco; vira armadilha no dia em que alguém ordenar a coleção **em memória** esperando a mesma sequência.
 - **`EmailSyntax` (SharedKernel) é a única implementação de normalização de e-mail do BC.** Nasceu privada dentro do `TrustedOrigin` e saiu de lá quando `CaptureSource.Address` e `CaptureItem.Sender` passaram a precisar da mesma regra. É helper estático e **não** Value Object de propósito: os consumidores guardam a string normalizada porque ela precisa ser endereçável a partir da raiz para o índice único do EF — um VO aqui viraria owned type e recairia no problema já documentado acima. Normalizar em qualquer outro lugar é como o cadastro passa a divergir da consulta.
 - **QR Pix estático não deduplica.** `PaymentInstrument.IsSingleUse` é `false` para QR estático porque o mesmo payload é reutilizado indefinidamente — um fornecedor manda todo mês a conta com o mesmo QR, e deduplicar por ele bloquearia a de fevereiro por causa da de janeiro. Só código de barras e QR **dinâmico** viram `Bill.DedupKey`; sem chave, a defesa contra duplicata passa a ser (beneficiário, valor, vencimento), ainda por implementar na 1.4.
-- **O banco recebedor sai do código de barras, não do provedor.** `DigitableLine.BankCode` lê as posições 1–3 (COMPE) e é a fonte do check 6; `Lookup.BankCode` serve de conferência cruzada, e divergência entre os dois é bloqueante. Vale só para `BillKind.BankSlip` — **arrecadação não tem campo de banco em posição nenhuma** e `BankCode` lança `BLP.DGL06` lá, de propósito, para a chamada indevida falhar alto em vez de devolver lixo. No trilho Pix a instituição é **ISPB de 8 dígitos**, incompatível com COMPE sem a tabela do Bacen.
+- **O banco recebedor sai do código de barras, não do provedor.** `DigitableLine.BankCode` lê as posições 1–3 (COMPE) e é a fonte do check 6; `Lookup.BankCode` serve de conferência cruzada, e divergência entre os dois é bloqueante. Vale só para `BillKind.BankSlip` — **arrecadação não tem campo de banco em posição nenhuma** e `BankCode` lança `BLP.DGL06` lá, de propósito, para a chamada indevida falhar alto em vez de devolver lixo. No trilho Pix a instituição é **ISPB de 8 dígitos**, incompatível com COMPE sem a tabela do Bacen — e é justamente por ela que a **arrecadação híbrida** tem banco: desde 2026-09-10 o check 6 só pula a guia quando não há QR Pix de onde tirá-lo.
 - **Tabela de bancos é snapshot embutido, não consulta ao vivo.** `Infra/BankDirectory/bacen-participants.csv` é `EmbeddedResource`, gerado por `tools/fetch-bacen-participants.js` a partir da [relação de participantes do STR](https://www.bcb.gov.br/pom/spb/estatistica/port/ParticipantesSTRport.csv). **Buscar em tempo de validação faria indisponibilidade do bcb.gov.br virar bloqueio de pagamento.** A tabela muda algumas vezes por ano; o arquivo versionado deixa a mudança auditável no diff. `IBankDirectory` é síncrono e sem `CancellationToken` de propósito — não é I/O. Registrado como **singleton**. O teste que importa está em `BacenBankDirectoryTests`: ele resolve a porta pelo DI justamente para provar que o recurso **embarca no assembly publicado**, que é o defeito que passaria despercebido.
 - ⚠️ **A `BLP.BIL03` DEIXA de ser inalcançável a cada `CheckType` novo, e 2026-09-08 foi um desses dias.** O check 14 invalida toda aprovação pendente até a revalidação — comportamento desejado (um check novo é uma pergunta que ninguém respondeu para aquele boleto), mas **exige varredura de revalidação no deploy**, senão a fila trava com 409.
 - **Duas invariantes de aprovação são defesa em profundidade, não caminho quente.** `BLP.BIL03` (catálogo de checks incompleto) e `BLP.BIL04` (falha bloqueante) **não têm como ser alcançadas hoje**: `RecordChecks` recusa conjunto parcial, e um boleto com bloqueio já está em `Rejected`, então a guarda de situação (`BLP.BIL25`) dispara antes. Elas existem porque `Approve` é a operação mais perigosa do sistema e porque a BIL03 passa a valer no dia em que um `CheckType` novo for acrescentado. **Não as remova por "código morto"** — e não escreva teste que force o estado por reflexão.
@@ -1791,6 +1982,25 @@ Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC t
 - **Seis escopos existem além do catálogo do doc 05.** Os três de custo: `capture-item:reprocess` (gasta cota do extrator de visão), `expectation:waive` (silencia a rede de segurança do ADR-014) e `capture-source:sync` (rotina, separada de trocar credencial). E os três de ALÇADA DE RISCO (2026-08-31): `bill:approve-attention` < `bill:approve-danger` < `bill:approve-extreme` — hierárquicos no código (o maior cobre os menores; `bill:approve` sozinho aprova só Verde). Quem os resolve é o controller do approve, numa pergunta UMA (`IAuthorizationServerClient.GetGrantedScopesAsync`), e quem COMPARA alçada com o risco atual do boleto é o domínio (`BLP.BIL32`, 403) — a borda descobre quem a pessoa é, a regra vive no agregado. Papel→escopo é montado no console do Keycloak (decisão do usuário); o authz-config só declara os escopos e uma permissão default para `bill-admin`.
 - **Na suíte, o que é substituído é a ida ao Keycloak — o guard de rota NÃO é.** O `RouteAccessRequirementHandler` de produção roda em todos os 365 testes, e por isso todo cliente declara seus tenants (`BaseIntegrationTest` → `Authenticated(params Guid[])`, padrão = o par canônico `…0001`/`…0002`). É o que mantém os sete testes de tenant cruzado provando o **filtro do repositório** (404) em vez de pararem no guard (403) — dar os dois tenants ao cliente é o cenário real do ADR-008, uma pessoa com acesso a duas contas. **`RemoveAll<IAuthorizationHandler>()` na fábrica é armadilha**: leva junto o `PassThroughAuthorizationHandler` do ASP.NET Core, que avalia o `DenyAnonymousAuthorizationRequirement` do `RequireAuthenticatedUser()` — sem ele toda requisição autenticada volta 403 (medido: 134 testes vermelhos). Remova pelo `ImplementationType`.
 - **O dublê de autenticação traduz o header `x-user-id` em claim `sub`.** Não é resquício do fallback removido: é o que permite os testes de decisão dizerem quem decide sem que a produção tenha esse caminho — e é o motivo de a remoção do fallback não ter exigido reescrever teste nenhum.
+- **Os checks fazem TRÊS coisas com os dados, e confundi-las é o defeito que já se repetiu quatro vezes.** **Decidir contra o cadastro** (5, 6, 7, 14): consulta oficial do trilho que paga → outro trilho → **nunca** o documento. **Confrontar fonte contra fonte** (4, 12, 13): o documento entra por definição, porque confrontar é o objetivo. **Preencher lacuna** (10): oficial → linha digitável (protegida por DV) → leitura por IA, com a procedência na evidência. Antes de "usar sempre o oficial" num check, pergunte qual das três ele faz — no segundo grupo isso o desligaria (ADR-024).
+- **Consulta oficial sem resposta é EXTREMO PERIGO, e o motivo diz qual ausência é.** `CheckType.LookupAvailability` é `Critical` desde 2026-09-10: sem resposta ninguém confirmou o destino do dinheiro, e quem derrubasse a consulta ganharia a janela para aprovar o inconferível. Os três motivos pedem ações diferentes — `lookup_unavailable` (esperar; a varredura espera sozinha), `lookup_unresolved` (nada muda; título registrado é sempre reconhecido) e `lookup_not_configured` (vincular a conta). **`CheckSeverity.Critical` deixou de significar só "declaração do tenant"** — são duas famílias, e a tela não pode falar de blacklist quando o caso é o outro.
+- **A varredura de revalidação é o par obrigatório dessa decisão.** Sem ela o "revalide mais tarde" é trabalho manual que ninguém faz. Quatro regras: só `AcceptsSilentRevalidation` (revalidar `Approved` derruba a aprovação — worker não desfaz decisão humana); só `lookup_unavailable`; **aborto precoce** do ciclo depois de N indisponibilidades, porque o disjuntor do cliente de consulta é compartilhado com as validações interativas; e **sem teto de tentativas**, ao contrário da fila de leitura — desistir deixaria o boleto em Extremo Perigo para sempre por uma queda que passou. **ADO direto**, tentativa contada na saída, e `updated_at` intocado (lição do `LastSweptAt`).
+- **A régua separa ausência de CADASTRO de ausência de IDENTIDADE.** Teto de Atenção para `bank_expectation_not_set`, `amount_policy_unbounded`, `routing_inferred` e os desfechos do check 13 sem campo oficial a confrontar — o tenant não configurou nada, e isso não desmente coisa alguma. **`payee_not_registered` e `payer_not_extractable` continuam em Perigo, e isso é invariante**: é o primeiro que segura o boleto adulterado de fornecedor novo depois de o check 13 deixar de bloquear no trilho Pix. Rebaixá-lo abre essa porta.
+- **O check 13 pesa conforme a força da fonte oficial e a PROCEDÊNCIA da leitura.** Trilho boleto bloqueia (lá a consulta devolve menos e o impresso sustenta parte da verificação); trilho Pix vira Atenção (o decode devolve o CNPJ do recebedor, e a identidade já está verificada sem o papel); documento fiscal que veio do **corpo do e-mail** nunca bloqueia. A procedência (`ReadingFieldSource`) é apurada **procurando os dígitos no corpo**, jamais perguntando ao extrator — perguntar seria confiar no mesmo canal que a injeção de prompt controla. Sem ela, quem manda o e-mail podia plantar um número para travar os pagamentos de quem recebe, ou casá-lo com o oficial para calar a verificação (achado M2).
+- **Mesma raiz de CNPJ é o MESMO inscrito, e por isso não é sósia.** `PayeeMatchKind.SameCnpjRoot`
+  entra entre `ByTaxId` e `Lookalike` (2026-09-10): a raiz é atribuída pela Receita a uma pessoa
+  jurídica só, então quem fraudaria o boleto não tem como apresentar uma da vítima — o que o ramo
+  deixa passar é a cobrança de outra unidade de quem o tenant já cadastrou. Sai `Warning` com teto
+  de Atenção, nomeando as duas filiais. **Blacklist e inatividade continuam vencendo**, e raiz
+  diferente continua sendo sósia bloqueante. A noção de raiz é do `TaxId.SharesCnpjRootWith`, num
+  lugar só, e **CPF nunca casa** por lá.
+- **A leitura por IA que aponta o próprio pagador como beneficiário é DESCARTADA, nas duas pontas.**
+  Guia de tributo imprime um par CNPJ/Razão Social — o do contribuinte — e nenhum beneficiário, e o
+  extrator preenchia o campo do beneficiário com a única parte do papel. O check 13 descarta
+  confrontando o cadastro fiscal do tenant (`document_payee_is_the_payer`); a projeção da lista
+  descarta confrontando o `ExtractedPayer` e o `PayerTaxId` da própria leitura, que são
+  aggregate-local. **Não custa detecção**: fraude de instrumento trocado imprime sempre um terceiro.
+  Sem cadastro fiscal nada é descartado — "não sei" não autoriza jogar fora evidência.
 - **Documento na consulta decide sozinho; nome só vale quando não há documento.** `PayeeResolutionService` tenta o CNPJ; **não casando, o cotejo por nome vira detecção de sósia, nunca confirmação**. A primeira versão caía para nome nesse caso e transformava o pior cenário no melhor — consulta com o nome de um fornecedor conhecido e CNPJ de terceiro virava `Passed`. O fallback por nome existe só quando a consulta **não trouxe** documento (100% da arrecadação). Coberto por teste; não "simplifique" reunificando os dois caminhos.
 - **`Warning` é o quinto resultado e nunca bloqueia**, qualquer que seja a severidade do check. Existe porque as duas alternativas falhavam na divergência de nome em arrecadação: `Failed` num check `Blocking` travaria pagamento por grafia de concessionária, e `Passed` jogaria fora a única evidência de beneficiário que arrecadação oferece. Só `Failed` reprova.
 - **A severidade viaja no `CheckResult`, não só no `CheckType` — e desde 2026-09-08 são QUATRO degraus, com desvio nos DOIS sentidos.** Para cima: checks `Advisory` viram `Blocking` em situação específica (fontes autoritativas discordando sobre o banco, pagador extraído contradizendo o cadastro, documento impresso contradizendo a consulta), e **`Critical` é o degrau acima do `Blocking`**, reservado a declaração explícita do tenant — `payee_blacklisted` e `origin_blocked` — que leva a **Extremo Perigo**. Para **baixo**: **`Notice` fica abaixo de `Advisory`, com teto de Atenção**, e é o que salva os três assuntos que o endurecimento do ADR-020 não devia alcançar — expectativa, prazo e nome do beneficiário. `IsCriticalFailure` separa o Extremo. ⚠️ **`IsBlockingFailure` é afirmativo — `Blocking` OU `Critical` —, e não "diferente de Advisory"**: escrita pela negativa, contava `Notice` junto e fazia um boleto vencido virar falha bloqueante (defeito real, corrigido no dia em que o degrau nasceu; regressão em `Services/ExpectationCheckTests`).

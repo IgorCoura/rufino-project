@@ -1,6 +1,7 @@
 namespace BillPayment.Application.PayerProfiles.Commands;
 
 using BillPayment.Application.Mediator;
+using BillPayment.Application.Queries.Bills;
 using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.Ports;
 using BillPayment.Domain.Secrets;
@@ -236,4 +237,43 @@ public sealed class ProvisionWebhookOnAsaasAccountLinkedHandler(IMediator mediat
             new ProvisionPaymentWebhookCommand(domainEvent.TenantId.Value, RotateToken: true),
             cancellationToken);
     }
+}
+
+/// <summary>
+/// Chave vinculada → os boletos que ficaram sem consulta por FALTA de chave voltam para a fila.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Sem isto, o aviso que a tela dá nesse caso — <em>"vincule a conta e revalide depois"</em> —
+/// dependeria de alguém revalidar boleto por boleto à mão. Aqueles boletos não esperavam o tempo
+/// passar: esperavam um cadastro, que acabou de acontecer.
+/// </para>
+/// <para>
+/// <strong>Zera o backoff em vez de revalidar aqui.</strong> Quem revalida é a varredura, no
+/// escopo dela e sob o orçamento dela — um segundo caminho de revalidação seria um segundo lugar
+/// para as regras envelhecerem. E alcança <strong>um tenant só</strong>, o que vinculou.
+/// </para>
+/// </remarks>
+public sealed class ReleaseBillsOnAsaasAccountLinkedHandler(
+    IBillRevalidationWorkQueries revalidation,
+    ILogger<ReleaseBillsOnAsaasAccountLinkedHandler> logger)
+    : IDomainEventHandler<AsaasAccountLinkedDomainEvent>
+{
+    public async Task HandleAsync(
+        AsaasAccountLinkedDomainEvent domainEvent, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(domainEvent);
+
+        var released = await revalidation.ReleaseNotConfiguredAsync(
+            domainEvent.TenantId.Value, cancellationToken);
+
+        if (released > 0)
+            LogReleased(logger, released, null);
+    }
+
+    private static readonly Action<ILogger, int, Exception?> LogReleased =
+        LoggerMessage.Define<int>(
+            LogLevel.Information,
+            new EventId(1, nameof(ReleaseBillsOnAsaasAccountLinkedHandler)),
+            "Conta do provedor vinculada: {Count} boleto(s) sem consulta voltaram para a fila de revalidação.");
 }
