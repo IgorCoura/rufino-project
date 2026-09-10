@@ -33,12 +33,6 @@ using BillPayment.Domain.SharedKernel;
 /// </remarks>
 public static class BillValidationService
 {
-    /// <summary>
-    /// Requisição depois desta hora é processada no dia útil seguinte pelo provedor. Espelha a
-    /// regra do Asaas descrita em <c>04-integrations.md</c>.
-    /// </summary>
-    public const int PROVIDER_CUTOFF_HOUR = 14;
-
     /// <summary>Tolerância de vencimento entre fontes, em dias. Cobre fuso e arredondamento.</summary>
     public const int DUE_DATE_TOLERANCE_DAYS = 1;
 
@@ -662,11 +656,14 @@ public static class BillValidationService
                 CheckReasons.CANNOT_SCHEDULE_BEFORE_DUE,
                 $"O provedor só agenda a partir de {minimum:yyyy-MM-dd}, depois do vencimento em {dueDate:yyyy-MM-dd}.");
 
-        if (dueDate == context.Today && context.TimeOfDay.Hour >= PROVIDER_CUTOFF_HOUR)
-            return CheckResult.Failed(
-                CheckType.DueDateSanity,
-                CheckReasons.SAME_DAY_AFTER_CUTOFF,
-                $"Vence hoje e já passou das {PROVIDER_CUTOFF_HOUR}h — o provedor processaria no dia útil seguinte.");
+        // O corte de hora saiu daqui em 2026-09-10, medido em produção: o pagamento passou DEPOIS
+        // das 14h que este check usava. O número vinha de uma leitura da documentação do provedor
+        // (doc 04) que nunca foi remedida, era comparado contra UTC — disparando às 11h de
+        // Brasília — e contradizia a janela 9h–18h que o ADR-021 tornou a única regra sobre hora.
+        //
+        // Quem decide se "hoje" ainda serve como data de pagamento é o PaymentSchedulingService,
+        // no instante do AGENDAMENTO. E é o lugar certo: este check roda na captura, então a hora
+        // que ele julgaria é a de quando o documento chegou, não a de quando alguém decide.
 
         var days = dueDate.Value.DayNumber - context.Today.DayNumber;
         var provenance = source switch

@@ -728,6 +728,43 @@ verificação desta entrega: o `FakeAuthorizationServerClient` não conhecia os 
 `schedule`/`undo-decision`, e os testes de alçada de risco aprovavam **com data** sem pedir a
 alçada de agendamento.
 
+## 2026-09-10 (4) — O corte das 14h saiu do check de prazo, contrariado por medição
+
+Relatado sobre um boleto que vencia no dia: *"reprovou o vencimento porque vence hoje e já passou
+das 14h"*, seguido de **"consegui realizar o pagamento depois das 14h"**. A medição derruba a
+regra, e ela tinha três problemas empilhados:
+
+1. **O número nunca foi medido.** Saiu de uma leitura da documentação do Asaas na fase 3
+   (`04-integrations.md`: *"Requisição após as 14h → processa no dia útil seguinte"*) e virou a
+   constante `PROVIDER_CUTOFF_HOUR`. O pagamento do usuário passou depois dele.
+2. **A comparação era em UTC.** `TimeOfDay` vinha de `TimeOnly.FromDateTime(now.UtcDateTime)`, e
+   `14h UTC` são **11h de Brasília** — o check disparava três horas antes do que a própria
+   mensagem dizia. É a mesma classe de defeito que o `BLP.BIL35` já tinha corrigido usando
+   `PaymentSchedulingOptions.ResolveTimeZone()`; o check 10 ficara de fora daquela correção.
+3. **Eram duas regras sobre a mesma pergunta.** O ADR-021 moveu a decisão de "hoje ainda serve?"
+   para `PaymentSchedulingService.CanScheduleForToday`, com janela **9h–18h configurável** em
+   `America/Sao_Paulo` — e o XML doc daquele método afirma ser *"a única regra da política que
+   olha para a hora"*. Não era: o check 10 mantinha o 14h próprio, em UTC e sem configuração.
+
+O corte saiu do check 10, e com ele o `TimeOfDay` do `BillValidationContext` — ele existia **só**
+para essa pergunta. O contexto voltou a não ter relógio, que é o que o docstring do serviço já
+prometia.
+
+🔑 **E o lugar certo da pergunta não é a validação.** O check 10 roda na CAPTURA; a hora que ele
+julgaria é a de quando o documento chegou, não a de quando alguém decide pagar. Um boleto
+capturado às 19h carregaria "já passou do corte" na manhã seguinte, quando é cedo. Quem julga hora
+é a guarda de agendamento, no instante do agendamento — e ela continua de pé, com a janela do
+ADR-021 intacta. **Nenhuma proteção foi perdida**: o check era `Notice` (teto de Atenção) e nunca
+bloqueou nada.
+
+`CheckReasons.SAME_DAY_AFTER_CUTOFF` fica **sem produtor** e a tradução do cliente também — linhas
+de `bill_checks` gravadas antes disto carregam o código, e a tela de aprovação precisa continuar
+sabendo lê-lo. Não reutilize o código para outra coisa. A regra do doc 04 foi **riscada com a
+medição ao lado**, em vez de apagada: se algum dia voltar um corte de hora, que volte medido.
+
+**Testes:** 1.350 unitários verdes. O teste que afirmava a reprovação depois do corte foi
+substituído pelo seu oposto — vence hoje passa a qualquer hora —, que é a regressão desta medição.
+
 ## 2026-09-10 (3) — A fonte oficial vem primeiro, e a régua distingue que ausência é (ADR-024)
 
 Seis fases, todas nas quatro camadas + cliente. Saiu de um comentário do usuário sobre o

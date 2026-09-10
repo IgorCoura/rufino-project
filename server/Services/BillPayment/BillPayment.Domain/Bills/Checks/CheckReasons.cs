@@ -102,6 +102,12 @@ public static class CheckReasons
 
     // Vencimento e agendamento.
     public const string OVERDUE = "overdue";
+    /// <summary>
+    /// <strong>Sem produtor desde 2026-09-10.</strong> O corte de hora do check 10 foi removido —
+    /// medido em produção que o provedor aceita pagamento depois das 14h que a documentação
+    /// declarava. Fica pelas linhas de <c>bill_checks</c> gravadas antes disso, que a tela ainda
+    /// precisa saber traduzir. <strong>Não reutilize o código para outra coisa.</strong>
+    /// </summary>
     public const string SAME_DAY_AFTER_CUTOFF = "same_day_after_cutoff";
     public const string CANNOT_SCHEDULE_BEFORE_DUE = "cannot_schedule_before_due";
     public const string PIX_EXPIRES_BEFORE_SCHEDULE = "pix_expires_before_schedule";

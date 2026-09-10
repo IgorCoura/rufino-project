@@ -94,8 +94,11 @@ public sealed class BillValidationContext
     /// <summary>Id da Bill original quando a duplicata é do mesmo tenant. Nunca preenchido para outro tenant.</summary>
     public BillId? DuplicateOf { get; init; }
 
+    /// <summary>
+    /// O dia corrente. <strong>Não há hora aqui</strong>, e isso é deliberado desde 2026-09-10: a
+    /// única pergunta da validação que olhava para o relógio era o corte do provedor, removido por
+    /// medição. Hora quem julga é o <c>PaymentSchedulingService</c>, no instante do agendamento —
+    /// aqui ela descreveria o momento da captura, não o da decisão.
+    /// </summary>
     public required DateOnly Today { get; init; }
-
-    /// <summary>Hora corrente, para o corte de agendamento do provedor.</summary>
-    public required TimeOnly TimeOfDay { get; init; }
 }

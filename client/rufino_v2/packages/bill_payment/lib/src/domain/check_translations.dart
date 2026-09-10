@@ -205,6 +205,9 @@ String? checkReasonMessage(String? reasonCode) => switch (reasonCode) {
 
       // Vencimento e agendamento.
       'overdue' => 'O documento está vencido.',
+      // Sem produtor desde 2026-09-10 (o corte de 14h do check 10 foi removido por medicao).
+      // A traducao FICA: boletos verificados antes disso guardam o codigo, e a tela de aprovacao
+      // ainda precisa saber le-lo.
       'same_day_after_cutoff' =>
         'Vence hoje, após o horário-limite de agendamento.',
       'cannot_schedule_before_due' =>

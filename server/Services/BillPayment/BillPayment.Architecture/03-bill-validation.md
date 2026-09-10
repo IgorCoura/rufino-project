@@ -230,8 +230,16 @@ Sutileza que precisa estar na UI: **um remetente confiável não torna o boleto 
 **A data é a do agregado** (`Bill.DueDate`), não um recálculo local: o check refazia a precedência à mão, sempre pelo boleto primeiro e **pulando a linha digitável**, e a verificação 14 lia outra data no mesmo boleto (corrigido em 2026-09-10). `Bill.DueDateOrigin` diz a procedência — oficial, código de barras (protegida por DV) ou leitura por IA —, e a evidência a declara.
 
 - Vencido (`isOverdue`) → `Failed` (`overdue`) com o valor atualizado destacado. Asaas processa boleto vencido imediatamente, sem agendamento.
-- Vence hoje após o horário de corte do provedor → `Failed` (`same_day_after_cutoff`).
 - `MinimumScheduleDate` posterior ao vencimento → `Failed` (`cannot_schedule_before_due`).
+
+**Este check não olha para a hora**, e isso mudou em 2026-09-10. Havia um corte de 14h aqui
+(`same_day_after_cutoff`, hoje sem produtor) com três problemas: o número vinha de uma leitura da
+documentação do provedor que **foi contrariada por medição** — um pagamento passou depois dele —,
+era comparado contra **UTC**, disparando às 11h de Brasília, e contradizia a janela 9h–18h que o
+[ADR-021](adr/ADR-021-quatro-opcoes-de-agendamento.md) tornou a única regra sobre horário. Quem
+decide se "hoje" ainda serve como data de pagamento é o `PaymentSchedulingService`, no instante do
+**agendamento** — que é o lugar certo, porque este check roda na captura e a hora que ele julgaria
+seria a da chegada do documento, não a da decisão.
 - Caso contrário → `Passed` com a janela de agendamento disponível na evidência.
 
 ### 11. `TenantRouting` — por que este boleto é deste tenant?

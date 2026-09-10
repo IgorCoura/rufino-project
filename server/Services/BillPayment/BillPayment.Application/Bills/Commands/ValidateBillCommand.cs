@@ -105,7 +105,6 @@ public sealed class ValidateBillCommandHandler(
             Duplicate = DuplicateFinding.From(probe),
             DuplicateOf = probe.OriginalBillId,
             Today = DateOnly.FromDateTime(now.UtcDateTime),
-            TimeOfDay = TimeOnly.FromDateTime(now.UtcDateTime),
         };
 
         var outcome = bill.RecordChecks(BillValidationService.Evaluate(context), now.UtcDateTime);

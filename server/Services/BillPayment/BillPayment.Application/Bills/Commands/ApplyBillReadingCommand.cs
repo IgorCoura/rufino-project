@@ -141,7 +141,6 @@ public sealed class ApplyBillReadingCommandHandler(
                 ? await expectations.ListByPayeeAsync(tenantId, payeeId, cancellationToken)
                 : [],
             Today = DateOnly.FromDateTime(now.UtcDateTime),
-            TimeOfDay = TimeOnly.FromDateTime(now.UtcDateTime),
         };
 
         bill.RecordChecks(BillValidationService.Evaluate(context), now.UtcDateTime);
