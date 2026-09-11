@@ -288,6 +288,25 @@ Services/PeopleManagement/
 
 **API routes:** All follow `/api/v1/{company}/{resource}` pattern. The `{company}` segment scopes operations to a company.
 
+## Infraestrutura e perímetro
+
+A plataforma inteira roda num **único nó Docker Swarm** na Hostinger (`srv1489763.hstgr.cloud`,
+`85.31.61.241`), orquestrado pelo Dokploy: os três BCs, o app Flutter, Keycloak, Garage, um
+Postgres compartilhado e duas instâncias Evolution.
+
+| Documento | O que |
+|---|---|
+| [`docs/infra-audit/2026-09-10-perimetro-vps.md`](../docs/infra-audit/2026-09-10-perimetro-vps.md) | **Segurança de infraestrutura:** auditoria de perímetro de 2026-09-10 — VPS, firewall, DNS, domínios, Traefik e serviços publicados. 17 achados (3 críticos, 5 altos); **16 abertos** — C1 (firewall) fechado em 2026-09-10. O status vive na tabela do próprio doc, não aqui. Traz também o plano de 6 fases e o anexo do isolamento de egresso do worker |
+| [`docs/security-audit/`](../docs/security-audit/) | **Segurança de código:** relatório gerado de 2026-08-28 (`achados.json` + `gerar_relatorio.py`) |
+
+Duas armadilhas registradas ali que afetam quem mexe no deploy:
+
+- **Aplicação no Dokploy é serviço Swarm**, não contêiner comum — anexar rede **recria as tasks**,
+  ou seja, reinicia o serviço. Vale para o Postgres e o Garage, que são compartilhados.
+- **Não escreva variável de ambiente pelo MCP do Dokploy.** `application.saveEnvironment`
+  substitui o env **inteiro** e não há patch por chave; como a redação devolve `[REDACTED]` na
+  leitura, não existe leitura-modificação-escrita segura. Alteração de env é manual, na UI.
+
 ## Key External Integrations
 
 - **Document Signing:** ZapSign API (with webhook callbacks at `/document/insert/signer`)
