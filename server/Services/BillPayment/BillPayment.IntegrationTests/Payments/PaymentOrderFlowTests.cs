@@ -753,8 +753,10 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
         using var scope = _host.Services.CreateScope();
         var queries = scope.ServiceProvider.GetRequiredService<IPaymentOrderWorkQueries>();
 
+        // Dentro da janela: é o que estes testes exercitam — a fila com o horário a favor.
         return await queries.ClaimPendingSubmissionsAsync(
-            10, DateTimeOffset.UtcNow.AddMinutes(15), CancellationToken.None);
+            10, DateTimeOffset.UtcNow.AddMinutes(15), DateOnly.FromDateTime(DateTime.UtcNow),
+            submissionWindowOpen: true, CancellationToken.None);
     }
 
     private async Task<string> SubmitAsync(Guid orderId)

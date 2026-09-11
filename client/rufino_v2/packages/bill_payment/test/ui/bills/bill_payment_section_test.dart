@@ -433,6 +433,69 @@ void main() {
       );
     });
 
+    // A prévia deixou de ser SÓ informativa: quando ela diz que a data não pode
+    // ser agendada agora (hoje fora do horário de envio), o botão trava. A
+    // sugestão "pagar hoje" some da folha, mas escolher a mesma data pelo
+    // seletor livre não pode comprar um agendamento que o servidor recusa.
+    testWidgets('a date the server would refuse blocks Autorizar and says why',
+        (tester) async {
+      repository.detail = billDetail(
+        status: BillStatuses.awaitingApproval,
+        dueDate: DateTime.now().add(const Duration(days: 30)),
+        lastConsultedAt: DateTime.now(),
+      );
+      repository.schedulePreview = SchedulePreview(
+        requestedDate: DateTime(2026, 9, 10),
+        effectiveDate: DateTime(2026, 9, 10),
+        slid: false,
+        immediate: false,
+        afterDueDate: false,
+        available: false,
+        unavailableReason: ScheduleUnavailableReasons.outsideWindow,
+      );
+
+      await pumpDetail(tester);
+      await tester.ensureVisible(find.text('Aprovar e agendar…'));
+      await tester.tap(find.text('Aprovar e agendar…'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('sheet-date-unavailable')), findsOneWidget);
+      expect(
+        find.textContaining('fora do horário de envio dos pagamentos'),
+        findsOneWidget,
+      );
+
+      final button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Autorizar e agendar'),
+      );
+      expect(button.onPressed, isNull);
+    });
+
+    // A contraprova, e ela importa: prévia AUSENTE não trava. Falhar ao buscá-la
+    // é problema de rede, não recusa — travar aqui impediria de autorizar por
+    // causa de uma informação acessória.
+    testWidgets('a preview that could not be fetched does not block',
+        (tester) async {
+      repository.detail = billDetail(
+        status: BillStatuses.awaitingApproval,
+        dueDate: DateTime.now().add(const Duration(days: 30)),
+        lastConsultedAt: DateTime.now(),
+      );
+      repository.previewShouldFail = true;
+
+      await pumpDetail(tester);
+      await tester.ensureVisible(find.text('Aprovar e agendar…'));
+      await tester.tap(find.text('Aprovar e agendar…'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('sheet-date-unavailable')), findsNothing);
+
+      final button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Autorizar e agendar'),
+      );
+      expect(button.onPressed, isNotNull);
+    });
+
     testWidgets('an honoured date shows no slide suffix', (tester) async {
       repository.detail = billDetail(
         status: BillStatuses.awaitingApproval,

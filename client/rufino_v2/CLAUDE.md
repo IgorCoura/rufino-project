@@ -1353,13 +1353,22 @@ Coisas que não podem erodir:
   aprovação exige marcar "sei que o pagamento sai imediatamente" e manda
   `acknowledgeImmediateExecution: true` (`BLP.BIL35` sem ele). Ordem retida em
   `AwaitingConfirmation` mostra o botão "Confirmar pagamento imediato" na seção de execução.
-- **A prévia da data efetiva é INFORMATIVA e nunca bloqueia a aprovação.** O sheet de
-  aprovar mostra "Pagamento será executado em \<data\>" com "(deslizou do dia pedido)" quando a
+- **A prévia da data efetiva é INFORMATIVA — com UMA exceção, que é `available: false`.** O sheet
+  de aprovar mostra "Pagamento será executado em \<data\>" com "(deslizou do dia pedido)" quando a
   política empurrou — a conta é do servidor (ADR-017/ADR-021), o cliente não a reimplementa.
   Falha/latência da prévia não desenha nada e o Autorizar segue funcionando; resposta obsoleta
   (data mudou de novo) é descartada. Prévia com `immediate: true` revela a caixa de aceite do
   vencido mesmo que o relógio local discorde. Prévia com `afterDueDate: true` mostra o aviso de
   encargos — **aviso, nunca bloqueio**: a conta atrasada é justamente a que precisa ser paga.
+- **Prévia com `available: false` TRAVA o Autorizar** (2026-09-10), e a distinção que sustenta as
+  duas metades é: **prévia ausente não bloqueia, prévia que diz "não dá" bloqueia**. Ela vem
+  assim só para HOJE fora do horário de envio — a mesma recusa que a escrita daria
+  (`BLP.BIL40`), dita antes. Sem isso o seletor livre contornava a regra sem querer: a sugestão
+  "pagar hoje" desaparece da folha, mas digitar a mesma data pelo "Outra data…" recebia uma
+  prévia verde e um 409 no submit. O motivo é traduzido pelo mesmo
+  `ScheduleUnavailableReasons.label` das sugestões — é o mesmo veredito do servidor, e agora o
+  mesmo vocabulário nos dois lugares. Campo ausente (servidor mais antigo) lê como `true`: quem
+  cala permite, e a recusa continua acontecendo na escrita.
 - **A folha oferece QUATRO datas prontas + a data livre, e nenhuma delas é calculada aqui
   (ADR-021 do BC).** `GET /bills/{id}/schedule-options` devolve `Today`/`Tomorrow`/
   `DayBeforeDue`/`OnDueDate` já resolvidas (`ScheduleOptionPreview`: data, prévia,

@@ -1779,7 +1779,22 @@ class _ApproveSheetState extends State<_ApproveSheet> {
             onTap: _pickDate,
           ),
         ],
-        if (preview != null && !widget.approveOnly) ...[
+        // Data que o servidor recusaria — hoje fora do horário de envio. Diz o
+        // motivo no lugar da prévia (que não existe para uma data impossível) e
+        // trava o botão: deixar seguir seria levar a pessoa a um 409 conhecido.
+        if (preview != null && !preview.available && !widget.approveOnly) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            key: const Key('sheet-date-unavailable'),
+            'Não dá para agendar nesta data: '
+            '${ScheduleUnavailableReasons.label(preview.unavailableReason)}. '
+            'Escolha outra data.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
+        ],
+        if (preview != null && preview.available && !widget.approveOnly) ...[
           const SizedBox(height: AppSpacing.sm),
           Text(
             preview.immediate
@@ -1794,7 +1809,10 @@ class _ApproveSheetState extends State<_ApproveSheet> {
         ],
         // Pagar depois do vencimento é AVISO, nunca bloqueio: pagar a conta
         // atrasada é justamente o que o produto precisa saber fazer.
-        if (preview != null && preview.afterDueDate && !widget.approveOnly) ...[
+        if (preview != null &&
+            preview.available &&
+            preview.afterDueDate &&
+            !widget.approveOnly) ...[
           const SizedBox(height: AppSpacing.sm),
           Text(
             'Esta data é posterior ao vencimento. O pagamento sai em atraso e '
@@ -1889,6 +1907,10 @@ class _ApproveSheetState extends State<_ApproveSheet> {
         FilledButton(
           onPressed: _submitting ||
                   (needsRiskAcknowledgement && !_riskAcknowledged) ||
+                  // Prévia AUSENTE não trava (ela é informativa, e falhar ao
+                  // buscá-la não pode impedir de autorizar); prévia que DIZ
+                  // "não dá", trava.
+                  (preview != null && !preview.available && !widget.approveOnly) ||
                   (needsImmediateAck &&
                       !_immediateAcknowledged &&
                       !widget.approveOnly)

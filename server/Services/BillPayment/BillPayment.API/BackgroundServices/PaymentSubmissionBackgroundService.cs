@@ -13,10 +13,13 @@ using Microsoft.Extensions.Options;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Só submete dentro da janela do ADR-017</strong> (9h–17h no fuso do provedor, por
-/// configuração): fora dela o ciclo constata e volta a dormir, e o aluguel das ordens continua
-/// livre para a primeira reivindicação de quando a janela abrir. Submissão em horário comercial
-/// é submissão com gente acordada para reagir ao alerta.
+/// <strong>A janela do ADR-017 (9h–18h no fuso do provedor, por configuração em
+/// <c>Payments:SubmissionWindowStart/End</c>, fim EXCLUSIVO) vale para o pagamento que EXECUTA
+/// hoje</strong> — não para a fila inteira. Fora dela o ciclo continua rodando e submete o que
+/// só vai ser pago em outro dia: o provedor recebe uma data e agenda, e o agendamento feito lá
+/// sobrevive a uma queda nossa — segurar a ordem aqui até as 9h é que era o risco. O que espera
+/// a abertura é o pagamento de hoje e o do boleto vencido (que o provedor processa na hora):
+/// esses o horário comercial protege, porque é quando há gente acordada para reagir ao alerta.
 /// </para>
 /// <para>
 /// <strong>Serial, de propósito.</strong> O gargalo não é o código: cada submissão é uma escrita
@@ -73,10 +76,14 @@ internal sealed class PaymentSubmissionBackgroundService(
         var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(
             clock.GetUtcNow().UtcDateTime, _scheduling.ResolveTimeZone());
 
-        if (!_scheduling.ToPolicy().IsWithinSubmissionWindow(TimeOnly.FromDateTime(nowLocal)))
-            return;
+        // Até 2026-09-10 a janela fechada abortava o ciclo inteiro, e uma ordem criada às 21h
+        // para amanhã dormia até as 9h — dentro de casa, onde uma queda a perde. A janela agora
+        // ENTRA NA REIVINDICAÇÃO: fechada, o lote traz só o que não executa hoje. A regra de
+        // quem fica está no filtro da query, num lugar só.
+        var windowOpen = _scheduling.ToPolicy()
+            .IsWithinSubmissionWindow(TimeOnly.FromDateTime(nowLocal));
 
-        var claimed = await ClaimAsync(stoppingToken);
+        var claimed = await ClaimAsync(DateOnly.FromDateTime(nowLocal), windowOpen, stoppingToken);
 
         foreach (var pending in claimed)
         {
@@ -87,14 +94,16 @@ internal sealed class PaymentSubmissionBackgroundService(
         }
     }
 
-    private async Task<IReadOnlyList<PendingPaymentSubmission>> ClaimAsync(CancellationToken stoppingToken)
+    private async Task<IReadOnlyList<PendingPaymentSubmission>> ClaimAsync(
+        DateOnly today, bool windowOpen, CancellationToken stoppingToken)
     {
         using var scope = scopeFactory.CreateScope();
         var queries = scope.ServiceProvider.GetRequiredService<IPaymentOrderWorkQueries>();
 
         var leaseUntil = clock.GetUtcNow().Add(_options.LeaseDuration);
 
-        return await queries.ClaimPendingSubmissionsAsync(_options.BatchSize, leaseUntil, stoppingToken);
+        return await queries.ClaimPendingSubmissionsAsync(
+            _options.BatchSize, leaseUntil, today, windowOpen, stoppingToken);
     }
 
     private async Task SubmitOneAsync(PendingPaymentSubmission pending, CancellationToken stoppingToken)
