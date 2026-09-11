@@ -94,6 +94,35 @@ public sealed class ExtractionResult : ValueObject
     }
 
     /// <summary>
+    /// O mesmo desfecho, com documentos fiscais acrescentados aos que já havia.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Existe porque o instrumento e o pagador podem vir de degraus diferentes.</strong> A
+    /// cascata determinística acha o instrumento e a visão acha o pagador, e até 2026-09-10 o
+    /// segundo era descartado sempre que o primeiro tivesse resolvido — a guia do FGTS Digital é o
+    /// caso que expôs isso (ver <c>ProcessCaptureItemCommand.ExtractWithVisionAsync</c>).
+    /// </para>
+    /// <para>
+    /// <strong>Só acrescenta.</strong> O que a varredura determinística leu permanece e vem
+    /// primeiro, inclusive o que veio sob rótulo de pagador — que é o que sustenta o degrau 1
+    /// negativo. A deduplicação é por <c>(documento, rótulo)</c>, a mesma do <c>TaxIdScanner</c>,
+    /// então a mesma ocorrência lida pelos dois caminhos não vira dois candidatos.
+    /// </para>
+    /// </remarks>
+    public ExtractionResult WithParties(IEnumerable<PartyCandidate>? parties)
+    {
+        if (parties is null)
+            return this;
+
+        var merged = _parties.Concat(parties).Distinct().ToList();
+
+        return merged.Count == _parties.Count
+            ? this
+            : new ExtractionResult(_instruments, merged, Method, UnlockedBy, ReasonCode);
+    }
+
+    /// <summary>
     /// Nada de pagável no artefato. <strong>Não é erro</strong> — é o desfecho mais comum numa
     /// caixa de uso misto, e o que permite descartar sem encher fila.
     /// </summary>

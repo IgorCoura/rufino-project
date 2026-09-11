@@ -633,8 +633,28 @@ public sealed class ProcessCaptureItemCommandHandler(
             extracted, new DateTimeOffset(occurredAt, TimeSpan.Zero), body?.Text);
         var reading = candidate.HasContent ? candidate : null;
 
+        // O documento do pagador lido pela visão entra na escada de roteamento — é o que faz um
+        // documento ESCANEADO subir ao degrau 1 em vez de cair na reivindicação. Entra SEM o
+        // rótulo de pagador, de propósito: o rótulo é o que autoriza o degrau negativo, e o
+        // modelo devolve em payerTaxId o CNPJ do beneficiário impresso com frequência suficiente
+        // (DV válido por construção) para que "é de outra pessoa" decidido por ele fosse perder a
+        // conta do tenant sem caminho de volta. Sem rótulo, o documento do tenant ainda promove
+        // (degrau 1 casa com o cadastro) e o de terceiro vai para a reivindicação, onde uma
+        // pessoa decide (auditoria 2026-08-28, ADR-011 estendido à posse do boleto).
+        var parties = PartyCandidate.TryCreate(extracted.PayerTaxId, underPayerLabel: false) is { } party
+            ? new[] { party }
+            : [];
+
+        // O INSTRUMENTO pode vir do determinístico e o PAGADOR só da visão, e até 2026-09-10 esse
+        // par era impossível: resolvido pelo determinístico devolvia aqui, e o payerTaxId lido
+        // pelo modelo era jogado fora — só o retrato sobrevivia. A guia do FGTS Digital é o caso
+        // que expôs isso, e ele não é exótico: o QR Pix resolve o instrumento, e a camada de texto
+        // do PDF é ilegível por construção (fontes subset Identity-H sem /ToUnicode, e os arquivos
+        // TrueType embutidos sem cmap — não existe mapa glifo→caractere no arquivo), então o
+        // TaxIdScanner volta vazio e a escada caía em Unrouted com o CNPJ impresso na página.
+        // Acrescentar é seguro pelo mesmo motivo de sempre: sem rótulo, a visão só promove.
         if (extraction.Resolved)
-            return (extraction, reading);
+            return (extraction.WithParties(parties), reading);
 
         var instruments = CandidateValidationService.Validate(extracted, occurredAt);
 
@@ -651,18 +671,6 @@ public sealed class ProcessCaptureItemCommandHandler(
 
             return (extraction, reading);
         }
-
-        // O documento do pagador lido pela visão entra na escada de roteamento — é o que faz um
-        // documento ESCANEADO subir ao degrau 1 em vez de cair na reivindicação. Entra SEM o
-        // rótulo de pagador, de propósito: o rótulo é o que autoriza o degrau negativo, e o
-        // modelo devolve em payerTaxId o CNPJ do beneficiário impresso com frequência suficiente
-        // (DV válido por construção) para que "é de outra pessoa" decidido por ele fosse perder a
-        // conta do tenant sem caminho de volta. Sem rótulo, o documento do tenant ainda promove
-        // (degrau 1 casa com o cadastro) e o de terceiro vai para a reivindicação, onde uma
-        // pessoa decide (auditoria 2026-08-28, ADR-011 estendido à posse do boleto).
-        var parties = PartyCandidate.TryCreate(extracted.PayerTaxId, underPayerLabel: false) is { } party
-            ? new[] { party }
-            : [];
 
         return (ExtractionResult.Found(instruments, ExtractionMethod.Vision, parties: parties), reading);
     }
