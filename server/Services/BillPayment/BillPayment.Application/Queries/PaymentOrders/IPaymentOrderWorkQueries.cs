@@ -20,9 +20,22 @@ public interface IPaymentOrderWorkQueries
     /// Escolhe e reserva o lote num único comando: <c>Draft</c>, sem retenção, com o aluguel
     /// vencido ou livre. O aluguel também é o backoff — a mesma coluna, a mesma pergunta.
     /// </summary>
+    /// <param name="today">A data de hoje no fuso do provedor — quem resolve o fuso é o worker.</param>
+    /// <param name="submissionWindowOpen">
+    /// A janela do ADR-017 está aberta agora? Fechada, o lote traz <strong>só o que não executa
+    /// hoje</strong>: data pedida depois de hoje e boleto não vencido. É o filtro que faz a
+    /// janela valer para o pagamento de hoje sem prender o agendamento de amanhã até as 9h.
+    /// </param>
+    /// <remarks>
+    /// O recorte é da REIVINDICAÇÃO, de propósito: a tentativa é contada na saída da fila, então
+    /// reivindicar o que não vai ser submetido gastaria tentativa e empurraria a ordem para a
+    /// desistência sem nunca ter falado com o provedor.
+    /// </remarks>
     Task<IReadOnlyList<PendingPaymentSubmission>> ClaimPendingSubmissionsAsync(
         int limit,
         DateTimeOffset leaseUntil,
+        DateOnly today,
+        bool submissionWindowOpen,
         CancellationToken cancellationToken = default);
 
     /// <summary>

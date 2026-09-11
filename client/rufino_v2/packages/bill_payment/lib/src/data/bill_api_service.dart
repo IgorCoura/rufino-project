@@ -129,6 +129,10 @@ abstract final class BillMapper {
       slid: json['slid'] as bool? ?? false,
       immediate: json['immediate'] as bool? ?? false,
       afterDueDate: json['afterDueDate'] as bool? ?? false,
+      // Ausente num servidor mais antigo: quem cala permite, e a recusa
+      // continua acontecendo na escrita.
+      available: json['available'] as bool? ?? true,
+      unavailableReason: json['unavailableReason'] as String?,
     );
   }
 

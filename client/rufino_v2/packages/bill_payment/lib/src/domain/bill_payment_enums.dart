@@ -802,6 +802,14 @@ abstract final class ArtifactOutcomes {
   /// e-mails que não estavam em fila nenhuma.
   static const String nothingToProcess = 'NothingToProcess';
 
+  /// Uma pessoa olhou e disse que não reconhece — saiu da fila de pendências.
+  ///
+  /// Não é [discarded], que é o sistema reconhecendo duplicata: este é decisão
+  /// humana, com autor registrado, e reversível. Espelha
+  /// [CaptureItemStatuses.dismissed]; o item continua existindo, então a linha
+  /// do anexo ainda abre na quarentena.
+  static const String dismissed = 'Dismissed';
+
   /// The filters the screen offers, in reading order.
   static const List<String> filters = [
     promoted,
@@ -829,6 +837,7 @@ abstract final class ArtifactOutcomes {
         discarded => 'Descartado',
         processingFailed => 'Falha no processamento',
         nothingToProcess => 'Sem documento',
+        dismissed => 'Reprovado',
         _ => outcome,
       };
 }

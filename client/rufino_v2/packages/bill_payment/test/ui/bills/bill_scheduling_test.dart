@@ -22,12 +22,14 @@ void main() {
     DateTime? scheduledFor,
     List<BillHistoryEntry> history = const [],
     DateTime? lastConsultedAt,
+    String? riskLevel,
   }) async {
     repository.detail = billDetail(
       status: status,
       scheduledFor: scheduledFor,
       history: history,
       lastConsultedAt: lastConsultedAt ?? DateTime.now(),
+      riskLevel: riskLevel,
     );
     final viewModel = BillDetailViewModel(
       repository: repository,
@@ -186,6 +188,33 @@ void main() {
 
       expect(repository.calls, contains('scheduleBill:bill-1'));
       expect(repository.lastApproveScheduleFor, isNotNull);
+    });
+
+    // O aceite de risco é do ato de aprovar: na folha de agendamento a caixa
+    // não aparece, então ela não pode travar o botão — um Perigo já aprovado
+    // ficaria sem como ser agendado.
+    testWidgets('a Danger bill already approved still schedules',
+        (tester) async {
+      await pumpBill(
+        tester,
+        status: BillStatuses.approved,
+        billScopes: const ['view', 'schedule'],
+        riskLevel: RiskLevels.danger,
+      );
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Agendar…'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CheckboxListTile), findsNothing);
+      final button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Agendar'),
+      );
+      expect(button.onPressed, isNotNull);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Agendar'));
+      await tester.pumpAndSettle();
+
+      expect(repository.calls, contains('scheduleBill:bill-1'));
     });
   });
 

@@ -683,7 +683,9 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
         using var scope = _host.Services.CreateScope();
         var queries = scope.ServiceProvider.GetRequiredService<IPaymentOrderWorkQueries>();
 
-        await queries.ClaimPendingSubmissionsAsync(10, DateTimeOffset.UtcNow.AddMinutes(15), CancellationToken.None);
+        await queries.ClaimPendingSubmissionsAsync(
+            10, DateTimeOffset.UtcNow.AddMinutes(15), DateOnly.FromDateTime(DateTime.UtcNow),
+            submissionWindowOpen: true, CancellationToken.None);
     }
 
     private async Task SubmitCommandAsync(Guid orderId)

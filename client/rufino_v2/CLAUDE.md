@@ -1140,7 +1140,7 @@ refresh de token e limpa no logout — junto com as outras duas.
 | `/bill-payment/bills/:id/receipt` | O comprovante de pagamento vindo do provedor, em tela cheia (só existe após Pago), **com botão de baixar** | `bill`/`view` |
 | `/bill-payment/bills/:id/email` | O e-mail que trouxe o boleto — título, remetente e corpo renderizado | `bill`/`view` |
 | `/bill-payment/capture-items` (+`/:id`, `/:id/artifact`, `/:id/email`) | Quarentena: filtro server-side, claim/reprocess, documento original (**com botão de baixar**) e o e-mail que trouxe o item | `capture-item`/`view` |
-| `/bill-payment/captured-messages` | Livro-caixa: todo e-mail lido, com busca, filtros, rolagem infinita, controle de retenção e recaptura | `captured-message`/`view`·`recapture` |
+| `/bill-payment/captured-messages` | Livro-caixa: todo e-mail lido, com busca, filtros, rolagem infinita, **uma linha de destino por anexo**, controle de retenção e recaptura | `captured-message`/`view`·`recapture` |
 | `/bill-payment/capture-sources` (+`/connect`, `/:id`) | Caixas monitoradas: stepper Entra ID, pastas, **piso temporal**, sync/rescan | `capture-source`/`view`·`manage` |
 | `/bill-payment/payees` (+`/create`, `/:id`) | Beneficiários: política de valor (leitura completa + **edição no detalhe**), apelidos, bancos aceitos | `payee`/`view`·`manage` |
 | `/bill-payment/payer-profile` | Perfil do pagador (1:1) — 404 = modo onboarding | `payer-profile`/`view` |
@@ -1184,6 +1184,18 @@ Coisas que não podem erodir:
   histórico a pessoa que mandou um e-mail fica sem resposta. `captured-message` e
   `capture-retention` são **recursos próprios** no Keycloak, não escopos pendurados em
   `capture-item`: fila de trabalho e histórico são coisas diferentes.
+- **O destino é do ANEXO, nunca do e-mail (2026-09-10).** Um e-mail rende N itens — dois boletos,
+  ou um boleto e um anexo que ficou para revisão —, e a linha oferecia **um** botão: os getters
+  `CapturedMessage.billId`/`captureItemId` devolviam o primeiro anexo que tivesse id, e a condição
+  do segundo botão era exclusiva (`boleto == null && item != null`). O segundo boleto ficava
+  inalcançável, e o item de quarentena do e-mail que também virou boleto não aparecia de jeito
+  nenhum. Hoje cada anexo é uma linha (`_ArtifactRow`) com o nome, o selo do desfecho dele e o
+  botão do destino dele; os getters de primeiro-id **foram apagados** — só sobrou
+  `producedBill`, que responde a pergunta do e-mail inteiro (o aviso do diálogo de reprocessar).
+  O servidor já mandava `captureItemId`/`billId` por anexo desde sempre; era a UI que jogava fora.
+  Dois detalhes que parecem enfeite e não são: o **tooltip carrega o nome do arquivo** (três
+  botões "Abrir na quarentena" idênticos não se distinguem em leitor de tela), e **com um anexo só
+  a linha não repete o selo** — o desfecho dominante do cabeçalho É o dele.
 - **A recaptura segue o contrato de 2026-08-28 do servidor, e o diálogo diz a regra nova.**
   `RecaptureOutcome` carrega `artifactsReingested`, `billsCancelled` e
   `previouslyDeniedBillIds` (os nomes antigos `itemsRemoved`/`artifactsIngested` não existem
@@ -1241,7 +1253,11 @@ Coisas que não podem erodir:
   comparações com string crua. **Nível desconhecido NUNCA desenha "Seguro"** (era o default do
   switch — um servidor mais novo mentiria verde): cai num banner neutro pedindo atualização, e
   `RiskLevels.tier` devolve 0. Aprovar Perigo OU Extremo exige a caixa "assumo o risco"
-  (`BLP.BIL27`), e a **alçada por risco** (`BLP.BIL32`, 403) é espelhada na UI:
+  (`BLP.BIL27`) — **o aceite é do ato de APROVAR, nunca do de agendar**: a folha em modo
+  `scheduleOnly` (boleto já aprovado, ADR-018) não desenha a caixa nem a cobra no botão, porque
+  o servidor só a exige em `Approve`. Até 2026-09-10 o botão Agendar continuava amarrado a ela
+  e todo boleto em Perigo já aprovado ficava sem como ser agendado — caixa nenhuma na tela para
+  destravar. E a **alçada por risco** (`BLP.BIL32`, 403) é espelhada na UI:
   `BillPaymentPermissionNotifier.canApproveAtRisk` lê os escopos novos
   (`approve-attention` < `approve-danger` < `approve-extreme`, hierárquicos) e o botão Aprovar
   desabilita com o motivo no Tooltip quando o boleto está acima da alçada. A lista de boletos
@@ -1349,13 +1365,22 @@ Coisas que não podem erodir:
   aprovação exige marcar "sei que o pagamento sai imediatamente" e manda
   `acknowledgeImmediateExecution: true` (`BLP.BIL35` sem ele). Ordem retida em
   `AwaitingConfirmation` mostra o botão "Confirmar pagamento imediato" na seção de execução.
-- **A prévia da data efetiva é INFORMATIVA e nunca bloqueia a aprovação.** O sheet de
-  aprovar mostra "Pagamento será executado em \<data\>" com "(deslizou do dia pedido)" quando a
+- **A prévia da data efetiva é INFORMATIVA — com UMA exceção, que é `available: false`.** O sheet
+  de aprovar mostra "Pagamento será executado em \<data\>" com "(deslizou do dia pedido)" quando a
   política empurrou — a conta é do servidor (ADR-017/ADR-021), o cliente não a reimplementa.
   Falha/latência da prévia não desenha nada e o Autorizar segue funcionando; resposta obsoleta
   (data mudou de novo) é descartada. Prévia com `immediate: true` revela a caixa de aceite do
   vencido mesmo que o relógio local discorde. Prévia com `afterDueDate: true` mostra o aviso de
   encargos — **aviso, nunca bloqueio**: a conta atrasada é justamente a que precisa ser paga.
+- **Prévia com `available: false` TRAVA o Autorizar** (2026-09-10), e a distinção que sustenta as
+  duas metades é: **prévia ausente não bloqueia, prévia que diz "não dá" bloqueia**. Ela vem
+  assim só para HOJE fora do horário de envio — a mesma recusa que a escrita daria
+  (`BLP.BIL40`), dita antes. Sem isso o seletor livre contornava a regra sem querer: a sugestão
+  "pagar hoje" desaparece da folha, mas digitar a mesma data pelo "Outra data…" recebia uma
+  prévia verde e um 409 no submit. O motivo é traduzido pelo mesmo
+  `ScheduleUnavailableReasons.label` das sugestões — é o mesmo veredito do servidor, e agora o
+  mesmo vocabulário nos dois lugares. Campo ausente (servidor mais antigo) lê como `true`: quem
+  cala permite, e a recusa continua acontecendo na escrita.
 - **A folha oferece QUATRO datas prontas + a data livre, e nenhuma delas é calculada aqui
   (ADR-021 do BC).** `GET /bills/{id}/schedule-options` devolve `Today`/`Tomorrow`/
   `DayBeforeDue`/`OnDueDate` já resolvidas (`ScheduleOptionPreview`: data, prévia,

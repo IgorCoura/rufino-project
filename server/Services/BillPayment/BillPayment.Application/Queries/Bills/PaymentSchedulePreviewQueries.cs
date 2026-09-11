@@ -27,12 +27,22 @@ using Microsoft.Extensions.Options;
 /// É aviso, nunca bloqueio — pagar atrasado é justamente o que o produto precisa saber fazer.
 /// Falso quando <paramref name="Immediate"/>, que já diz a mesma coisa com mais precisão.
 /// </param>
+/// <param name="Available">
+/// Esta data pode ser agendada AGORA. Falso só para HOJE fora da janela de submissão: é a
+/// mesma recusa que o agregado dá (<c>BLP.BIL40</c>), dita antes de alguém tentar.
+/// </param>
+/// <param name="UnavailableReason">
+/// Código do motivo quando não pode — o mesmo vocabulário das quatro sugestões, porque é o
+/// mesmo veredito. Código, e não frase: quem escreve o texto é a tela.
+/// </param>
 public sealed record SchedulePreviewDto(
     DateOnly RequestedDate,
     DateOnly EffectiveDate,
     bool Slid,
     bool Immediate,
-    bool AfterDueDate)
+    bool AfterDueDate,
+    bool Available = true,
+    string? UnavailableReason = null)
 {
     /// <summary>
     /// A conta, sem I/O — o mesmo <see cref="PaymentSchedulingService"/> da fila, para que a
@@ -48,6 +58,28 @@ public sealed record SchedulePreviewDto(
     {
         var resolution = PaymentSchedulingService.Resolve(
             requestedDate, dueDate, minimumScheduleDate, nowLocal, policy, calendar);
+
+        // HOJE é a única data que depende da hora (ADR-021), e o seletor livre alcança hoje como
+        // qualquer outro dia — a sugestão "pagar hoje" desaparecer da folha não impede ninguém de
+        // digitar a mesma data. Sem esta pergunta, a prévia prometia uma data que a escrita
+        // recusa com BLP.BIL40, que é a tela levando alguém a um erro já conhecido.
+        if (requestedDate == DateOnly.FromDateTime(nowLocal))
+        {
+            var sameDay = PaymentSchedulingService.CanScheduleForToday(
+                dueDate, minimumScheduleDate, nowLocal, policy, calendar);
+
+            if (!sameDay.Allowed)
+            {
+                return new SchedulePreviewDto(
+                    requestedDate,
+                    requestedDate,
+                    Slid: false,
+                    Immediate: false,
+                    AfterDueDate: false,
+                    Available: false,
+                    sameDay.ReasonCode);
+            }
+        }
 
         // Imediato: não há data futura — a efetiva é "hoje" no fuso da política, sem deslize
         // (o que há a comunicar é a execução na hora, não uma data que mudou).

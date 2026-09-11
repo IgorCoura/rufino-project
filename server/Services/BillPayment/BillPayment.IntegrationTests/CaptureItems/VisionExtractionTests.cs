@@ -111,6 +111,52 @@ public sealed class VisionExtractionTests : BaseIntegrationTest
         Assert.Same(RoutingConfidence.Strong, stored.Routing);
     }
 
+    // TESTE ÂNCORA da regressão de 2026-09-10: o INSTRUMENTO vem do determinístico e o PAGADOR só
+    // da visão. Era o par impossível — resolvido pelo determinístico devolvia antes de fundir, e o
+    // documento fiscal lido pelo modelo era descartado. A guia do FGTS Digital é o caso real: o QR
+    // Pix resolve o instrumento e a camada de texto do PDF é ilegível por construção (fontes subset
+    // Identity-H sem /ToUnicode e sem cmap), então o TaxIdScanner volta vazio e a guia caía na fila
+    // de reivindicação com o CNPJ do tenant impresso na página.
+    [Fact]
+    public async Task Process_WhenTheCascadeResolvedAndOnlyVisionReadsThePayer_ShouldPromoteAsStrong()
+    {
+        await SeedTrustedOriginAsync();
+        await SeedPayerProfileAsync();
+        _vision.Result = ExtractedDocument.From(payerTaxId: TenantCnpj);
+
+        var itemId = await SeedAsync(KnownSender, "Boleto de agosto", PdfWith(ValidBankSlip));
+        var result = await ProcessAsync(itemId);
+
+        Assert.Equal("Promote", result.Routing);
+
+        var stored = await LoadAsync(itemId);
+        Assert.Same(CaptureItemStatus.Promoted, stored!.Status);
+        Assert.Same(RoutingConfidence.Strong, stored.Routing);
+
+        // O degrau que resolveu continua sendo o determinístico: fundir documento fiscal não pode
+        // reescrever de onde veio o instrumento, que é métrica da cascata.
+        Assert.Same(ExtractionMethod.EmbeddedText, stored.Extraction);
+    }
+
+    // Contraprova da fusão: a visão entra SEM rótulo de pagador, então o documento de um terceiro
+    // lido por ela não descarta o boleto como de outra pessoa — ele vai para a reivindicação.
+    // Sem ela, acrescentar os candidatos da visão poderia virar recusa em silêncio.
+    [Fact]
+    public async Task Process_WhenTheCascadeResolvedAndVisionReadsSomeoneElse_ShouldQueueForClaim()
+    {
+        await SeedTrustedOriginAsync();
+        await SeedPayerProfileAsync();
+        _vision.Result = ExtractedDocument.From(payerTaxId: "45.997.418/0001-53");
+
+        var itemId = await SeedAsync(KnownSender, "Boleto de agosto", PdfWith(ValidBankSlip));
+        var result = await ProcessAsync(itemId);
+
+        Assert.Equal("Unrouted", result.Routing);
+
+        var stored = await LoadAsync(itemId);
+        Assert.Same(CaptureItemStatus.Unrouted, stored!.Status);
+    }
+
     // TESTE ÂNCORA DO ADR-011. O modelo devolve uma linha com um dígito trocado — o erro típico
     // de leitura — e o dígito verificador a barra. O item continua na quarentena, e nenhum
     // boleto nasce de um número inventado.

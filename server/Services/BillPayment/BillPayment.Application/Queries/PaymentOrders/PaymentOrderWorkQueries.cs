@@ -24,6 +24,8 @@ internal sealed class PaymentOrderWorkQueries(BillPaymentDbContext context, Time
     public async Task<IReadOnlyList<PendingPaymentSubmission>> ClaimPendingSubmissionsAsync(
         int limit,
         DateTimeOffset leaseUntil,
+        DateOnly today,
+        bool submissionWindowOpen,
         CancellationToken cancellationToken = default)
     {
         if (limit <= 0)
@@ -35,14 +37,25 @@ internal sealed class PaymentOrderWorkQueries(BillPaymentDbContext context, Time
         // Só o nome do schema é interpolado, e ele é constante de compilação; todo valor de fora
         // entra parametrizado. A tentativa conta na SAÍDA da fila — um worker que morre depois de
         // submeter deixa a contagem certa para a retentativa começar pela consulta de referência.
+        //
+        // Com a janela FECHADA o lote encolhe para o que não move dinheiro hoje (2026-09-10):
+        //   - data pedida depois de hoje: o provedor recebe uma data e AGENDA, e agendamento no
+        //     provedor sobrevive à nossa queda — segurar até as 9h é que era o risco;
+        //   - boleto não vencido: o vencido o provedor processa NA HORA, ignorando a data, então
+        //     ele é pagamento de hoje mesmo pedido para amanhã, e continua esperando a janela.
+        // O vencimento vive na tabela do boleto e por isso ela entra aqui — leitura de uma
+        // coluna, sem materializar o agregado nem travar a linha (o FOR UPDATE é só do lote).
+        // Boleto ausente (ordem órfã) não impede: quem recusa é a submissão, com falha visível.
         var sql =
             $"UPDATE {schema}.payment_orders SET "
             + "submission_lease_expires_at = @lease, submission_attempts = submission_attempts + 1, updated_at = @now "
             + "WHERE id IN ("
-            + $"SELECT id FROM {schema}.payment_orders "
-            + "WHERE status = @status AND hold = @hold "
-            + "AND (submission_lease_expires_at IS NULL OR submission_lease_expires_at <= @now) "
-            + "ORDER BY created_at, id LIMIT @limit FOR UPDATE SKIP LOCKED) "
+            + $"SELECT o.id FROM {schema}.payment_orders o "
+            + "WHERE o.status = @status AND o.hold = @hold "
+            + "AND (o.submission_lease_expires_at IS NULL OR o.submission_lease_expires_at <= @now) "
+            + "AND (@windowOpen OR (o.requested_schedule_date > @today AND NOT EXISTS ("
+            + $"SELECT 1 FROM {schema}.bills b WHERE b.id = o.bill_id AND b.due_date < @today))) "
+            + "ORDER BY o.created_at, o.id LIMIT @limit FOR UPDATE SKIP LOCKED) "
             + "RETURNING id, tenant_id, created_at";
 
         var claimed = new List<(Guid Id, Guid TenantId, DateTime CreatedAt)>();
@@ -61,6 +74,8 @@ internal sealed class PaymentOrderWorkQueries(BillPaymentDbContext context, Time
             Bind(command, "@now", now);
             Bind(command, "@status", PaymentOrderStatus.Draft.Id);
             Bind(command, "@hold", PaymentOrderHold.None.Id);
+            Bind(command, "@windowOpen", submissionWindowOpen);
+            Bind(command, "@today", today);
             Bind(command, "@limit", limit);
 
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);

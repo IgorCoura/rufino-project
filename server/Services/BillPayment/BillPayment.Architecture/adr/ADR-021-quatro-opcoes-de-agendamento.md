@@ -30,6 +30,8 @@ simplesmente **hoje**.
 o único horário em que a fila fala com o provedor.
 
 **3. A janela é sobre a hora da SUBMISSÃO, não a do pagamento — e por isso só limita HOJE.**
+(⚠️ **Revisto em 2026-09-10**, ver "Decisões posteriores": data futura deixou de esperar a
+abertura e é submetida a qualquer hora.)
 Datas futuras são submetidas na próxima abertura da janela e o provedor honra a data; o horário
 da liquidação é dele. "Pagar hoje", ao contrário, depende de submeter hoje: fora da janela a
 próxima submissão possível já seria amanhã, quando "hoje" virou ontem. Então **a opção de pagar
@@ -80,6 +82,44 @@ explícita gravada na trilha, na aprovação e na fila.
 - `BLP.BIL40` é uma recusa que a tela **precisa** tratar no lugar, como o `BLP.BIL35`: a janela
   pode fechar entre abrir a folha e confirmar, e fechar o sheet perderia o formulário por causa
   de um relógio que andou um minuto.
+
+## Decisões posteriores
+
+### 2026-09-10 — A janela para de segurar o que não executa hoje (decisão do usuário)
+
+O item 3 acima estava certo sobre o alcance da janela e **errado sobre o custo de esperar por
+ela**. "Datas futuras são submetidas na próxima abertura" significava, na prática, que um boleto
+aprovado e agendado às 21h para o dia seguinte dormia doze horas **dentro de casa** — e enquanto
+ele dorme aqui, nada está agendado em lugar nenhum. Submetê-lo na hora transforma a ordem em
+agendamento no provedor, e **agendamento no provedor sobrevive a uma queda nossa**. Segurar era
+o risco, não a proteção.
+
+A janela passa a valer para o pagamento que **executa hoje**, e só:
+
+| Ordem, com a janela FECHADA | Desfecho |
+|---|---|
+| data pedida depois de hoje, boleto no prazo | **submetida agora** — vira agendamento no provedor |
+| data pedida é hoje | espera a abertura |
+| data pedida já passou (resolve para hoje) | espera a abertura |
+| data pedida depois de hoje, **boleto vencido** | espera a abertura |
+
+A última linha é o que o recorte tem de menos óbvio e mais importante: **o provedor processa
+conta vencida na hora, ignorando a data** (é a premissa do ADR-017, regra 3). Um vencido enviado
+às 23h não é agendamento — é dinheiro saindo com ninguém acordado para reagir ao alerta, que é
+exatamente o que a janela existe para impedir. Data futura num boleto vencido não descreve o que
+vai acontecer.
+
+**O recorte vive na REIVINDICAÇÃO da fila** (`IPaymentOrderWorkQueries.ClaimPendingSubmissionsAsync`),
+não no `SubmitPaymentOrderCommand`. A tentativa de submissão é contada na saída da fila, então
+reivindicar o que não vai ser submetido gastaria tentativa e empurraria a ordem para a
+desistência sem ela nunca ter falado com o provedor. É também por isso que o vencimento do
+boleto entra na consulta do claim: é o único lugar onde ele pode ser lido a tempo de não
+reivindicar.
+
+O que **não** mudou: a janela em si (9h–18h, configurável), o bloqueio de "pagar hoje" fora dela
+(`BLP.BIL40`, item 3), a ordem das perguntas do veredito, e as quatro sugestões da tela. Quem
+agenda continua não podendo escolher hoje fora do horário — o que deixou de existir é a espera
+de quem escolheu outro dia.
 
 ## Alternativas descartadas
 

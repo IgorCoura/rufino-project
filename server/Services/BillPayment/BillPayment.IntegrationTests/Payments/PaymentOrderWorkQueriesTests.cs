@@ -20,6 +20,8 @@ public sealed class PaymentOrderWorkQueriesTests : BaseIntegrationTest
     private static readonly TenantId TenantA = TenantId.From(TestTenants.Primary);
     private static readonly TenantId TenantB = TenantId.From(TestTenants.Secondary);
     private static readonly DateTime OccurredAt = new(2026, 8, 20, 9, 0, 0, DateTimeKind.Utc);
+    private static readonly DateOnly RequestedFor = new(2026, 8, 25);
+    private const string BankSlipLine = "34191234546789012345767890123457314880000061507";
 
     public PaymentOrderWorkQueriesTests(IntegrationTestWebAppFactory factory) : base(factory) { }
 
@@ -99,6 +101,73 @@ public sealed class PaymentOrderWorkQueriesTests : BaseIntegrationTest
         Assert.Equal(older.Value, claimed[0].PaymentOrderId);
         Assert.Equal(TenantB.Value, claimed[0].TenantId);
         Assert.Equal(newer.Value, claimed[1].PaymentOrderId);
+    }
+
+    // A janela do ADR-017 deixou de pausar a fila inteira (2026-09-10): fechada, a ordem para
+    // OUTRO DIA é submetida na hora. O provedor recebe uma data e agenda, e agendamento feito lá
+    // sobrevive a uma queda nossa — segurar a ordem aqui até as 9h é que era o risco.
+    [Fact]
+    public async Task Claim_OutsideTheWindow_ShouldStillTakeAnOrderForAnotherDay()
+    {
+        await SeedDraftAsync();
+
+        var claimed = await ClaimAsync(
+            DateTimeOffset.UtcNow.AddMinutes(15), RequestedFor.AddDays(-1), windowOpen: false);
+
+        Assert.Single(claimed);
+    }
+
+    // O pagamento de HOJE continua esperando a abertura: é ele que a janela existe para proteger,
+    // porque é dele que o dinheiro sai com a janela fechada e ninguém acordado para reagir.
+    [Fact]
+    public async Task Claim_OutsideTheWindow_ShouldLeaveTodaysPaymentForTheOpening()
+    {
+        await SeedDraftAsync();
+
+        Assert.Empty(await ClaimAsync(
+            DateTimeOffset.UtcNow.AddMinutes(15), RequestedFor, windowOpen: false));
+
+        Assert.Single(await ClaimAsync(
+            DateTimeOffset.UtcNow.AddMinutes(15), RequestedFor, windowOpen: true));
+    }
+
+    // Data pedida que já passou resolve para hoje na submissão (o piso temporal do serviço de
+    // agendamento), então ela é pagamento de hoje e espera a janela como tal.
+    [Fact]
+    public async Task Claim_OutsideTheWindow_ShouldLeaveAnOrderWhoseDateHasPassed()
+    {
+        await SeedDraftAsync();
+
+        Assert.Empty(await ClaimAsync(
+            DateTimeOffset.UtcNow.AddMinutes(15), RequestedFor.AddDays(3), windowOpen: false));
+    }
+
+    // O teste-âncora do recorte: boleto VENCIDO o provedor processa NA HORA, ignorando a data —
+    // ele é pagamento de hoje mesmo pedido para amanhã, e continua esperando a janela abrir.
+    [Fact]
+    public async Task Claim_OutsideTheWindow_ShouldLeaveAnOverdueBillEvenWhenAskedForAnotherDay()
+    {
+        var bill = await SeedBillAsync();
+        await SeedDraftAsync(billId: bill.Id, requestedFor: bill.DueDate.AddDays(10));
+
+        var today = bill.DueDate.AddDays(1);
+
+        Assert.Empty(await ClaimAsync(DateTimeOffset.UtcNow.AddMinutes(15), today, windowOpen: false));
+        Assert.Single(await ClaimAsync(DateTimeOffset.UtcNow.AddMinutes(15), today, windowOpen: true));
+    }
+
+    // A contraprova: o mesmo boleto ainda no prazo é submetido fora da janela. Sem ela, uma
+    // consulta que excluísse todo boleto passaria pelo teste acima sem fazer nada de útil.
+    [Fact]
+    public async Task Claim_OutsideTheWindow_ShouldTakeAnOrderWhoseBillIsNotOverdue()
+    {
+        var bill = await SeedBillAsync();
+        await SeedDraftAsync(billId: bill.Id, requestedFor: bill.DueDate);
+
+        var claimed = await ClaimAsync(
+            DateTimeOffset.UtcNow.AddMinutes(15), bill.DueDate.AddDays(-1), windowOpen: false);
+
+        Assert.Single(claimed);
     }
 
     // A varredura da conciliação: só ordem submetida (Pending/BankProcessing) e ENVELHECIDA
@@ -235,12 +304,14 @@ public sealed class PaymentOrderWorkQueriesTests : BaseIntegrationTest
         Assert.Empty(await ClaimMissingReceiptsAsync(DateTimeOffset.UtcNow.AddMinutes(-5)));
     }
 
-    private async Task<IReadOnlyList<PendingPaymentSubmission>> ClaimAsync(DateTimeOffset leaseUntil)
+    private async Task<IReadOnlyList<PendingPaymentSubmission>> ClaimAsync(
+        DateTimeOffset leaseUntil, DateOnly? today = null, bool windowOpen = true)
     {
         using var scope = Factory.Services.CreateScope();
         var queries = scope.ServiceProvider.GetRequiredService<IPaymentOrderWorkQueries>();
 
-        return await queries.ClaimPendingSubmissionsAsync(10, leaseUntil, CancellationToken.None);
+        return await queries.ClaimPendingSubmissionsAsync(
+            10, leaseUntil, today ?? RequestedFor.AddDays(-1), windowOpen, CancellationToken.None);
     }
 
     private Task<IReadOnlyList<PendingPaymentSubmission>> ListStaleAsync(DateTimeOffset syncedBefore)
@@ -267,17 +338,42 @@ public sealed class PaymentOrderWorkQueriesTests : BaseIntegrationTest
             .AsNoTracking()
             .SingleAsync(o => o.Id == orderId));
 
+    /// <summary>
+    /// Um boleto de verdade na tabela, para a reivindicação ter vencimento que ler. As ordens dos
+    /// demais testes apontam para um boleto que não existe — e isso também é caso coberto.
+    /// </summary>
+    private Task<(BillId Id, DateOnly DueDate)> SeedBillAsync()
+        => ExecuteDbContextAsync(async db =>
+        {
+            var bill = Bill.Capture(
+                TenantA,
+                [PaymentInstrument.FromBarcode(DigitableLine.Parse(BankSlipLine, OccurredAt))],
+                BillOrigin.Create(
+                    BillSourceKind.Mailbox,
+                    OccurredAt,
+                    sourceId: Guid.CreateVersion7(),
+                    senderAddress: "faturas@fornecedor.com.br"),
+                OccurredAt);
+
+            await db.Bills.AddAsync(bill);
+            await db.SaveEntitiesAsync();
+
+            return (bill.Id, bill.DueDate!.Value);
+        });
+
     private Task<PaymentOrderId> SeedDraftAsync(
         Action<PaymentOrder>? arrange = null,
         TenantId? tenantId = null,
-        DateTime? createdAt = null)
+        DateTime? createdAt = null,
+        DateOnly? requestedFor = null,
+        BillId? billId = null)
         => ExecuteDbContextAsync(async db =>
         {
             var order = PaymentOrder.Draft(
                 tenantId ?? TenantA,
-                BillId.From(Guid.CreateVersion7()),
+                billId ?? BillId.From(Guid.CreateVersion7()),
                 PaymentRail.Boleto,
-                new DateOnly(2026, 8, 25),
+                requestedFor ?? RequestedFor,
                 new Money(615.07m, Currency.BRL),
                 createdAt ?? OccurredAt);
 

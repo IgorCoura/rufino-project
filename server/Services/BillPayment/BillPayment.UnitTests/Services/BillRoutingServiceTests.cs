@@ -320,4 +320,49 @@ public class BillRoutingServiceTests
         Assert.Same(RoutingOutcome.Foreign, decision.Outcome);
         Assert.Equal(BillRoutingService.REASON_PAYER_IS_ANOTHER, decision.Reason);
     }
+
+    /// <summary>
+    /// O defeito de 2026-09-10, do jeito que ele aparecia: o instrumento vem do QR Pix, a
+    /// varredura de texto não acha documento fiscal nenhum, e a escada manda para a fila de
+    /// reivindicação um boleto cujo pagador a visão tinha lido.
+    /// </summary>
+    /// <remarks>
+    /// A guia do FGTS Digital é o caso real — a camada de texto do PDF é ilegível por construção
+    /// (fontes subset Identity-H sem <c>/ToUnicode</c>, e os arquivos TrueType embutidos sem
+    /// <c>cmap</c>), então o <c>TaxIdScanner</c> volta vazio e o pagador só existe na visão.
+    /// </remarks>
+    [Fact]
+    public void Route_WithThePayerReadOnlyByVision_ShouldPromoteInsteadOfQueueingForClaim()
+    {
+        var profile = PayerProfileMother.Register();
+        var fromQrCodeOnly = Extraction();
+
+        var before = BillRoutingService.Route(fromQrCodeOnly, profile, NoExclusivePayees);
+
+        Assert.Same(RoutingOutcome.Unrouted, before.Outcome);
+        Assert.Equal(BillRoutingService.REASON_PAYER_NOT_IDENTIFIED, before.Reason);
+
+        var after = BillRoutingService.Route(
+            fromQrCodeOnly.WithParties([Party(OwnCnpj)]), profile, NoExclusivePayees);
+
+        Assert.Same(RoutingOutcome.Promote, after.Outcome);
+        Assert.Same(RoutingConfidence.Strong, after.Confidence);
+        Assert.Equal(BillRoutingService.REASON_PAYER_TAX_ID, after.Reason);
+        Assert.Equal(OwnCnpj, after.PayerTaxId?.Value);
+    }
+
+    // A assimetria continua de pé depois da fusão: a visão entra SEM rótulo, então o documento de
+    // um terceiro lido por ela não descarta o boleto como de outra pessoa — ele vai para a
+    // reivindicação, onde uma pessoa decide (ADR-011 estendido à posse do boleto).
+    [Fact]
+    public void Route_WithAForeignPayerReadByVision_ShouldStillQueueForClaim()
+    {
+        var decision = BillRoutingService.Route(
+            Extraction().WithParties([Party(SomeoneElsesCnpj)]),
+            PayerProfileMother.Register(),
+            NoExclusivePayees);
+
+        Assert.Same(RoutingOutcome.Unrouted, decision.Outcome);
+        Assert.Equal(BillRoutingService.REASON_PAYER_NOT_IDENTIFIED, decision.Reason);
+    }
 }

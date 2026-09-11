@@ -741,19 +741,48 @@ CapturedArtifact artifact({
   );
 }
 
+/// Um anexo do livro-caixa, com o desfecho e o destino dele.
+CapturedArtifactOutcome capturedArtifact({
+  String? fileName = 'boleto.pdf',
+  String outcome = ArtifactOutcomes.discarded,
+  String? billId,
+  String? captureItemId,
+}) {
+  return CapturedArtifactOutcome(
+    fileName: fileName,
+    contentType: 'application/pdf',
+    outcome: outcome,
+    billId: billId,
+    captureItemId: captureItemId,
+  );
+}
+
 /// Um e-mail do livro-caixa, com padrões coerentes.
+///
+/// Passe [artifacts] para o e-mail com mais de um anexo — é o caso que a tela
+/// tem de desenhar com um destino por item. `artifactCount` é derivado da lista,
+/// porque um contador que discorda dela descreve um e-mail que não existe.
 CapturedMessage capturedMessage({
   String id = 'msg-1',
   String sender = 'faturas@enel.com.br',
   String? subject = 'Sua fatura chegou',
   String outcome = ArtifactOutcomes.discarded,
-  int artifactCount = 1,
   bool canRecapture = true,
   bool processed = true,
   String? billId,
   String? captureItemId,
   DateTime? receivedAt,
+  List<CapturedArtifactOutcome>? artifacts,
 }) {
+  final entries = artifacts ??
+      [
+        capturedArtifact(
+          outcome: outcome,
+          billId: billId,
+          captureItemId: captureItemId,
+        ),
+      ];
+
   return CapturedMessage(
     id: id,
     sourceId: 'src-1',
@@ -763,17 +792,9 @@ CapturedMessage capturedMessage({
     firstSeenAt: DateTime(2026, 8, 19, 15, 49),
     processedAt: processed ? DateTime(2026, 8, 19, 16, 1) : null,
     outcome: outcome,
-    artifactCount: artifactCount,
+    artifactCount: entries.length,
     canRecapture: canRecapture,
-    artifacts: [
-      CapturedArtifactOutcome(
-        fileName: 'boleto.pdf',
-        contentType: 'application/pdf',
-        outcome: outcome,
-        billId: billId,
-        captureItemId: captureItemId,
-      ),
-    ],
+    artifacts: entries,
   );
 }
 

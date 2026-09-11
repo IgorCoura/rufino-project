@@ -1712,8 +1712,14 @@ class _ApproveSheetState extends State<_ApproveSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final viewModel = widget.viewModel;
-    final needsAcknowledgement =
-        viewModel.bill?.requiresRiskAcknowledgement ?? false;
+    // O aceite de risco (ADR-015) pertence ao ato de APROVAR — o servidor o
+    // exige em Approve, nunca em Schedule. Numa folha de agendamento puro a
+    // caixa não aparece (o boleto já foi autorizado por alguém que a marcou),
+    // então ela também não pode pesar no botão: um Perigo aprovado ficaria
+    // com o Agendar travado para sempre, sem nada na tela para destravar.
+    final needsRiskAcknowledgement =
+        (viewModel.bill?.requiresRiskAcknowledgement ?? false) &&
+            !widget.scheduleOnly;
     final riskLabel = RiskLevels.label(viewModel.bill?.riskLevel);
     // ADR-017 do BC: boleto vencido é processado NA HORA pelo provedor, sem
     // janela de reação — aprovar exige o aceite explícito, gravado na
@@ -1773,7 +1779,22 @@ class _ApproveSheetState extends State<_ApproveSheet> {
             onTap: _pickDate,
           ),
         ],
-        if (preview != null && !widget.approveOnly) ...[
+        // Data que o servidor recusaria — hoje fora do horário de envio. Diz o
+        // motivo no lugar da prévia (que não existe para uma data impossível) e
+        // trava o botão: deixar seguir seria levar a pessoa a um 409 conhecido.
+        if (preview != null && !preview.available && !widget.approveOnly) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            key: const Key('sheet-date-unavailable'),
+            'Não dá para agendar nesta data: '
+            '${ScheduleUnavailableReasons.label(preview.unavailableReason)}. '
+            'Escolha outra data.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
+        ],
+        if (preview != null && preview.available && !widget.approveOnly) ...[
           const SizedBox(height: AppSpacing.sm),
           Text(
             preview.immediate
@@ -1788,7 +1809,10 @@ class _ApproveSheetState extends State<_ApproveSheet> {
         ],
         // Pagar depois do vencimento é AVISO, nunca bloqueio: pagar a conta
         // atrasada é justamente o que o produto precisa saber fazer.
-        if (preview != null && preview.afterDueDate && !widget.approveOnly) ...[
+        if (preview != null &&
+            preview.available &&
+            preview.afterDueDate &&
+            !widget.approveOnly) ...[
           const SizedBox(height: AppSpacing.sm),
           Text(
             'Esta data é posterior ao vencimento. O pagamento sai em atraso e '
@@ -1839,7 +1863,7 @@ class _ApproveSheetState extends State<_ApproveSheet> {
         // ADR-015: boleto em Perigo ou Extremo Perigo só autoriza com o
         // aceite marcado — e o servidor recusa sem ele, então o botão nem
         // habilita.
-        if (needsAcknowledgement && !widget.scheduleOnly) ...[
+        if (needsRiskAcknowledgement) ...[
           const SizedBox(height: AppSpacing.md),
           CheckboxListTile(
             value: _riskAcknowledged,
@@ -1882,7 +1906,11 @@ class _ApproveSheetState extends State<_ApproveSheet> {
         const SizedBox(height: AppSpacing.lg),
         FilledButton(
           onPressed: _submitting ||
-                  (needsAcknowledgement && !_riskAcknowledged) ||
+                  (needsRiskAcknowledgement && !_riskAcknowledged) ||
+                  // Prévia AUSENTE não trava (ela é informativa, e falhar ao
+                  // buscá-la não pode impedir de autorizar); prévia que DIZ
+                  // "não dá", trava.
+                  (preview != null && !preview.available && !widget.approveOnly) ||
                   (needsImmediateAck &&
                       !_immediateAcknowledged &&
                       !widget.approveOnly)

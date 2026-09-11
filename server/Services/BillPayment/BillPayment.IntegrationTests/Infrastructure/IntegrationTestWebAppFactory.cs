@@ -223,21 +223,37 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
     /// configurada a consulta degrada para <c>Unavailable</c> e nenhum boleto é dado como
     /// verificado. O contêiner e o banco continuam sendo os mesmos.
     /// </remarks>
-    public WebApplicationFactory<Program> WithFakeLookups()
-        => WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+    /// <param name="submissionWindow">
+    /// A janela de submissão desta instalação (ADR-021), para o teste que precisa dela em posição
+    /// conhecida em relação ao relógio. Omitida, vale a do <c>appsettings</c> (9h–18h) — e aí o
+    /// veredito sobre "hoje" depende da hora em que a suíte roda, que é justamente o que um teste
+    /// de janela não pode tolerar.
+    /// </param>
+    public WebApplicationFactory<Program> WithFakeLookups((string Start, string End)? submissionWindow = null)
+        => WithWebHostBuilder(builder =>
         {
-            services.AddSingleton<FakeLookupServices>();
-            services.RemoveAll<IBillLookupService>();
-            services.RemoveAll<IPixLookupService>();
-            services.AddSingleton<IBillLookupService>(sp => sp.GetRequiredService<FakeLookupServices>());
-            services.AddSingleton<IPixLookupService>(sp => sp.GetRequiredService<FakeLookupServices>());
+            if (submissionWindow is { } window)
+            {
+                builder.UseSetting("Payments:SubmissionWindowStart", window.Start);
+                builder.UseSetting("Payments:SubmissionWindowEnd", window.End);
+            }
 
-            // A prova da chave vai junto: os fluxos de boleto que vinculam a subconta do tenant
-            // não podem bater no provedor real pelo mesmo motivo que a consulta não pode.
-            services.AddSingleton<FakePaymentAccountVerifier>();
-            services.RemoveAll<IPaymentAccountVerifier>();
-            services.AddSingleton<IPaymentAccountVerifier>(sp => sp.GetRequiredService<FakePaymentAccountVerifier>());
-        }));
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddSingleton<FakeLookupServices>();
+                services.RemoveAll<IBillLookupService>();
+                services.RemoveAll<IPixLookupService>();
+                services.AddSingleton<IBillLookupService>(sp => sp.GetRequiredService<FakeLookupServices>());
+                services.AddSingleton<IPixLookupService>(sp => sp.GetRequiredService<FakeLookupServices>());
+
+                // A prova da chave vai junto: os fluxos de boleto que vinculam a subconta do tenant
+                // não podem bater no provedor real pelo mesmo motivo que a consulta não pode.
+                services.AddSingleton<FakePaymentAccountVerifier>();
+                services.RemoveAll<IPaymentAccountVerifier>();
+                services.AddSingleton<IPaymentAccountVerifier>(
+                    sp => sp.GetRequiredService<FakePaymentAccountVerifier>());
+            });
+        });
 
     /// <summary>
     /// Host irmão com a cadeia de PAGAMENTO completa: consulta, prova de chave e gateways

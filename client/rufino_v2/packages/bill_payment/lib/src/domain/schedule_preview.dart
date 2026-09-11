@@ -13,6 +13,8 @@ class SchedulePreview {
     required this.slid,
     required this.immediate,
     required this.afterDueDate,
+    this.available = true,
+    this.unavailableReason,
   });
 
   /// The date the user asked to pay on.
@@ -32,6 +34,20 @@ class SchedulePreview {
   /// Whether [effectiveDate] falls after the bill's due date, so the payment
   /// leaves late and may carry interest. A warning, never a block.
   final bool afterDueDate;
+
+  /// Whether this date can be scheduled right now.
+  ///
+  /// False only for TODAY outside the submission window — the same refusal the
+  /// server gives on write (`BLP.BIL40`), said before anyone tries. The free
+  /// date picker reaches today like any other day, so the suggestion
+  /// disappearing from the sheet is not what keeps someone from choosing it.
+  ///
+  /// Defaults to true so an older server, which does not send the field, keeps
+  /// behaving as it did: the write still refuses, just later.
+  final bool available;
+
+  /// Why it cannot be picked — a code from [ScheduleUnavailableReasons].
+  final String? unavailableReason;
 }
 
 /// One of the four ready-made dates the scheduling sheet offers (ADR-021).
