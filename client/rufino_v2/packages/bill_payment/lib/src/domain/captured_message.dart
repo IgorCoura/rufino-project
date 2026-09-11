@@ -57,21 +57,13 @@ class CapturedMessage {
   /// Whether the processing already ran.
   bool get isProcessed => processedAt != null;
 
-  /// The bill this e-mail produced, when it produced one.
-  String? get billId {
-    for (final artifact in artifacts) {
-      if (artifact.billId != null) return artifact.billId;
-    }
-    return null;
-  }
-
-  /// The quarantine item to open, when one is still there.
-  String? get captureItemId {
-    for (final artifact in artifacts) {
-      if (artifact.captureItemId != null) return artifact.captureItemId;
-    }
-    return null;
-  }
+  /// Whether any attachment became a bill.
+  ///
+  /// Não existe "o boleto do e-mail": um e-mail traz N anexos e cada um tem o
+  /// seu desfecho. Quem precisa navegar usa [CapturedArtifactOutcome.billId] e
+  /// [CapturedArtifactOutcome.captureItemId] do anexo — este getter responde
+  /// só a pergunta do e-mail inteiro, que é o aviso da recaptura.
+  bool get producedBill => artifacts.any((a) => a.billId != null);
 }
 
 /// What the capture decided about one attachment.

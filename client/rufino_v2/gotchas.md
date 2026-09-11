@@ -237,3 +237,28 @@ declarações do pacote, cruze com os `undefined_*` do analyze e insira os impor
 relativos; repita até estabilizar. Note que os erros que **não nomeiam o
 símbolo** (`implements_non_class`) escapam desse laço e pedem uma regra própria
 — `X_repository_impl.dart` importa `X_repository.dart`.
+
+## Um pai com N filhos não tem "o" filho
+
+**What happened.** Um e-mail capturado rende um item por anexo. O modelo expunha
+`CapturedMessage.billId`/`captureItemId` — getters que varrem os anexos e
+devolvem **o primeiro** com id — e a tela montava um botão por e-mail a partir
+deles. E-mail com dois boletos mostrava um; e-mail com boleto e quarentena
+mostrava só o boleto, porque a segunda condição era exclusiva. O servidor mandava
+o id de cada anexo desde o início; a UI é que colapsava a lista.
+
+**Why it is treacherous.** Com um anexo — o caso de quase todo e-mail de teste e
+do fixture — o desenho errado e o certo são indistinguíveis. O getter tem nome
+de campo, lê como se o dado fosse um só, e nada no tipo avisa que ele descarta
+irmãos. A suíte passava inteira.
+
+**The rule.** Relação 1:N não ganha getter no singular. Quem navega usa o id do
+filho; o pai só responde perguntas sobre o conjunto (`producedBill`, não
+`billId`). E o fixture de teste deriva o contador da lista que ele recebe —
+`artifactCount` que discorda de `artifacts` descreve um objeto que não existe.
+
+**How to apply.** Ao ver getter no singular sobre coleção, procure o consumidor:
+se ele desenha ação ou link, é bug. No teste, o caso mínimo tem **dois** filhos
+com destinos diferentes, e ele precisa distinguir qual botão foi tocado — vários
+botões de texto idêntico na mesma linha pedem tooltip com o nome do item, que é
+a mesma coisa que o leitor de tela precisa.

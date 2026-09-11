@@ -25,8 +25,9 @@ void main() {
 
       final message = viewModel.items.single;
       expect(message.outcome, ArtifactOutcomes.discarded);
-      expect(message.captureItemId, isNull);
-      expect(message.billId, isNull);
+      expect(message.producedBill, isFalse);
+      expect(message.artifacts.single.captureItemId, isNull);
+      expect(message.artifacts.single.billId, isNull);
     });
 
     // Cabeçalho e política vêm junto com a lista: sem "última sincronização" a

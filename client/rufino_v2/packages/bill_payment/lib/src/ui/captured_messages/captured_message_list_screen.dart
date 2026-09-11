@@ -219,8 +219,6 @@ class _MessageRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final billId = message.billId;
-    final itemId = message.captureItemId;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -274,22 +272,8 @@ class _MessageRow extends StatelessWidget {
                 children: [
                   StatusBadge(
                     label: ArtifactOutcomes.label(message.outcome),
-                    tone: ArtifactOutcomes.needsAttention(message.outcome)
-                        ? BadgeTone.attention
-                        : message.outcome == ArtifactOutcomes.promoted
-                            ? BadgeTone.positive
-                            : BadgeTone.neutral,
+                    tone: _badgeTone(message.outcome),
                   ),
-                  if (billId != null)
-                    TextButton(
-                      onPressed: () => onOpenBill(billId),
-                      child: const Text('Abrir boleto'),
-                    ),
-                  if (billId == null && itemId != null)
-                    TextButton(
-                      onPressed: () => onOpenCaptureItem(itemId),
-                      child: const Text('Abrir na quarentena'),
-                    ),
                   BillPaymentPermissionGuard(
                     resource: BillPaymentResources.capturedMessage,
                     scope: BillPaymentScopes.recapture,
@@ -302,7 +286,12 @@ class _MessageRow extends StatelessWidget {
                   ),
                 ],
               ),
-              if (message.artifactCount > 1) _Artifacts(message: message),
+              if (message.artifacts.isNotEmpty)
+                _Artifacts(
+                  message: message,
+                  onOpenBill: onOpenBill,
+                  onOpenCaptureItem: onOpenCaptureItem,
+                ),
             ],
           ),
         ),
@@ -311,7 +300,7 @@ class _MessageRow extends StatelessWidget {
   }
 
   Future<void> _confirmRecapture(BuildContext context) async {
-    final producedBill = message.billId != null;
+    final producedBill = message.producedBill;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -339,35 +328,143 @@ class _MessageRow extends StatelessWidget {
   }
 }
 
-/// Os anexos, quando há mais de um — o desfecho da linha é o dominante, e aqui
-/// aparecem os individuais.
+/// Os anexos, um por linha, com o desfecho e o destino de cada um.
+///
+/// **O destino é do anexo, nunca do e-mail.** Um e-mail rende N itens — dois
+/// boletos, ou um boleto e um anexo que ficou para revisão —, e enquanto a
+/// linha oferecia um botão só ela mostrava o primeiro id que encontrasse: os
+/// irmãos ficavam inalcançáveis por esta tela, e o item de quarentena do e-mail
+/// que também virou boleto não aparecia de jeito nenhum.
+///
+/// A lista existe mesmo com um anexo só — é onde o nome do arquivo aparece —, e
+/// o selo do cabeçalho continua sendo o desfecho dominante, que é o resumo de
+/// quem não expandiu nada.
 class _Artifacts extends StatelessWidget {
-  const _Artifacts({required this.message});
+  const _Artifacts({
+    required this.message,
+    required this.onOpenBill,
+    required this.onOpenCaptureItem,
+  });
 
   final CapturedMessage message;
+  final void Function(String billId) onOpenBill;
+  final void Function(String itemId) onOpenCaptureItem;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (final artifact in message.artifacts)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xs),
-              child: Text(
-                '${artifact.fileName ?? '(sem nome)'} — '
-                '${ArtifactOutcomes.label(artifact.outcome)}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
+            _ArtifactRow(
+              artifact: artifact,
+              // Com um anexo só, o desfecho dominante do cabeçalho É o desfecho
+              // dele — repetir o selo aqui escreveria o mesmo rótulo duas vezes,
+              // uma linha abaixo da outra.
+              showOutcome: message.artifacts.length > 1,
+              onOpenBill: onOpenBill,
+              onOpenCaptureItem: onOpenCaptureItem,
             ),
         ],
       ),
     );
   }
 }
+
+/// Um anexo: o nome, o que a captura decidiu sobre ele, e para onde ele foi.
+class _ArtifactRow extends StatelessWidget {
+  const _ArtifactRow({
+    required this.artifact,
+    required this.showOutcome,
+    required this.onOpenBill,
+    required this.onOpenCaptureItem,
+  });
+
+  final CapturedArtifactOutcome artifact;
+
+  /// Se a linha desenha o selo do desfecho deste anexo.
+  final bool showOutcome;
+
+  final void Function(String billId) onOpenBill;
+  final void Function(String itemId) onOpenCaptureItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final fileName = artifact.fileName ?? '(sem nome)';
+    final billId = artifact.billId;
+    final itemId = artifact.captureItemId;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xs),
+      child: Wrap(
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.xs,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            fileName,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          if (showOutcome)
+            StatusBadge(
+              label: ArtifactOutcomes.label(artifact.outcome),
+              tone: _badgeTone(artifact.outcome),
+            ),
+          // Boleto antes de quarentena: o anexo promovido guarda os dois ids, e
+          // o destino que interessa é o boleto. Descartado não tem nenhum dos
+          // dois — o servidor anula o id do item porque a linha dele foi
+          // apagada —, e aí a linha fica sem botão, que é a verdade.
+          if (billId != null)
+            _OpenButton(
+              label: 'Abrir boleto',
+              fileName: fileName,
+              onPressed: () => onOpenBill(billId),
+            )
+          else if (itemId != null)
+            _OpenButton(
+              label: 'Abrir na quarentena',
+              fileName: fileName,
+              onPressed: () => onOpenCaptureItem(itemId),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// O botão de abrir de um anexo.
+///
+/// O nome do arquivo vai no tooltip porque vários anexos rendem vários botões
+/// de texto idêntico na mesma linha: sem ele, leitor de tela anuncia "Abrir na
+/// quarentena" três vezes sem dizer de qual anexo.
+class _OpenButton extends StatelessWidget {
+  const _OpenButton({
+    required this.label,
+    required this.fileName,
+    required this.onPressed,
+  });
+
+  final String label;
+  final String fileName;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '$label: $fileName',
+      child: TextButton(onPressed: onPressed, child: Text(label)),
+    );
+  }
+}
+
+/// O tom do selo de um desfecho — o mesmo no cabeçalho e na linha do anexo.
+BadgeTone _badgeTone(String outcome) => ArtifactOutcomes.needsAttention(outcome)
+    ? BadgeTone.attention
+    : outcome == ArtifactOutcomes.promoted
+        ? BadgeTone.positive
+        : BadgeTone.neutral;

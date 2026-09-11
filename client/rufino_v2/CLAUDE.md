@@ -1140,7 +1140,7 @@ refresh de token e limpa no logout — junto com as outras duas.
 | `/bill-payment/bills/:id/receipt` | O comprovante de pagamento vindo do provedor, em tela cheia (só existe após Pago), **com botão de baixar** | `bill`/`view` |
 | `/bill-payment/bills/:id/email` | O e-mail que trouxe o boleto — título, remetente e corpo renderizado | `bill`/`view` |
 | `/bill-payment/capture-items` (+`/:id`, `/:id/artifact`, `/:id/email`) | Quarentena: filtro server-side, claim/reprocess, documento original (**com botão de baixar**) e o e-mail que trouxe o item | `capture-item`/`view` |
-| `/bill-payment/captured-messages` | Livro-caixa: todo e-mail lido, com busca, filtros, rolagem infinita, controle de retenção e recaptura | `captured-message`/`view`·`recapture` |
+| `/bill-payment/captured-messages` | Livro-caixa: todo e-mail lido, com busca, filtros, rolagem infinita, **uma linha de destino por anexo**, controle de retenção e recaptura | `captured-message`/`view`·`recapture` |
 | `/bill-payment/capture-sources` (+`/connect`, `/:id`) | Caixas monitoradas: stepper Entra ID, pastas, **piso temporal**, sync/rescan | `capture-source`/`view`·`manage` |
 | `/bill-payment/payees` (+`/create`, `/:id`) | Beneficiários: política de valor (leitura completa + **edição no detalhe**), apelidos, bancos aceitos | `payee`/`view`·`manage` |
 | `/bill-payment/payer-profile` | Perfil do pagador (1:1) — 404 = modo onboarding | `payer-profile`/`view` |
@@ -1184,6 +1184,18 @@ Coisas que não podem erodir:
   histórico a pessoa que mandou um e-mail fica sem resposta. `captured-message` e
   `capture-retention` são **recursos próprios** no Keycloak, não escopos pendurados em
   `capture-item`: fila de trabalho e histórico são coisas diferentes.
+- **O destino é do ANEXO, nunca do e-mail (2026-09-10).** Um e-mail rende N itens — dois boletos,
+  ou um boleto e um anexo que ficou para revisão —, e a linha oferecia **um** botão: os getters
+  `CapturedMessage.billId`/`captureItemId` devolviam o primeiro anexo que tivesse id, e a condição
+  do segundo botão era exclusiva (`boleto == null && item != null`). O segundo boleto ficava
+  inalcançável, e o item de quarentena do e-mail que também virou boleto não aparecia de jeito
+  nenhum. Hoje cada anexo é uma linha (`_ArtifactRow`) com o nome, o selo do desfecho dele e o
+  botão do destino dele; os getters de primeiro-id **foram apagados** — só sobrou
+  `producedBill`, que responde a pergunta do e-mail inteiro (o aviso do diálogo de reprocessar).
+  O servidor já mandava `captureItemId`/`billId` por anexo desde sempre; era a UI que jogava fora.
+  Dois detalhes que parecem enfeite e não são: o **tooltip carrega o nome do arquivo** (três
+  botões "Abrir na quarentena" idênticos não se distinguem em leitor de tela), e **com um anexo só
+  a linha não repete o selo** — o desfecho dominante do cabeçalho É o dele.
 - **A recaptura segue o contrato de 2026-08-28 do servidor, e o diálogo diz a regra nova.**
   `RecaptureOutcome` carrega `artifactsReingested`, `billsCancelled` e
   `previouslyDeniedBillIds` (os nomes antigos `itemsRemoved`/`artifactsIngested` não existem

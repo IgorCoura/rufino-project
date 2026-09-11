@@ -32,6 +32,8 @@ void main() {
   Future<void> pumpScreen(
     WidgetTester tester, {
     required List<String> scopes,
+    void Function(String billId)? onOpenBill,
+    void Function(String itemId)? onOpenCaptureItem,
   }) async {
     final permissions = await billPaymentPermissions([
       Permission(
@@ -52,8 +54,8 @@ void main() {
           home: CapturedMessageListScreen(
             viewModel: viewModel,
             backFallback: '/home',
-            onOpenBill: (_) {},
-            onOpenCaptureItem: (_) {},
+            onOpenBill: onOpenBill ?? (_) {},
+            onOpenCaptureItem: onOpenCaptureItem ?? (_) {},
           ),
         ),
       ),
@@ -94,6 +96,163 @@ void main() {
 
       expect(inRow('Sua fatura chegou', 'Virou boleto'), findsOneWidget);
       expect(find.text('Abrir boleto'), findsOneWidget);
+    });
+
+    // O defeito de 2026-09-10: um e-mail rende N itens, e a linha oferecia um
+    // botão só — o primeiro id que o e-mail encontrasse. Dois boletos no mesmo
+    // e-mail deixavam o segundo inalcançável por esta tela.
+    testWidgets('offers one bill button per attachment that became a bill',
+        (tester) async {
+      repository.messages = [
+        capturedMessage(
+          outcome: ArtifactOutcomes.promoted,
+          artifacts: [
+            capturedArtifact(
+              fileName: 'agua.pdf',
+              outcome: ArtifactOutcomes.promoted,
+              billId: 'bill-7',
+              captureItemId: 'item-7',
+            ),
+            capturedArtifact(
+              fileName: 'luz.pdf',
+              outcome: ArtifactOutcomes.promoted,
+              billId: 'bill-8',
+              captureItemId: 'item-8',
+            ),
+          ],
+        ),
+      ];
+      final opened = <String>[];
+
+      await pumpScreen(
+        tester,
+        scopes: ['view'],
+        onOpenBill: opened.add,
+      );
+
+      expect(find.text('2 anexos'), findsOneWidget);
+      expect(find.text('Abrir boleto'), findsNWidgets(2));
+
+      await tester.tap(find.byTooltip('Abrir boleto: agua.pdf'));
+      await tester.tap(find.byTooltip('Abrir boleto: luz.pdf'));
+
+      expect(opened, ['bill-7', 'bill-8']);
+    });
+
+    // O pior caso do botão único: a condição era exclusiva (`boleto == null &&
+    // item != null`), então o e-mail que trouxe um boleto E um anexo para
+    // revisão escondia a quarentena por inteiro.
+    testWidgets('offers the bill and the quarantine item of the same e-mail',
+        (tester) async {
+      repository.messages = [
+        capturedMessage(
+          outcome: ArtifactOutcomes.promoted,
+          artifacts: [
+            capturedArtifact(
+              fileName: 'boleto.pdf',
+              outcome: ArtifactOutcomes.promoted,
+              billId: 'bill-7',
+              captureItemId: 'item-7',
+            ),
+            capturedArtifact(
+              fileName: 'anexo-estranho.pdf',
+              outcome: ArtifactOutcomes.quarantined,
+              captureItemId: 'item-9',
+            ),
+          ],
+        ),
+      ];
+      final bills = <String>[];
+      final items = <String>[];
+
+      await pumpScreen(
+        tester,
+        scopes: ['view'],
+        onOpenBill: bills.add,
+        onOpenCaptureItem: items.add,
+      );
+
+      expect(inRow('Sua fatura chegou', 'Não reconhecido'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Abrir boleto: boleto.pdf'));
+      await tester.tap(
+        find.byTooltip('Abrir na quarentena: anexo-estranho.pdf'),
+      );
+
+      expect(bills, ['bill-7']);
+      expect(items, ['item-9']);
+    });
+
+    // Descartado não deixa item: o servidor anula o id porque a linha foi
+    // apagada, e um botão aqui levaria a um 404.
+    testWidgets('the discarded attachment has nowhere to go', (tester) async {
+      repository.messages = [
+        capturedMessage(
+          outcome: ArtifactOutcomes.quarantined,
+          artifacts: [
+            capturedArtifact(
+              fileName: 'boleto.pdf',
+              outcome: ArtifactOutcomes.quarantined,
+              captureItemId: 'item-3',
+            ),
+            capturedArtifact(
+              fileName: 'propaganda.pdf',
+              outcome: ArtifactOutcomes.discarded,
+            ),
+          ],
+        ),
+      ];
+
+      await pumpScreen(tester, scopes: ['view']);
+
+      expect(find.text('Abrir na quarentena'), findsOneWidget);
+      expect(find.text('propaganda.pdf'), findsOneWidget);
+      expect(inRow('Sua fatura chegou', 'Descartado'), findsOneWidget);
+    });
+
+    // Com um anexo só o cabeçalho já diz o desfecho — repetir o selo na linha
+    // escreveria o mesmo rótulo duas vezes, uma abaixo da outra.
+    testWidgets('a single attachment shows its name without a second badge',
+        (tester) async {
+      repository.messages = [
+        capturedMessage(outcome: ArtifactOutcomes.promoted, billId: 'bill-7'),
+      ];
+
+      await pumpScreen(tester, scopes: ['view']);
+
+      expect(find.text('boleto.pdf'), findsOneWidget);
+      expect(inRow('Sua fatura chegou', 'Virou boleto'), findsOneWidget);
+    });
+
+    // Quem decidiu "não reconheço" sai da fila, e o item continua existindo —
+    // o rótulo é português, não o nome de arame do Smart Enum do servidor.
+    testWidgets('labels the dismissed attachment in Portuguese',
+        (tester) async {
+      repository.messages = [
+        capturedMessage(
+          outcome: ArtifactOutcomes.dismissed,
+          artifacts: [
+            capturedArtifact(
+              fileName: 'boleto.pdf',
+              outcome: ArtifactOutcomes.dismissed,
+              captureItemId: 'item-4',
+            ),
+            capturedArtifact(
+              fileName: 'recibo.pdf',
+              outcome: ArtifactOutcomes.dismissed,
+              captureItemId: 'item-5',
+            ),
+          ],
+        ),
+      ];
+
+      await pumpScreen(tester, scopes: ['view']);
+
+      expect(find.text('Dismissed'), findsNothing);
+      expect(
+        inRow('Sua fatura chegou', 'Reprovado'),
+        findsNWidgets(3),
+      );
     });
 
     // Sem o escopo de recaptura o botão some — esconder é para falta de
