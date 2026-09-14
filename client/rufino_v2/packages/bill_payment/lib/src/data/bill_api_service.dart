@@ -233,6 +233,7 @@ abstract final class BillMapper {
       minimumScheduleDate: _day(json['minimumScheduleDate']),
       lastConsultedAt: _date(json['lastConsultedAt']),
       snapshotExpiresAt: _date(json['snapshotExpiresAt']),
+      pendingAccountReference: json['pendingAccountReference'] as String?,
       checks: (json['checks'] as List<dynamic>? ?? const [])
           .map((e) => checkFromJson(e as Map<String, dynamic>))
           .toList(),

@@ -301,6 +301,7 @@ class BillDetail {
     this.riskLevel,
     this.bankSlipLookup,
     this.pixLookup,
+    this.pendingAccountReference,
   });
 
   /// How old the lookup snapshot may be before approval requires a
@@ -344,6 +345,10 @@ class BillDetail {
 
   /// When the official lookup last answered.
   final DateTime? lastConsultedAt;
+
+  /// The account number a claim asked to remember that still waits for the
+  /// payee to be registered (ADR-026). Null in the common case.
+  final String? pendingAccountReference;
 
   /// When the lookup snapshot stops sustaining an approval or a schedule.
   ///

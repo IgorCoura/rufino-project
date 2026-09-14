@@ -1360,6 +1360,21 @@ Coisas que não podem erodir:
   código desconhecido cai para a `evidence` do servidor (coberto por teste que varre os 46).
 - **A quarentena renderiza o que veio** — os campos financeiros chegam `null` fora de
   `Promoted`/`Unrouted` porque o servidor decide a visibilidade, nunca a tela.
+- **Reivindicar pode ensinar o número da conta — "Lembrar desta conta" (ADR-026 do BC,
+  2026-09-14).** O diálogo (`ClaimDialog`, `ui/capture_items/claim_dialog.dart`) vem **marcado só
+  quando o servidor mandou `accountReferenceSuggestion`** — número lido pela IA e ENCONTRADO nos
+  dígitos do documento; sem sugestão nasce desmarcado, porque marcar por padrão pediria um número
+  que ninguém conferiu. Marcado, o campo é obrigatório (vazio → validação local, nada é enviado).
+  O número vai no corpo de `POST /capture-items/{id}/claim` (`rememberAccountReference`); o
+  servidor o confere contra o documento e recusa a reivindicação inteira com `BLP.CPI18` (não está
+  no boleto) ou `BLP.CPI19` (curto demais). **Essas duas recusas mantêm o diálogo aberto** com o
+  motivo em vermelho (`CaptureItemDetailViewModel.claimRefusedAccountReference`, por código,
+  nunca por texto) — fechar jogaria fora o que foi digitado; qualquer outra recusa fecha e segue
+  pelo `errorMessage` de sempre. O diálogo é `StatefulWidget` dono do próprio controller, pela
+  mesma armadilha do `_ScheduleSignDialog`. O número **não entra no contexto do reporter**: ele
+  identifica o cliente na concessionária. No detalhe do boleto, `pendingAccountReference` desenha
+  o aviso "cadastre o beneficiário deste boleto e revalide" enquanto o pedido espera o
+  beneficiário — sem ele o pedido ficava pendente em silêncio.
 - **O painel não colapsa as três listas** (`missing` / `captureFailed` / `dueSoon`): cada uma
   tem uma ação diferente. `captureFailed` navega para o item da quarentena.
 - **O piso temporal (`captureSince`) nasce preenchido com 90 dias, e o campo vazio é escolha

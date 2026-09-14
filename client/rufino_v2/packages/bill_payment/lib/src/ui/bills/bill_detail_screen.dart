@@ -254,6 +254,11 @@ class _SummarySection extends StatelessWidget {
           // ler" ficavam idênticos na tela, que é o que este aviso desfaz.
           if (ReadingStatuses.speaks(bill.readingStatus))
             _ReadingNotice(status: bill.readingStatus),
+          // O pedido de "lembrar desta conta" espera o beneficiário: sem este
+          // aviso ele ficava pendente em silêncio, e o mês seguinte voltava
+          // para a fila sem nada dizer o que faltava.
+          if (bill.pendingAccountReference != null)
+            _PendingAccountNotice(account: bill.pendingAccountReference!),
           InfoRow(
             icon: Symbols.payments,
             label: 'Valor',
@@ -376,6 +381,44 @@ class _RiskBanner extends StatelessWidget {
                   style: theme.textTheme.bodyMedium?.copyWith(color: onColor),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tells that "lembrar desta conta" waits for the payee to be registered.
+class _PendingAccountNotice extends StatelessWidget {
+  const _PendingAccountNotice({required this.account});
+
+  final String account;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onColor = theme.colorScheme.onSurfaceVariant;
+
+    return Container(
+      key: const Key('bill-pending-account-notice'),
+      margin: const EdgeInsets.only(top: AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Symbols.bookmark_add, color: onColor, size: 20),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'Para lembrar a conta $account, cadastre o beneficiário deste '
+              'boleto e revalide. Até lá, os próximos boletos desta conta '
+              'continuam indo para a reivindicação.',
+              style: theme.textTheme.bodySmall?.copyWith(color: onColor),
             ),
           ),
         ],

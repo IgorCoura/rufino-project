@@ -89,6 +89,30 @@ void main() {
       expect(viewModel.errorMessage, 'regra disse não');
     });
 
+    test('a claim that asks to remember the account forwards the number',
+        () async {
+      await viewModel.load();
+
+      await viewModel.claim(rememberAccountReference: '1123004411');
+
+      expect(repository.calls, contains('claimItem:item-1:1123004411'));
+    });
+
+    test('a claim refused because of the account is told apart from other '
+        'refusals', () async {
+      await viewModel.load();
+      repository
+        ..setShouldFail(true)
+        ..failureCode = 'BLP.CPI18';
+
+      await viewModel.claim(rememberAccountReference: '555555555');
+      expect(viewModel.claimRefusedAccountReference, isTrue);
+
+      repository.failureCode = 'BLP.CPI04';
+      await viewModel.claim(rememberAccountReference: '555555555');
+      expect(viewModel.claimRefusedAccountReference, isFalse);
+    });
+
     test('a reprocess records the action and reloads the item', () async {
       await viewModel.load();
 

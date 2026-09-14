@@ -41,8 +41,12 @@ abstract class CaptureItemRepository {
   /// extractor's quota — that is why it has its own scope.
   Future<Result<void>> reprocessItem(String id);
 
-  /// Claims an unrouted item as this tenant's bill.
-  Future<Result<ClaimOutcome>> claimItem(String id);
+  /// Claims an unrouted item as this tenant's bill, optionally asking the
+  /// system to remember its account number (ADR-026).
+  Future<Result<ClaimOutcome>> claimItem(
+    String id, {
+    String? rememberAccountReference,
+  });
 
   /// Dismisses a quarantined item the user does not recognise.
   ///
