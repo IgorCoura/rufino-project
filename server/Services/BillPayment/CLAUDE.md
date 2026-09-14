@@ -791,6 +791,34 @@ quem resolve guarda o que leu, o "documento original" dele era o HTML.
 Testes: `CaptureItems/MessageBodySiblingTests` (5 — a espera, a liberação, a contraprova da mensagem
 sem anexo, o **teste de regressão** do descarte e a contraprova do boleto diferente).
 
+### O pagador oficial do Pix dinâmico virou o degrau 1 da escada (ADR-025, adendo)
+
+Conta de concessionária quase nunca imprime o documento do pagador, e toda ela caía na
+reivindicação. Decisão do usuário: o `RegisteredPayerTaxId` do decode (QR dinâmico, documento
+inteiro, DV válido — as travas do ADR-025) entra no `BillRoutingService.Route` como
+`officialPayerTaxId`.
+
+- **Documento do tenant → `Promote` `Strong`** (`official_pix_payer`), mesmo sem nada impresso.
+- 🔑 **Qualquer outro documento → `Foreign` → descarte** (`official_payer_is_another`), e é o
+  PRIMEIRO teste da escada: vence o documento do tenant impresso e a senha derivada.
+- Oficial do tenant + outro pagador sob rótulo no PDF → o descarte de sempre (falha fechada).
+- Sem QR dinâmico, sem conta vinculada ou consulta indisponível → a escada é a de antes.
+- ⚠️ **Consequência aceita pelo usuário:** conta registrada no CPF de alguém fora do `PayerProfile`
+  (sócio, titular da linha) é descartada. Cadastrar esses documentos em `AdditionalTaxIds` deixou de
+  ser opcional.
+- **Uma leitura de QR por boleto, não duas.** `ProcessCaptureItemCommand.ConsultDynamicPixAsync`
+  consulta antes do roteamento e anexa o resultado resolvido ao boleto; `ValidateBillCommand`
+  reaproveita-o na PRIMEIRA validação (status `Captured`, até 15 min) sem registrar tentativa nova no
+  histórico. Revalidar consulta sempre. Motivo medido no mesmo dia: o Asaas limita leituras de QR
+  por conta (`invalid_action`, "Limite para leitura de QR Code atingido") — foi o que impediu a
+  medição da fase 0 com a chave do user-secrets.
+- A escada foi renumerada nos comentários: 0 senha → 1 pagador oficial → 2 documento impresso (e o
+  negativo por rótulo) → 4 beneficiário exclusivo → 5 fila. O 3 é o da seção seguinte.
+
+Testes: 4 em `Services/BillRoutingServiceTests` e `CaptureItems/OfficialPixPayerRoutingTests` (5 —
+promove, descarta, sem conta não consulta, consulta indisponível não decide, e a primeira validação
+reaproveitando a leitura com `PixCallCount == 1`). `FakeLookupServices` ganhou `PixCallCount`.
+
 ## 2026-09-14 — Baixar documentos de vários boletos de uma vez
 
 Pedido do usuário: selecionar boletos na lista e baixar os documentos, escolhendo **documento

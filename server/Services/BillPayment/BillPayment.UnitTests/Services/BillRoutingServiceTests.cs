@@ -228,6 +228,68 @@ public class BillRoutingServiceTests
         Assert.Same(RoutingConfidence.Strong, decision.Confidence);
     }
 
+    /// <summary>Um CPF válido que não pertence a ninguém do tenant.</summary>
+    private const string SomeoneElsesCpf = "08244181826";
+
+    // Degrau 1: a consulta oficial do Pix dinâmico diz que a cobrança foi registrada contra um
+    // documento do tenant — o boleto é dele, mesmo sem documento nenhum impresso (a conta de
+    // concessionária que só traz o nome do titular).
+    [Fact]
+    public void Route_WhenTheOfficialPixPayerIsTheTenants_ShouldPromoteAsStrong()
+    {
+        var decision = BillRoutingService.Route(
+            Extraction(),
+            PayerProfileMother.Register(),
+            NoExclusivePayees,
+            TaxId.Parse(OwnCnpj));
+
+        Assert.Same(RoutingOutcome.Promote, decision.Outcome);
+        Assert.Same(RoutingConfidence.Strong, decision.Confidence);
+        Assert.Equal(BillRoutingService.REASON_OFFICIAL_PIX_PAYER, decision.Reason);
+        Assert.Equal(OwnCnpj, decision.PayerTaxId?.Value);
+    }
+
+    // Degrau 1 negativo (decisão do usuário, 2026-09-14): pagador oficial de outra pessoa descarta
+    // o boleto — e vence até o documento do tenant impresso e a senha derivada, porque quem afirma
+    // é o PSP do trilho que paga, não uma leitura de PDF.
+    [Fact]
+    public void Route_WhenTheOfficialPixPayerIsSomeoneElse_ShouldBeForeignEvenWithTheTenantsDocumentPrinted()
+    {
+        var decision = BillRoutingService.Route(
+            Extraction(parties: [Party(OwnCnpj, underPayerLabel: true)], unlockedBy: "cnpj_first_5_primary"),
+            PayerProfileMother.Register(),
+            NoExclusivePayees,
+            TaxId.Parse(SomeoneElsesCpf));
+
+        Assert.Same(RoutingOutcome.Foreign, decision.Outcome);
+        Assert.Equal(BillRoutingService.REASON_OFFICIAL_PAYER_IS_ANOTHER, decision.Reason);
+    }
+
+    // Documento contradizendo a consulta oficial é anomalia: pagador oficial do tenant, mas o PDF
+    // traz OUTRA pessoa sob rótulo de pagador — o desfecho é o de sempre, descarte (falha fechada).
+    [Fact]
+    public void Route_WhenTheOfficialPayerIsTheTenantsButAnotherPayerIsLabelled_ShouldStayForeign()
+    {
+        var decision = BillRoutingService.Route(
+            Extraction(parties: [Party(SomeoneElsesCpf, underPayerLabel: true)]),
+            PayerProfileMother.Register(),
+            NoExclusivePayees,
+            TaxId.Parse(OwnCnpj));
+
+        Assert.Same(RoutingOutcome.Foreign, decision.Outcome);
+        Assert.Equal(BillRoutingService.REASON_PAYER_IS_ANOTHER, decision.Reason);
+    }
+
+    // Sem perfil fiscal nada é do tenant, e um pagador oficial qualquer não pode ser atribuído.
+    [Fact]
+    public void Route_WhenThereIsAnOfficialPayerButNoProfile_ShouldBeForeign()
+    {
+        var decision = BillRoutingService.Route(
+            Extraction(), profile: null, NoExclusivePayees, TaxId.Parse(OwnCnpj));
+
+        Assert.Same(RoutingOutcome.Foreign, decision.Outcome);
+    }
+
     private static PartyCandidate Party(string taxId, bool underPayerLabel = false)
         => PartyCandidate.TryCreate(taxId, underPayerLabel)!;
 

@@ -6,6 +6,8 @@ using BillPayment.Domain.CaptureItems;
 using BillPayment.Domain.CapturedMessages;
 using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Extraction;
+using BillPayment.Domain.Instruments;
+using BillPayment.Domain.Lookups;
 using BillPayment.Domain.Payees;
 using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.Ports;
@@ -83,6 +85,7 @@ public sealed class ProcessCaptureItemCommandHandler(
     IBoletoDocumentParser parser,
     IDocumentLinkResolver linkResolver,
     IDocumentIntelligence documentIntelligence,
+    IPixLookupService pixLookup,
     IAttachmentStorage storage,
     TimeProvider clock,
     IUnitOfWork unitOfWork,
@@ -274,8 +277,12 @@ public sealed class ProcessCaptureItemCommandHandler(
         // não-boleto — sem arquivo no balde, sem item, só a linha do livro-caixa. É a regra de
         // isolamento fechada em 2026-08-28: o que não é deste tenant some, e ninguém fica sabendo
         // de quem era (ADR-008, revisado).
+        var officialPix = decision == CaptureTriageDecision.Parse
+            ? await ConsultDynamicPixAsync(extraction, profile, now, cancellationToken)
+            : null;
+
         var routing = decision == CaptureTriageDecision.Parse
-            ? await DecideRouteAsync(extraction, profile, tenantId, cancellationToken)
+            ? await DecideRouteAsync(extraction, profile, officialPix, tenantId, cancellationToken)
             : null;
 
         var isForeign = routing?.Outcome == RoutingOutcome.Foreign;
@@ -286,7 +293,7 @@ public sealed class ProcessCaptureItemCommandHandler(
             item, decision, extraction, payload, payloadType, tenantId, now.UtcDateTime, cancellationToken);
 
         if (decision == CaptureTriageDecision.Parse)
-            await ApplyRoutingAsync(item, extraction, reading, routing!, tenantId, now.UtcDateTime, cancellationToken);
+            await ApplyRoutingAsync(item, extraction, reading, routing!, officialPix, tenantId, now.UtcDateTime, cancellationToken);
 
         await RecordCapturedOutcomeAsync(
             item,
@@ -463,11 +470,48 @@ public sealed class ProcessCaptureItemCommandHandler(
     private async Task<RoutingDecision> DecideRouteAsync(
         ExtractionResult extraction,
         PayerProfile? profile,
+        PixLookupResult? officialPix,
         TenantId tenantId,
         CancellationToken cancellationToken)
     {
         var exclusive = await ResolveExclusivePayeesAsync(tenantId, extraction, cancellationToken);
-        return BillRoutingService.Route(extraction, profile, exclusive);
+        return BillRoutingService.Route(
+            extraction, profile, exclusive, officialPix?.Snapshot?.RegisteredPayerTaxId);
+    }
+
+    /// <summary>
+    /// A consulta oficial do QR Pix dinâmico, feita ANTES do roteamento — é o degrau 1 da escada.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Só roda com Pix dinâmico e conta vinculada.</strong> QR estático não carrega
+    /// cobrança registrada, e sem a chave do tenant a consulta não tem com o que ser feita — nos
+    /// dois casos a escada segue exatamente como seria sem o degrau.
+    /// </para>
+    /// <para>
+    /// <strong>Consulta que não responde não decide nada</strong>: quem descarta é um pagador
+    /// oficial de outra pessoa, nunca a ausência de resposta. O resultado resolvido segue para o
+    /// boleto, e a primeira validação o reaproveita em vez de ler o QR de novo — o provedor limita
+    /// leituras de QR por conta.
+    /// </para>
+    /// </remarks>
+    private async Task<PixLookupResult?> ConsultDynamicPixAsync(
+        ExtractionResult extraction,
+        PayerProfile? profile,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        if (profile?.AsaasAccountRef is not { } credential)
+            return null;
+
+        var dynamicPix = extraction.Instruments.FirstOrDefault(
+            i => i.Kind == PaymentInstrumentKind.PixQr && i.PixPayload.IsDynamic);
+
+        if (dynamicPix is null)
+            return null;
+
+        return await pixLookup.DecodeAsync(
+            credential, dynamicPix.PixPayload, DateOnly.FromDateTime(now.UtcDateTime), cancellationToken);
     }
 
     /// <summary>
@@ -479,6 +523,7 @@ public sealed class ProcessCaptureItemCommandHandler(
         ExtractionResult extraction,
         DocumentReading? reading,
         RoutingDecision routing,
+        PixLookupResult? officialPix,
         TenantId tenantId,
         DateTime occurredAt,
         CancellationToken cancellationToken)
@@ -489,7 +534,7 @@ public sealed class ProcessCaptureItemCommandHandler(
             return;
         }
 
-        await PromoteAsync(item, extraction, reading, routing, tenantId, occurredAt, cancellationToken);
+        await PromoteAsync(item, extraction, reading, routing, officialPix, tenantId, occurredAt, cancellationToken);
     }
 
     /// <summary>
@@ -547,6 +592,7 @@ public sealed class ProcessCaptureItemCommandHandler(
         ExtractionResult extraction,
         DocumentReading? reading,
         RoutingDecision routing,
+        PixLookupResult? officialPix,
         TenantId tenantId,
         DateTime occurredAt,
         CancellationToken cancellationToken)
@@ -590,6 +636,11 @@ public sealed class ProcessCaptureItemCommandHandler(
                 return;
             }
         }
+
+        // A consulta que decidiu o degrau 1 fica no boleto: é a mesma pergunta que a validação
+        // faria segundos depois, e o provedor limita leituras de QR por conta.
+        if (officialPix is { IsResolved: true })
+            bill.AttachLookups(bankSlip: null, officialPix, occurredAt);
 
         await bills.AddAsync(bill, cancellationToken);
         item.Promote(bill.Id, routing.Confidence!, occurredAt);

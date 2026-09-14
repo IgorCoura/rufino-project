@@ -119,3 +119,32 @@ assimetria do ADR-004 segue idêntica — contradição bloqueia, compatibilidad
   exceção do tamanho medido.
 - **Deixar o oficial confirmar por cima de um documento impresso que contradiz.** Seria trocar um
   bloqueio existente por um alerta, sobre o único sinal que aponta um par PDF/QR montado.
+
+## Adendo de 2026-09-14 — o pagador oficial entra na escada de roteamento
+
+A "segunda consequência" que o doc 12 deixou em aberto foi decidida pelo usuário: o mesmo
+`PixLookupSnapshot.RegisteredPayerTaxId` — com as mesmas três travas (QR dinâmico, documento
+inteiro, DV válido) — passou a ser o **degrau 1** do `BillRoutingService`. Motivo: conta de
+concessionária quase nunca imprime o documento do pagador (a Vivo imprime só o nome do titular), e
+sem ele toda essas contas caíam na reivindicação.
+
+| O decode diz que o pagador é… | Desfecho |
+|---|---|
+| um documento do tenant (principal, adicional, ou raiz com `MatchByCnpjRoot`) | `Promote` `Strong`, motivo `official_pix_payer` |
+| **qualquer outro documento** | **`Foreign` → descarte**, motivo `official_payer_is_another` — vence até o documento do tenant impresso e a senha derivada |
+| do tenant, mas o PDF traz OUTRO pagador sob rótulo | o desfecho de sempre: descarte (`payer_is_another`), falha fechada |
+| nada (QR estático, sem conta vinculada, consulta indisponível) | a escada segue exatamente como seria sem o degrau |
+
+**Quando roda:** no processamento do item, antes do roteamento, só com QR dinâmico e com a conta
+Asaas do tenant vinculada. O resultado resolvido fica no boleto, e a **primeira** validação o
+reaproveita (janela de 15 min, só em `Captured`) — o provedor limita leituras de QR por conta, medido
+em 2026-09-14 (`invalid_action`, "Limite para leitura de QR Code atingido"). Revalidar consulta de
+novo, sempre.
+
+⚠️ **Consequência operacional, aceita pelo usuário:** conta registrada no CPF de uma pessoa que não
+está no `PayerProfile` (sócio, titular da linha) é **descartada**. Cadastrar todos os documentos em
+cujo nome as contas chegam, em `AdditionalTaxIds`, deixou de ser opcional.
+
+**A fraude do emissor que grava o CNPJ da vítima no campo do pagador** agora também roteia o boleto
+para a vítima. Não abre porta nova: o boleto nasce como qualquer outro, e quem segura a fraude
+continua sendo o `PayeeMatch` e a aprovação humana (ADR-007).

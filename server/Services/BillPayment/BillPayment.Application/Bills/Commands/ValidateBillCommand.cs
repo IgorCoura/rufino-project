@@ -77,6 +77,12 @@ public sealed class ValidateBillCommandHandler(
     IUnitOfWork unitOfWork)
     : IRequestHandler<ValidateBillCommand, ValidateBillResponse>
 {
+    /// <summary>
+    /// Até quando a consulta do Pix feita na captura vale para a primeira validação. O outbox
+    /// entrega em segundos; o teto existe para um evento represado não validar com retrato velho.
+    /// </summary>
+    private static readonly TimeSpan CaptureLookupReuseWindow = TimeSpan.FromMinutes(15);
+
     public async Task<ValidateBillResponse> Handle(ValidateBillCommand request, CancellationToken cancellationToken)
     {
         var tenantId = TenantId.From(request.TenantId);
@@ -92,9 +98,12 @@ public sealed class ValidateBillCommandHandler(
         // indisponível em vez de usar credencial de outra conta.
         var payerProfile = await payerProfiles.GetByTenantAsync(tenantId, cancellationToken);
 
-        var (bankSlipResult, pixResult) = await ConsultAsync(
+        var (bankSlipResult, pixResult, pixReused) = await ConsultAsync(
             bill, payerProfile?.AsaasAccountRef, now, cancellationToken);
-        bill.AttachLookups(bankSlipResult, pixResult, now.UtcDateTime);
+
+        // O retrato reaproveitado já está no boleto, com a sua tentativa no histórico: anexá-lo de
+        // novo registraria uma consulta que não aconteceu.
+        bill.AttachLookups(bankSlipResult, pixReused ? null : pixResult, now.UtcDateTime);
 
         var tenantPayees = await payees.ListByTenantAsync(tenantId, cancellationToken);
         var resolution = PayeeResolutionService.Resolve(bill.Beneficiary, tenantPayees);
@@ -132,7 +141,7 @@ public sealed class ValidateBillCommandHandler(
     /// Consulta cada trilho presente no documento. Os dois quando há os dois — é o que permite
     /// comparar as duas histórias, que é a defesa contra QR colado sobre boleto verdadeiro.
     /// </summary>
-    private async Task<(BillLookupResult? BankSlip, PixLookupResult? Pix)> ConsultAsync(
+    private async Task<(BillLookupResult? BankSlip, PixLookupResult? Pix, bool PixReused)> ConsultAsync(
         Bill bill,
         CredentialRef? credential,
         DateTimeOffset now,
@@ -140,6 +149,7 @@ public sealed class ValidateBillCommandHandler(
     {
         BillLookupResult? bankSlip = null;
         PixLookupResult? pix = null;
+        var pixReused = false;
 
         foreach (var instrument in bill.Instruments)
         {
@@ -147,6 +157,18 @@ public sealed class ValidateBillCommandHandler(
             {
                 bankSlip = await billLookup.SimulateAsync(
                     credential, instrument.DigitableLine, cancellationToken);
+                continue;
+            }
+
+            // A PRIMEIRA validação reaproveita a consulta que o roteamento acabou de fazer (degrau
+            // 1, 2026-09-14): é a mesma pergunta segundos depois, e o provedor limita leituras de
+            // QR por conta. Revalidar — a pedido ou pela varredura — consulta de novo, sempre.
+            if (bill.Status == BillStatus.Captured
+                && bill.PixLookup is { } captured
+                && now - captured.ConsultedAt <= CaptureLookupReuseWindow)
+            {
+                pix = PixLookupResult.Resolved(captured, captured.ConsultedAt);
+                pixReused = true;
                 continue;
             }
 
@@ -159,7 +181,7 @@ public sealed class ValidateBillCommandHandler(
                 cancellationToken);
         }
 
-        return (bankSlip, pix);
+        return (bankSlip, pix, pixReused);
     }
 
     /// <summary>

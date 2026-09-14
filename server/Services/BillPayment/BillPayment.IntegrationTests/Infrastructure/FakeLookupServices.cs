@@ -29,11 +29,15 @@ internal sealed class FakeLookupServices : IBillLookupService, IPixLookupService
     /// <summary>Quantas vezes o boleto foi consultado — prova que a revalidação consultou de novo.</summary>
     public int BankSlipCallCount { get; private set; }
 
+    /// <summary>Quantas vezes o QR Pix foi lido — o provedor limita essas leituras por conta.</summary>
+    public int PixCallCount { get; private set; }
+
     public void Reset()
     {
         BankSlipResult = null;
         PixResult = null;
         BankSlipCallCount = 0;
+        PixCallCount = 0;
         LastCredential = null;
     }
 
@@ -58,6 +62,7 @@ internal sealed class FakeLookupServices : IBillLookupService, IPixLookupService
         DateOnly? expectedPaymentDate,
         CancellationToken cancellationToken)
     {
+        PixCallCount++;
         LastCredential = credential;
         return Task.FromResult(PixResult
             ?? PixLookupResult.Unavailable("not_configured_in_test", null, DateTimeOffset.UnixEpoch));
