@@ -161,6 +161,16 @@ internal sealed class CaptureItemMap : IEntityTypeConfiguration<CaptureItem>
             .HasMaxLength(CaptureItem.LAST_ERROR_MAX_LENGTH);
 
         builder.Property(e => e.LeaseExpiresAt).HasColumnName("lease_expires_at");
+
+        // "Lembrar desta conta" (ADR-026): a sugestão que a reivindicação oferece e o pedido que
+        // ela registrou. Só dígitos da conta do cliente — nenhum documento fiscal, nenhum endereço.
+        builder.Property(e => e.AccountReferenceSuggestion)
+            .HasColumnName("account_reference_suggestion")
+            .HasMaxLength(CaptureItem.ACCOUNT_REFERENCE_MAX_LENGTH);
+
+        builder.Property(e => e.RememberedAccountReference)
+            .HasColumnName("remembered_account_reference")
+            .HasMaxLength(CaptureItem.ACCOUNT_REFERENCE_MAX_LENGTH);
         builder.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
 

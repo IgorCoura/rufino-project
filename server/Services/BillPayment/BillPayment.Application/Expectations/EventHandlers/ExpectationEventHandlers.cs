@@ -31,6 +31,28 @@ public sealed class FulfillExpectationOnBillValidatedHandler(IMediator mediator)
 }
 
 /// <summary>
+/// Boleto reivindicado com "lembrar desta conta" e agora verificado: o número vai para a expectativa
+/// do beneficiário que a verificação acabou de resolver (ADR-026).
+/// </summary>
+/// <remarks>
+/// Depois da verificação pelo mesmo motivo do cumprimento: sem beneficiário não há expectativa. O
+/// comando é idempotente, e a reentrega do outbox não cria nada duas vezes.
+/// </remarks>
+public sealed class RememberClaimedAccountOnBillValidatedHandler(IMediator mediator)
+    : IDomainEventHandler<BillValidatedDomainEvent>
+{
+    public async Task HandleAsync(
+        BillValidatedDomainEvent domainEvent, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(domainEvent);
+
+        await mediator.Send(
+            new RememberClaimedAccountCommand(domainEvent.TenantId.Value, domainEvent.BillId.Value),
+            cancellationToken);
+    }
+}
+
+/// <summary>
 /// Boleto aprovado alimenta o aprendizado do beneficiário.
 /// </summary>
 /// <remarks>

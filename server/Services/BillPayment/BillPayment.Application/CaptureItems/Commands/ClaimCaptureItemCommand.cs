@@ -3,6 +3,8 @@
 using BillPayment.Application.Mediator;
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureItems;
+using BillPayment.Domain.CapturedMessages;
+using BillPayment.Domain.Extraction;
 using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.Ports;
 using BillPayment.Domain.SeedWork;
@@ -32,7 +34,12 @@ using Microsoft.Extensions.Logging;
 /// escolhe de <em>quem</em> é o boleto, nunca <em>o que</em> ele diz.
 /// </para>
 /// </remarks>
-public sealed record ClaimCaptureItemCommand(Guid TenantId, Guid CaptureItemId, Guid UserId)
+/// <param name="RememberAccountReference">
+/// "Lembrar desta conta" (ADR-026): o número que a pessoa quer que roteie os próximos boletos. Só é
+/// aceito se os dígitos estiverem no documento reivindicado. Nulo quando ela desmarcou.
+/// </param>
+public sealed record ClaimCaptureItemCommand(
+    Guid TenantId, Guid CaptureItemId, Guid UserId, string? RememberAccountReference = null)
     : ITenantScopedCommand, IRequest<ClaimCaptureItemResponse>, IMultiAggregateCommand;
 
 public sealed record ClaimCaptureItemResponse(Guid Id, Guid BillId, string Status);
@@ -41,6 +48,7 @@ public sealed class ClaimCaptureItemCommandHandler(
     ICaptureItemRepository items,
     IBillRepository bills,
     IPayerProfileRepository payerProfiles,
+    ICapturedMessageRepository capturedMessages,
     IBoletoDocumentParser parser,
     IAttachmentStorage storage,
     TimeProvider clock,
@@ -80,6 +88,9 @@ public sealed class ClaimCaptureItemCommandHandler(
         if (!extraction.Resolved)
             throw CaptureItemErrors.NoInstrumentToClaim(request.CaptureItemId);
 
+        var rememberedAccount = await ConfirmAccountReferenceAsync(
+            request.RememberAccountReference, item, extraction, tenantId, cancellationToken);
+
         var bill = Bill.Capture(
             tenantId,
             extraction.Instruments,
@@ -109,11 +120,55 @@ public sealed class ClaimCaptureItemCommandHandler(
 
         // A recusa por pagador contraditório (BLP.CPI04) e a transição inválida vivem dentro do
         // método rico — o handler não lê o status para decidir.
-        item.Claim(UserId.From(request.UserId), bill.Id, now.UtcDateTime);
+        item.Claim(UserId.From(request.UserId), bill.Id, now.UtcDateTime, rememberedAccount);
 
         await unitOfWork.SaveEntitiesAsync(cancellationToken);
 
         return new ClaimCaptureItemResponse(item.Id.Value, bill.Id.Value, item.Status.Name);
+    }
+
+    /// <summary>
+    /// Os dígitos significativos da conta pedida para lembrar, depois de conferidos no documento.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Recusar, e não lembrar calado, é deliberado.</strong> Um número que não está no
+    /// documento nunca rotearia este emissor — e, digitado errado, rotearia a conta de quem tiver
+    /// aquele número na mesma caixa. A pessoa recebe o erro e corrige ou desmarca.
+    /// </remarks>
+    private async Task<string?> ConfirmAccountReferenceAsync(
+        string? requested,
+        CaptureItem item,
+        ExtractionResult extraction,
+        TenantId tenantId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(requested))
+            return null;
+
+        var digits = AccountReferenceMatchingService.SignificantDigits(requested)
+            ?? throw CaptureItemErrors.AccountReferenceTooShort(AccountReferenceMatchingService.MIN_SIGNIFICANT_DIGITS);
+
+        var body = await LoadBodyTextAsync(item, tenantId, cancellationToken);
+
+        var evidence = AccountReferenceMatchingService.Locate(
+            digits, extraction.Instruments, [extraction.DocumentText, body]);
+
+        return evidence == AccountReferenceEvidence.None
+            ? throw CaptureItemErrors.AccountReferenceNotInDocument()
+            : digits;
+    }
+
+    /// <summary>O corpo do e-mail que trouxe o item, quando guardado — onde a conta também aparece.</summary>
+    private async Task<string?> LoadBodyTextAsync(CaptureItem item, TenantId tenantId, CancellationToken cancellationToken)
+    {
+        var message = await capturedMessages.FindByExternalMessageIdAsync(
+            tenantId, item.SourceId, item.ExternalMessageId, cancellationToken);
+
+        if (message is null || !message.HasStoredBody)
+            return null;
+
+        var stored = await storage.RetrieveAsync(tenantId, message.BodyStorageKey!, cancellationToken);
+        return stored.IsEmpty ? null : System.Text.Encoding.UTF8.GetString(stored.Span);
     }
 }
 

@@ -60,7 +60,15 @@ public sealed record CaptureItemDto(
     /// Sai calculado do servidor porque a régua é do domínio: replicar no cliente faria a tela
     /// discordar da fila no dia em que um desfecho novo nascesse.
     /// </remarks>
-    bool LinkNeedsAttention)
+    bool LinkNeedsAttention,
+
+    /// <summary>
+    /// O número da conta que a reivindicação oferece lembrar, já encontrado no documento (ADR-026).
+    /// </summary>
+    string? AccountReferenceSuggestion,
+
+    /// <summary>O número da conta que quem reivindicou pediu para lembrar.</summary>
+    string? RememberedAccountReference)
 {
     /// <summary>
     /// Projeta o item aplicando o nível de visibilidade do próprio status.
@@ -124,7 +132,12 @@ public sealed record CaptureItemDto(
             // "a escada desceu cinco níveis e não achou" — dois itens que até aqui chegavam
             // idênticos e mudos na quarentena.
             item.LinkOutcome?.Name,
-            item.LinkOutcome?.DeservesAttention ?? false);
+            item.LinkOutcome?.DeservesAttention ?? false,
+
+            // A conta do cliente sai sob o MESMO portão dos campos financeiros: ela identifica de
+            // quem é a conta, e num item de outro pagador seria o dado mais revelador de todos.
+            exposes ? item.AccountReferenceSuggestion : null,
+            exposes ? item.RememberedAccountReference : null);
     }
 }
 

@@ -77,7 +77,17 @@ public sealed record BillDetailDto(
     /// (<see cref="Approval"/>) responde "vale?" enquanto esta responde "o que houve?" — as duas
     /// perguntas convivem no mesmo detalhe.
     /// </remarks>
-    IReadOnlyList<BillHistoryEntryDto> History);
+    IReadOnlyList<BillHistoryEntryDto> History,
+
+    /// <summary>
+    /// O número da conta que a reivindicação pediu para lembrar e que ainda não foi lembrado,
+    /// porque o beneficiário do boleto não está cadastrado (ADR-026). Nulo no caso comum.
+    /// </summary>
+    /// <remarks>
+    /// Sem isto o pedido ficava pendente em silêncio: a pessoa marcou "lembrar desta conta", e o mês
+    /// seguinte voltava para a fila sem que nada dissesse o que faltava fazer.
+    /// </remarks>
+    string? PendingAccountReference = null);
 
 /// <param name="ActorName">
 /// O nome de quem agiu, congelado no instante da ação. "Sistema" quando não partiu de uma pessoa.

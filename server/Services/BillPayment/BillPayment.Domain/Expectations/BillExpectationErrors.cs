@@ -184,6 +184,21 @@ public static class BillExpectationErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
 
+    /// <summary>
+    /// Preencher o número da conta só vale para expectativa sem número: trocar um existente é
+    /// edição, e passa pela tela (ADR-026).
+    /// </summary>
+    public static DomainException AccountReferenceAlreadySet(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}14",
+            messageTemplate: "Esta expectativa já tem número de conta. Para trocá-lo, edite a expectativa.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

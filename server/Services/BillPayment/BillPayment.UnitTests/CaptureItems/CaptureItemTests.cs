@@ -398,4 +398,51 @@ public class CaptureItemTests
 
         Assert.Equal("BLP.CPI03", exception.Id);
     }
+
+    // "Lembrar desta conta" (ADR-026): reivindicar pedindo para lembrar grava o número no item.
+    [Fact]
+    public void Claim_WithAnAccountToRemember_ShouldRecordIt()
+    {
+        var item = CaptureItemMother.Unrouted();
+
+        item.Claim(CaptureItemMother.DefaultUser, CaptureItemMother.DefaultBill, Later, "1123004411");
+
+        Assert.Equal("1123004411", item.RememberedAccountReference);
+    }
+
+    // Sem pedido, nada é lembrado.
+    [Fact]
+    public void Claim_WithoutAnAccountToRemember_ShouldRememberNothing()
+    {
+        var item = CaptureItemMother.Unrouted();
+
+        item.Claim(CaptureItemMother.DefaultUser, CaptureItemMother.DefaultBill, Later);
+
+        Assert.Null(item.RememberedAccountReference);
+    }
+
+    // Reabrir apaga a sugestão de conta: ela saiu da leitura de uma passagem que vai ser refeita.
+    [Fact]
+    public void Reopen_ShouldForgetTheAccountSuggestion()
+    {
+        var item = CaptureItemMother.Stored();
+        item.MarkUnrecognized("no_instrument", Later);
+        item.SuggestAccountReference("1123004411", Later);
+
+        item.Reopen(Later.AddMinutes(1));
+
+        Assert.Null(item.AccountReferenceSuggestion);
+    }
+
+    // Número de conta maior que a coluna é recusado com BLP.CPI08, como todo texto do item.
+    [Fact]
+    public void SuggestAccountReference_WhenTooLong_ShouldThrowTextTooLong()
+    {
+        var item = CaptureItemMother.Unrouted();
+
+        var exception = Assert.Throws<DomainException>(() =>
+            item.SuggestAccountReference(new string('9', CaptureItem.ACCOUNT_REFERENCE_MAX_LENGTH + 1), Later));
+
+        Assert.Equal(CaptureItemErrors.TextTooLong("x", 1).Id, exception.Id);
+    }
 }

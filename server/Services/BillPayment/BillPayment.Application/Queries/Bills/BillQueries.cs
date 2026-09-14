@@ -105,6 +105,16 @@ internal sealed class BillQueries(
 
         var barcode = bill.Instruments.FirstOrDefault(i => i.Kind == PaymentInstrumentKind.Barcode);
 
+        // O pedido só está pendente enquanto falta o beneficiário: com ele resolvido, a validação já
+        // o cumpriu (RememberClaimedAccountCommand).
+        var pendingAccount = bill.PayeeId is null
+            ? await context.CaptureItems
+                .AsNoTracking()
+                .Where(i => i.TenantId == tenant && i.BillId == id && i.RememberedAccountReference != null)
+                .Select(i => i.RememberedAccountReference)
+                .FirstOrDefaultAsync(cancellationToken)
+            : null;
+
         return new BillDetailDto(
             bill.Id.Value,
             bill.Status.Name,
@@ -171,7 +181,8 @@ internal sealed class BillQueries(
                     h.ActorName,
                     h.FromStatus?.Name,
                     h.ToStatus.Name,
-                    h.Note))]);
+                    h.Note))],
+            pendingAccount);
     }
 
     public async Task<ArtifactDownload?> GetArtifactAsync(

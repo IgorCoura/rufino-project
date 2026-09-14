@@ -216,4 +216,32 @@ public static class CaptureItemErrors
             parameters: [contentType],
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Validation);
+
+    /// <summary>
+    /// O número da conta pedido para lembrar não está no documento — lembrá-lo não rotearia nada, e
+    /// um número digitado errado rotearia a conta de outra pessoa (ADR-026).
+    /// </summary>
+    public static DomainException AccountReferenceNotInDocument(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}18",
+            messageTemplate: "O número da conta informado não aparece neste boleto. Confira o número ou desmarque 'Lembrar desta conta'.",
+            parameters: [],
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Validation);
+
+    /// <summary>Número de conta com menos de seis dígitos coincide demais para rotear (ADR-026).</summary>
+    public static DomainException AccountReferenceTooShort(
+        int minimumDigits,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}19",
+            messageTemplate: "O número da conta precisa ter pelo menos {0} dígitos para ser lembrado.",
+            parameters: [minimumDigits],
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Validation);
 }

@@ -618,4 +618,29 @@ public class BillExpectationTests
         expectation.MarkMissing(
             cycle.Id, MissReason.NeverArrived, cycle.ExpectedDueDate.AddDays(1), OccurredAt);
     }
+
+    // "Lembrar desta conta" (ADR-026): a expectativa sem número ganha o número, e continua
+    // aprendendo — preencher o número não é editar, e não vira a origem para Manual.
+    [Fact]
+    public void AssignAccountReference_OnALearnedExpectation_ShouldFillItAndKeepTheOrigin()
+    {
+        var expectation = BillExpectationMother.Learned();
+
+        expectation.AssignAccountReference("1123004411", BillExpectationMother.DefaultOccurredAt.AddDays(1));
+
+        Assert.Equal("1123004411", expectation.AccountReference);
+        Assert.Same(ExpectationOrigin.Learned, expectation.Origin);
+    }
+
+    // Trocar um número que já existe é edição, e passa pela tela: BLP.EXP14.
+    [Fact]
+    public void AssignAccountReference_WhenTheExpectationAlreadyHasOne_ShouldThrowBLP_EXP14()
+    {
+        var expectation = BillExpectationMother.Register(accountReference: "999999999");
+
+        var exception = Assert.Throws<DomainException>(() =>
+            expectation.AssignAccountReference("1123004411", BillExpectationMother.DefaultOccurredAt.AddDays(1)));
+
+        Assert.Equal("BLP.EXP14", exception.Id);
+    }
 }

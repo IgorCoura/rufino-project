@@ -544,6 +544,36 @@ public sealed class ProcessCaptureItemCommandHandler(
     }
 
     /// <summary>
+    /// O número da conta que a reivindicação vai oferecer lembrar (ADR-026).
+    /// </summary>
+    /// <remarks>
+    /// <strong>Sai da leitura por IA, mas só vale se os dígitos estiverem no documento</strong> — no
+    /// campo livre do código de barras ou como sequência inteira no texto (ADR-011). O modelo lê
+    /// "Número da fatura" como conta com frequência suficiente para que sugerir sem conferir
+    /// oferecesse, marcado por padrão, um número que nunca rotearia nada.
+    /// </remarks>
+    private async Task SuggestAccountReferenceAsync(
+        CaptureItem item,
+        ExtractionResult extraction,
+        DocumentReading? reading,
+        TenantId tenantId,
+        DateTime occurredAt,
+        CancellationToken cancellationToken)
+    {
+        var digits = AccountReferenceMatchingService.SignificantDigits(reading?.AccountReference);
+        if (digits is null)
+            return;
+
+        var body = IsMessageBody(item) ? null : await LoadBodyTextAsync(item, tenantId, cancellationToken);
+
+        var evidence = AccountReferenceMatchingService.Locate(
+            digits, extraction.Instruments, [extraction.DocumentText, body?.Text]);
+
+        if (evidence != AccountReferenceEvidence.None)
+            item.SuggestAccountReference(digits, occurredAt);
+    }
+
+    /// <summary>
     /// Aplica o desfecho da escada ao item já guardado. <c>Foreign</c> nunca chega aqui — virou
     /// descarte antes de o arquivo ir para o balde.
     /// </summary>
@@ -560,6 +590,7 @@ public sealed class ProcessCaptureItemCommandHandler(
         if (routing.Outcome == RoutingOutcome.Unrouted)
         {
             item.MarkUnrouted(routing.Reason, occurredAt);
+            await SuggestAccountReferenceAsync(item, extraction, reading, tenantId, occurredAt, cancellationToken);
             return;
         }
 

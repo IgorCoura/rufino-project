@@ -1,6 +1,7 @@
 namespace BillPayment.Infra.Repositories;
 
 using BillPayment.Domain.CaptureItems;
+using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Persistence;
@@ -21,6 +22,16 @@ internal sealed class CaptureItemRepository : ICaptureItemRepository
         CancellationToken cancellationToken = default)
         => _context.CaptureItems
             .FirstOrDefaultAsync(i => i.TenantId == tenantId && i.Id == id, cancellationToken);
+
+    public Task<CaptureItem?> FindRememberingAccountForBillAsync(
+        TenantId tenantId,
+        BillId billId,
+        CancellationToken cancellationToken = default)
+        => _context.CaptureItems
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                i => i.TenantId == tenantId && i.BillId == billId && i.RememberedAccountReference != null,
+                cancellationToken);
 
     public async Task<IReadOnlyList<CaptureItem>> ListByMessageAsync(
         TenantId tenantId,
