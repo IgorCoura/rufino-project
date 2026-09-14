@@ -98,6 +98,15 @@ public sealed class ProcessCaptureItemCommandHandler(
     /// <summary>Motivo enquanto o artefato espera a vez na fila do extrator de IA.</summary>
     private const string AWAITING_VISION = "awaiting_vision";
 
+    /// <summary>O corpo do e-mail repetia o boleto de um anexo da mesma mensagem.</summary>
+    public const string DUPLICATE_OF_ATTACHMENT = "duplicate_of_attachment";
+
+    /// <summary>
+    /// Desfechos de anexo que guardaram o documento e passaram pela cascata com boleto achado.
+    /// </summary>
+    private static readonly CaptureItemStatus[] ResolvedSiblingStatuses =
+        [CaptureItemStatus.Parsed, CaptureItemStatus.Promoted, CaptureItemStatus.Unrouted];
+
     public async Task<ProcessCaptureItemResponse> Handle(
         ProcessCaptureItemCommand request,
         CancellationToken cancellationToken)
@@ -192,6 +201,24 @@ public sealed class ProcessCaptureItemCommandHandler(
                     payload, payloadType, passwords, knownTaxIds,
                     DateOnly.FromDateTime(now.UtcDateTime), cancellationToken);
             }
+        }
+
+        // O corpo que repete o boleto de um anexo irmão não é outro boleto: é o mesmo, escrito no
+        // texto. A fila só entrega o corpo depois de os anexos decidirem, e é aqui que a repetição
+        // é reconhecida — antes de gastar IA e antes de o HTML ir para o balde como "documento".
+        if (extraction.Resolved && IsMessageBody(item)
+            && await FindSiblingWithSameInstrumentAsync(item, extraction, tenantId, passwords, knownTaxIds, now.UtcDateTime, cancellationToken)
+                is { } sibling)
+        {
+            item.Discard(sibling.Id, now.UtcDateTime);
+
+            await RecordCapturedOutcomeAsync(
+                item, ArtifactOutcome.Discarded, DUPLICATE_OF_ATTACHMENT,
+                tenantId, now.UtcDateTime, cancellationToken);
+
+            await unitOfWork.SaveEntitiesAsync(cancellationToken);
+
+            return new ProcessCaptureItemResponse(item.Id.Value, "Discarded", extraction.Instruments.Count);
         }
 
         // A IA roda para TODO candidato a boleto (decisão de 2026-08-27): o que o determinístico
@@ -312,6 +339,60 @@ public sealed class ProcessCaptureItemCommandHandler(
 
         return await mailboxReader.DownloadArtifactAsync(
             source.Address, source.Credential!, item.ExternalMessageId, item.ArtifactKey, cancellationToken);
+    }
+
+    private static bool IsMessageBody(CaptureItem item)
+        => !item.ManuallySupplied
+            && string.Equals(item.ArtifactKey, IMailboxReader.BODY_ARTIFACT_KEY, StringComparison.Ordinal);
+
+    /// <summary>
+    /// O anexo da mesma mensagem que já resolveu o mesmo instrumento deste corpo, se houver.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Relê o documento do anexo em vez de guardar os instrumentos no item.</strong> O
+    /// <c>CaptureItem</c> não carrega instrumento — é o boleto que carrega —, e o anexo pode estar
+    /// na fila de reivindicação, sem boleto ainda. A releitura é a cascata determinística barata
+    /// (a mesma mediana de 150 ms), e só acontece no caso raro de mensagem com corpo E anexo que
+    /// resolveram.
+    /// </para>
+    /// <para>
+    /// Comparar pela chave natural, e não só "o anexo resolveu": um e-mail com dois boletos
+    /// diferentes — um no texto, outro no PDF — continua produzindo os dois.
+    /// </para>
+    /// </remarks>
+    private async Task<CaptureItem?> FindSiblingWithSameInstrumentAsync(
+        CaptureItem item,
+        ExtractionResult extraction,
+        TenantId tenantId,
+        IReadOnlyList<PasswordCandidate> passwords,
+        IReadOnlyList<TaxId> knownTaxIds,
+        DateTime occurredAt,
+        CancellationToken cancellationToken)
+    {
+        var siblings = await items.ListByMessageAsync(
+            tenantId, item.SourceId, item.ExternalMessageId, cancellationToken);
+
+        var keys = extraction.Instruments.Select(i => i.NaturalKey).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var sibling in siblings.Where(s => !s.Id.Equals(item.Id)
+            && !string.Equals(s.ArtifactKey, IMailboxReader.BODY_ARTIFACT_KEY, StringComparison.Ordinal)
+            && ResolvedSiblingStatuses.Contains(s.Status)
+            && s.HasStoredArtifact))
+        {
+            var stored = await storage.RetrieveAsync(tenantId, sibling.StorageKey!, cancellationToken);
+            if (stored.IsEmpty)
+                continue;
+
+            var reread = await parser.ParseAsync(
+                stored, sibling.ContentType, passwords, knownTaxIds,
+                DateOnly.FromDateTime(occurredAt), cancellationToken);
+
+            if (reread.Instruments.Any(i => keys.Contains(i.NaturalKey)))
+                return sibling;
+        }
+
+        return null;
     }
 
     /// <summary>

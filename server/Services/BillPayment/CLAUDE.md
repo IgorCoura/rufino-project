@@ -753,6 +753,44 @@ Cobertura: `Lookups/MaskedPartyTests` (+5, os três formatos e o DV inválido) e
 `Bills/ValidateBillTests` (+3: pagador completo com vencimento, máscara marcada incompleta, e a
 contraprova do boleto só com código de barras sem bloco Pix).
 
+## 2026-09-14 (2) — A fatura da Vivo: o PDF descartado e o corpo na reivindicação
+
+Relatado sobre a "Sua Fatura Digital Vivo Chegou": o e-mail foi para a quarentena e o "documento"
+baixado era a página HTML do e-mail. Dois defeitos independentes, reproduzidos rodando o parser real
+sobre o `.eml` (os logs de 13/09 já não existiam no contêiner).
+
+### 🐛 O CNPJ da Telefônica era lido como pagador, e o PDF era descartado
+
+O PDF imprime `Código Cliente:00000120864975I.E.: … CNPJ Matriz: 02.558.157/0001-62`. O
+`TaxIdScanner` tratava `cliente` como rótulo de pagador, então o CNPJ da **própria concessionária**
+saía rotulado, a escada concluía `payer_is_another` e — desde 2026-08-28 — o item era apagado sem
+guardar arquivo. Correção de LEITURA, não de regra de isolamento: `cliente` precedido de
+"código/cód./nº/número [do]" deixou de ser rótulo (lookbehind — um lookahead de dígito quebraria
+"Cliente: 11.222.333/0001-81", que é rótulo legítimo seguido do documento), e `emissor`, `emitente` e
+`matriz` entraram como rótulos do lado de quem cobra. `filial` ficou de fora de propósito: aparece no
+bloco do pagador de empresas com várias unidades. Regressão e contraprovas em
+`Extraction/TaxIdScannerTests`.
+
+### 🐛 Corpo e anexo da mesma mensagem viravam dois itens
+
+O corpo da Vivo traz o Pix copia e cola e o código de barras escritos. Processado em paralelo com o
+anexo, o item do corpo resolvia, não tinha documento fiscal nenhum e ia para `Unrouted` — e, como
+quem resolve guarda o que leu, o "documento original" dele era o HTML.
+
+- **A fila segura o corpo** (`CaptureItemWorkQueries.ClaimAsync`): o item `message-body` não é
+  reivindicado enquanto houver anexo irmão da mesma mensagem em `Received`/`VisionPending`. Quem
+  espera não é reivindicado, então não gasta tentativa. `FOR UPDATE OF c` — a subconsulta lê a mesma
+  tabela e não pode travar as linhas irmãs.
+- **O corpo que repete o boleto do anexo é descartado** (`ProcessCaptureItemCommand`): resolvido o
+  corpo, os anexos irmãos em `Parsed`/`Promoted`/`Unrouted` com arquivo guardado são RELIDOS pela
+  cascata determinística e, havendo instrumento com a mesma `NaturalKey`, o corpo vira `Discarded`
+  com `DiscardedOf` apontando o anexo (livro-caixa: `duplicate_of_attachment`). Relê em vez de
+  guardar instrumento no item porque o `CaptureItem` não carrega instrumento — e o anexo pode estar
+  na reivindicação, sem boleto. Corpo com OUTRO boleto continua sendo item próprio.
+
+Testes: `CaptureItems/MessageBodySiblingTests` (5 — a espera, a liberação, a contraprova da mensagem
+sem anexo, o **teste de regressão** do descarte e a contraprova do boleto diferente).
+
 ## 2026-09-14 — Baixar documentos de vários boletos de uma vez
 
 Pedido do usuário: selecionar boletos na lista e baixar os documentos, escolhendo **documento
