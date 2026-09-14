@@ -4,7 +4,6 @@ using System.Reflection;
 using BillPayment.Domain.Extraction;
 using BillPayment.Domain.Ports;
 using Microsoft.Extensions.Logging;
-using SkiaSharp;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Core;
 using UglyToad.PdfPig.Writer;
@@ -41,12 +40,9 @@ internal sealed class PdfComposer(ILogger<PdfComposer> logger) : IPdfComposer
 
     private sealed class Composition(ILogger logger) : IPdfComposition
     {
-        private const double PAGE_WIDTH = 595;
-        private const double PAGE_HEIGHT = 842;
-        private const double MARGIN = 48;
-
-        /// <summary>Acima disto a imagem é tratada como ilegível — bomba de descompressão.</summary>
-        private const long MAX_IMAGE_PIXELS = 60_000_000;
+        private const double PAGE_WIDTH = A4Image.A4_SHORT_SIDE;
+        private const double PAGE_HEIGHT = A4Image.A4_LONG_SIDE;
+        private const double MARGIN = A4Image.MARGIN;
 
         private readonly PdfDocumentBuilder _builder = new();
 
@@ -70,7 +66,7 @@ internal sealed class PdfComposer(ILogger<PdfComposer> logger) : IPdfComposer
                 return measured switch
                 {
                     "application/pdf" => AppendPdf(content, maxPages),
-                    "image/png" or "image/jpeg" or "image/webp" => AppendImage(content, measured),
+                    "image/png" or "image/jpeg" or "image/webp" => AppendImage(content),
                     _ => false,
                 };
             }
@@ -129,57 +125,37 @@ internal sealed class PdfComposer(ILogger<PdfComposer> logger) : IPdfComposer
             return true;
         }
 
-        private bool AppendImage(ReadOnlyMemory<byte> content, string mediaType)
+        /// <summary>
+        /// Toda imagem — PNG, JPEG ou WEBP — é normalizada para uma folha A4 antes de entrar: a
+        /// foto do celular na resolução original fazia o PDF passar de dezenas de MB.
+        /// </summary>
+        private bool AppendImage(ReadOnlyMemory<byte> content)
         {
-            var bytes = content.ToArray();
-
-            // Dimensões pelo cabeçalho real, antes de qualquer decodificação.
-            using var codec = SKCodec.Create(new MemoryStream(bytes));
-            if (codec is null)
+            var fitted = A4Image.Fit(content.ToArray());
+            if (fitted is null)
                 return false;
 
-            var width = codec.Info.Width;
-            var height = codec.Info.Height;
-            if (width <= 0 || height <= 0 || (long)width * height > MAX_IMAGE_PIXELS)
-                return false;
+            var (pageWidth, pageHeight) = fitted.Landscape
+                ? (A4Image.A4_LONG_SIDE, A4Image.A4_SHORT_SIDE)
+                : (A4Image.A4_SHORT_SIDE, A4Image.A4_LONG_SIDE);
 
-            var page = _builder.AddPage(PAGE_WIDTH, PAGE_HEIGHT);
-            var area = FitInsideMargins(width, height);
-
-            switch (mediaType)
-            {
-                case "image/jpeg":
-                    page.AddJpeg(bytes, area);
-                    break;
-                case "image/png":
-                    page.AddPng(bytes, area);
-                    break;
-                default:
-                    // WEBP não existe em PDF: decodifica e reencoda como PNG.
-                    using (var bitmap = SKBitmap.Decode(bytes))
-                    using (var image = SKImage.FromBitmap(bitmap))
-                    using (var png = image.Encode(SKEncodedImageFormat.Png, 100))
-                    {
-                        page.AddPng(png.ToArray(), area);
-                    }
-
-                    break;
-            }
+            var page = _builder.AddPage(pageWidth, pageHeight);
+            page.AddJpeg(fitted.Jpeg, FitInsideMargins(fitted, pageWidth, pageHeight));
 
             PageCount++;
             return true;
         }
 
-        private static PdfRectangle FitInsideMargins(int width, int height)
+        /// <summary>Centraliza a imagem na área útil, preservando a proporção.</summary>
+        private static PdfRectangle FitInsideMargins(A4ImagePage image, double pageWidth, double pageHeight)
         {
-            var availableWidth = PAGE_WIDTH - (2 * MARGIN);
-            var availableHeight = PAGE_HEIGHT - (2 * MARGIN);
-            var scale = Math.Min(availableWidth / width, availableHeight / height);
+            var (areaWidth, areaHeight) = A4Image.PrintableArea(image.Landscape);
+            var scale = Math.Min(areaWidth / image.PixelWidth, areaHeight / image.PixelHeight);
 
-            var drawnWidth = width * scale;
-            var drawnHeight = height * scale;
-            var left = (PAGE_WIDTH - drawnWidth) / 2;
-            var top = PAGE_HEIGHT - MARGIN;
+            var drawnWidth = image.PixelWidth * scale;
+            var drawnHeight = image.PixelHeight * scale;
+            var left = (pageWidth - drawnWidth) / 2;
+            var top = pageHeight - A4Image.MARGIN;
 
             return new PdfRectangle(left, top - drawnHeight, left + drawnWidth, top);
         }

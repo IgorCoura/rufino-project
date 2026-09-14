@@ -12,6 +12,7 @@ using BillPayment.Domain.PaymentOrders;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Outbox;
+using BillPayment.Infra.WorkingDays;
 using BillPayment.IntegrationTests.Contracts;
 using BillPayment.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -636,10 +637,20 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
     private static Uri BillsRoute(string path) => new($"/api/v1/{TenantId}/bills/{path}", UriKind.Relative);
 
     /// <summary>Retrato com vencimento FUTURO — o caminho agendável da política do ADR-017.</summary>
+    /// <remarks>
+    /// Teste de regressão: o vencimento era hoje + 20 cru, e em 2026-09-14 isso caiu num domingo.
+    /// Pagar "no vencimento" deslizava para a segunda, a prévia dizia <c>AfterDueDate</c>, e
+    /// <c>ScheduleOptions_OnABillDueInTheFuture_ShouldResolveTheFourSuggestions</c> reprovava só nos
+    /// dias em que a conta caía em fim de semana ou feriado. O vencimento passa a ser o dia útil
+    /// seguinte, pelo MESMO calendário que o servidor usa — assim a suíte não depende do dia em
+    /// que roda.
+    /// </remarks>
     private static BillLookupResult FutureDueSnapshot()
     {
         var at = DateTimeOffset.UtcNow;
         var line = DigitableLine.Parse(BankSlipLine, DateTime.UtcNow);
+        var dueDate = new BrazilianWorkingDayCalendar()
+            .NextWorkingDayOnOrAfter(DateOnly.FromDateTime(DateTime.UtcNow).AddDays(20));
 
         return BillLookupResult.Resolved(
             LookupSnapshot.Create(
@@ -648,7 +659,7 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
                 bankCode: line.BankCode,
                 amount: line.Amount,
                 originalAmount: line.Amount,
-                dueDate: DateOnly.FromDateTime(DateTime.UtcNow).AddDays(20)),
+                dueDate: dueDate),
             at);
     }
 
