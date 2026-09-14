@@ -64,7 +64,7 @@ internal sealed class PdfBoletoDocumentParser(
         }
 
         return Task.FromResult(
-            ExtractionResult.Found(scan.Instruments, scan.Method!, scan.UnlockedBy, scan.Parties));
+            ExtractionResult.Found(scan.Instruments, scan.Method!, scan.UnlockedBy, scan.Parties, scan.Text));
     }
 
     /// <summary>
@@ -159,7 +159,8 @@ internal sealed class PdfBoletoDocumentParser(
         ExtractionMethod? Method,
         string? UnlockedBy,
         bool Locked,
-        bool HadText);
+        bool HadText,
+        string? Text = null);
 
     /// <summary>
     /// Abre o documento e roda os dois degraus baratos numa passagem só.
@@ -276,7 +277,8 @@ internal sealed class PdfBoletoDocumentParser(
             method,
             unlockedBy,
             Locked: false,
-            HadText: !string.IsNullOrWhiteSpace(body));
+            HadText: !string.IsNullOrWhiteSpace(body),
+            Text: body);
     }
 
     /// <summary>

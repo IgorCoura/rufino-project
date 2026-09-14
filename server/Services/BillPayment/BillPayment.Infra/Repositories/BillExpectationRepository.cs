@@ -51,6 +51,14 @@ internal sealed class BillExpectationRepository : IBillExpectationRepository
             .Where(e => e.TenantId == tenantId && e.PayeeId == payeeId)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyCollection<BillExpectation>> ListWithAccountReferenceAsync(
+        TenantId tenantId,
+        CancellationToken cancellationToken = default)
+        => await _context.BillExpectations
+            .AsNoTracking()
+            .Where(e => e.TenantId == tenantId && e.AccountReference != string.Empty)
+            .ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyCollection<BillExpectation>> ListByHintSourceAsync(
         TenantId tenantId,
         CaptureSourceId sourceId,

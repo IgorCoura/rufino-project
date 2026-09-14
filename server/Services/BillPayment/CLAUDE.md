@@ -819,6 +819,35 @@ Testes: 4 em `Services/BillRoutingServiceTests` e `CaptureItems/OfficialPixPayer
 promove, descarta, sem conta não consulta, consulta indisponível não decide, e a primeira validação
 reaproveitando a leitura com `PixCallCount == 1`). `FakeLookupServices` ganhou `PixCallCount`.
 
+### O número da conta cadastrado na expectativa virou o degrau 3 (ADR-026)
+
+Toda conta de concessionária traz o número da conta do cliente, e na arrecadação ele costuma estar
+no campo livre do código de barras. `BillExpectation.AccountReference` — que o usuário já informava
+para separar contas do mesmo beneficiário — passou a rotear.
+
+- **`Domain/Services/AccountReferenceMatchingService`** (+ `AccountReferenceMatch`,
+  `AccountReferenceEvidence`): dígitos significativos (`SignificantDigits` — sem letras, sem zeros à
+  esquerda, nulo abaixo de 6) procurados no **campo livre** (posição 20+) ou como **sequência
+  inteira** no texto. 🔑 **Por conter, nunca por posição** — é isso que o separa da `RoutingRule`
+  que a 2.6 mediu e abandonou. Código de barras com 8+ dígitos → `Strong`; texto ou 6–7 dígitos →
+  `Weak`; duas expectativas casando → nenhuma (fila).
+- **Fica depois dos negativos** na escada (`REASON_ACCOUNT_REFERENCE`): número informado pelo
+  tenant nunca desfaz prova de que o boleto é de outra pessoa.
+- **Sem travessia de tenant.** Cada tenant roteia a própria cópia; as travessias continuam duas.
+- **`ExtractionResult.DocumentText`** (novo, até 200 mil caracteres, nunca persistido nem logado):
+  os parsers de PDF e de corpo entregam o texto lido. O processamento procura também no **corpo do
+  e-mail guardado** — anexo escaneado sem camada de texto ainda tem o corpo.
+- **`IBillExpectationRepository.ListWithAccountReferenceAsync`**: sem rastreamento e sem ciclos, e
+  inclui as desativadas — parar de vigiar a chegada não muda de quem a conta é.
+- ⚠️ **Armadilha de teste:** o PdfPig emenda as linhas do PDF sem separador, então uma conta impressa
+  numa linha e um código de barras na seguinte viram UMA sequência de dígitos e deixam de casar como
+  sequência inteira. No documento real há sempre um rótulo depois do número.
+
+Testes: `Services/AccountReferenceMatchingServiceTests` (13 — barcode forte, formatação e zeros,
+número curto fraco, texto fraco, número dentro de outro maior não casa, menos de 6 dígitos, duas
+expectativas, expectativa sem conta, e o degrau na escada com a **contraprova de isolamento**) e
+`CaptureItems/AccountReferenceRoutingTests` (3 — barcode forte, texto fraco, e a contraprova).
+
 ## 2026-09-14 — Baixar documentos de vários boletos de uma vez
 
 Pedido do usuário: selecionar boletos na lista e baixar os documentos, escolhendo **documento

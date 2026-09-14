@@ -61,7 +61,7 @@ internal sealed class EmailBodyDocumentParser : IBoletoDocumentParser
         return Task.FromResult(instruments.Count == 0
             ? ExtractionResult.NotFound("no_instrument_in_body")
             : ExtractionResult.Found(
-                instruments, ExtractionMethod.EmailBody, unlockedBy: null, TaxIdScanner.Scan(text, knownTaxIds)));
+                instruments, ExtractionMethod.EmailBody, unlockedBy: null, TaxIdScanner.Scan(text, knownTaxIds), text));
     }
 
     /// <summary>

@@ -5,6 +5,7 @@ using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureItems;
 using BillPayment.Domain.CapturedMessages;
 using BillPayment.Domain.CaptureSources;
+using BillPayment.Domain.Expectations;
 using BillPayment.Domain.Extraction;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Lookups;
@@ -81,6 +82,7 @@ public sealed class ProcessCaptureItemCommandHandler(
     IPayerProfileRepository payerProfiles,
     IPayeeRepository payees,
     IBillRepository bills,
+    IBillExpectationRepository expectations,
     IMailboxReader mailboxReader,
     IBoletoDocumentParser parser,
     IDocumentLinkResolver linkResolver,
@@ -282,7 +284,7 @@ public sealed class ProcessCaptureItemCommandHandler(
             : null;
 
         var routing = decision == CaptureTriageDecision.Parse
-            ? await DecideRouteAsync(extraction, profile, officialPix, tenantId, cancellationToken)
+            ? await DecideRouteAsync(item, extraction, profile, officialPix, tenantId, cancellationToken)
             : null;
 
         var isForeign = routing?.Outcome == RoutingOutcome.Foreign;
@@ -468,6 +470,7 @@ public sealed class ProcessCaptureItemCommandHandler(
     /// </para>
     /// </remarks>
     private async Task<RoutingDecision> DecideRouteAsync(
+        CaptureItem item,
         ExtractionResult extraction,
         PayerProfile? profile,
         PixLookupResult? officialPix,
@@ -475,8 +478,34 @@ public sealed class ProcessCaptureItemCommandHandler(
         CancellationToken cancellationToken)
     {
         var exclusive = await ResolveExclusivePayeesAsync(tenantId, extraction, cancellationToken);
+        var accountMatch = await MatchAccountReferenceAsync(item, extraction, tenantId, cancellationToken);
+
         return BillRoutingService.Route(
-            extraction, profile, exclusive, officialPix?.Snapshot?.RegisteredPayerTaxId);
+            extraction, profile, exclusive, officialPix?.Snapshot?.RegisteredPayerTaxId, accountMatch);
+    }
+
+    /// <summary>
+    /// A expectativa do tenant cujo número de conta está no artefato — o degrau 3 (ADR-026).
+    /// </summary>
+    /// <remarks>
+    /// Procura no texto do documento <strong>e no corpo do e-mail que o trouxe</strong>: na fatura
+    /// da Vivo o número da conta está no PDF e no corpo, e um anexo escaneado sem camada de texto
+    /// ainda tem o corpo. Para o próprio item do corpo, o texto do documento já é o corpo.
+    /// </remarks>
+    private async Task<AccountReferenceMatch?> MatchAccountReferenceAsync(
+        CaptureItem item,
+        ExtractionResult extraction,
+        TenantId tenantId,
+        CancellationToken cancellationToken)
+    {
+        var withAccount = await expectations.ListWithAccountReferenceAsync(tenantId, cancellationToken);
+        if (withAccount.Count == 0)
+            return null;
+
+        var body = IsMessageBody(item) ? null : await LoadBodyTextAsync(item, tenantId, cancellationToken);
+
+        return AccountReferenceMatchingService.Match(
+            extraction.Instruments, [extraction.DocumentText, body?.Text], withAccount);
     }
 
     /// <summary>

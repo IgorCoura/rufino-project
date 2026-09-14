@@ -125,16 +125,16 @@ public static class BillRoutingService
     /// </summary>
     public const string REASON_PASSWORD_DERIVED_SHORT_PREFIX = "password_derived_short_prefix";
 
-    /// <summary>Documento fiscal do tenant impresso no artefato (degrau 1).</summary>
+    /// <summary>Documento fiscal do tenant impresso no artefato (degrau 2).</summary>
     public const string REASON_PAYER_TAX_ID = "payer_tax_id";
 
-    /// <summary>Beneficiário cadastrado só por este tenant (degrau 3).</summary>
+    /// <summary>Beneficiário cadastrado só por este tenant (degrau 4).</summary>
     public const string REASON_EXCLUSIVE_PAYEE = "exclusive_payee";
 
     /// <summary>Documento sob rótulo de pagador, e não é de ninguém deste tenant.</summary>
     public const string REASON_PAYER_IS_ANOTHER = "payer_is_another";
 
-    /// <summary>Nada no artefato disse de quem ele é (degrau 4).</summary>
+    /// <summary>Nada no artefato disse de quem ele é (degrau 5).</summary>
     public const string REASON_PAYER_NOT_IDENTIFIED = "payer_not_identified";
 
     /// <summary>
@@ -146,6 +146,9 @@ public static class BillRoutingService
     /// A consulta oficial do Pix dinâmico devolveu como pagador um documento que não é do tenant.
     /// </summary>
     public const string REASON_OFFICIAL_PAYER_IS_ANOTHER = "official_payer_is_another";
+
+    /// <summary>O número da conta cadastrado numa expectativa do tenant está no artefato (degrau 3).</summary>
+    public const string REASON_ACCOUNT_REFERENCE = "account_reference";
 
     /// <param name="extraction">
     /// O que a cascata leu. Traz os documentos fiscais do artefato — do pagador <em>e</em> do
@@ -166,11 +169,16 @@ public static class BillRoutingService
     /// Pix dinâmico, o tenant não tem conta vinculada, ou a consulta não respondeu — e aí a escada
     /// segue exatamente como seria sem ele.
     /// </param>
+    /// <param name="accountReferenceMatch">
+    /// A expectativa cujo número de conta foi achado no artefato, pelo
+    /// <c>AccountReferenceMatchingService</c> (ADR-026). Nulo quando nenhuma — ou mais de uma — casou.
+    /// </param>
     public static RoutingDecision Route(
         ExtractionResult extraction,
         PayerProfile? profile,
         IReadOnlyCollection<TaxId> exclusivePayeeTaxIds,
-        TaxId? officialPayerTaxId = null)
+        TaxId? officialPayerTaxId = null,
+        AccountReferenceMatch? accountReferenceMatch = null)
     {
         ArgumentNullException.ThrowIfNull(extraction);
 
@@ -227,6 +235,13 @@ public static class BillRoutingService
         // concessionária, e a quarentena cega tiraria do usuário a chance de reivindicar.
         if (labelled is not null)
             return RoutingDecision.Foreign(REASON_PAYER_IS_ANOTHER, labelled.TaxId);
+
+        // Degrau 3 — o número da conta que o tenant cadastrou está no artefato (ADR-026). Fica
+        // DEPOIS dos negativos, de propósito: o número foi informado pelo tenant, e nunca desfaz uma
+        // prova de que o boleto é de outra pessoa. Forte só dentro do código de barras, com número
+        // longo; no texto, ou com número curto, a coincidência é plausível e a confiança é fraca.
+        if (accountReferenceMatch is not null)
+            return RoutingDecision.Promote(accountReferenceMatch.Confidence, REASON_ACCOUNT_REFERENCE);
 
         // Degrau 4 — beneficiário exclusivo. Nunca sobrepõe o degrau 1 negativo (doc 07): ele
         // reduz fila, não decide sozinho, e por isso a confiança é Weak e a aprovação humana
