@@ -286,7 +286,7 @@ internal sealed class BillQueries(
     /// leitura é candidata. Inverter faria a tela afirmar como verificado um nome que só foi lido.
     /// O da leitura sai <strong>sem nome fantasia</strong>, que é o que o rotula como não-oficial.
     /// </remarks>
-    private static BillPartyDto? BeneficiaryOf(Bill bill)
+    internal static BillPartyDto? BeneficiaryOf(Bill bill)
     {
         if (bill.Beneficiary is { } official)
             return new BillPartyDto(official.Name, official.TradingName, official.TaxId?.Formatted());

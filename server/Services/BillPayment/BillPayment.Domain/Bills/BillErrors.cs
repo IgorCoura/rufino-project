@@ -592,6 +592,48 @@ public static class BillErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
 
+    /// <summary>Exportar documentos exige ao menos um boleto selecionado.</summary>
+    public static DomainException DocumentExportSelectionEmpty(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}42",
+            messageTemplate: "Selecione ao menos um boleto para baixar os documentos.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Validation);
+
+    /// <summary>
+    /// Teto de boletos por exportação: o arquivo é montado em memória, numa requisição só.
+    /// </summary>
+    public static DomainException DocumentExportSelectionTooLarge(
+        int max,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}43",
+            messageTemplate: "É possível baixar os documentos de no máximo {0} boletos por vez.",
+            parameters: new object[] { max },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Validation);
+
+    /// <summary>
+    /// Os documentos selecionados, somados, passam do teto de bytes que a exportação carrega.
+    /// </summary>
+    public static DomainException DocumentExportTooHeavy(
+        int maxMegabytes,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}44",
+            messageTemplate: "Os documentos selecionados somam mais de {0} MB. Divida a seleção em partes menores.",
+            parameters: new object[] { maxMegabytes },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Validation);
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

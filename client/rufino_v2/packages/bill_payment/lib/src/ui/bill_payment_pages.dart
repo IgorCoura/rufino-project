@@ -173,6 +173,7 @@ class BillListPage extends StatefulWidget {
     required this.backFallback,
     required this.onOpenBill,
     required this.onImportBill,
+    required this.onSaveDocument,
     this.initialStatus,
   });
 
@@ -184,6 +185,9 @@ class BillListPage extends StatefulWidget {
 
   /// Abre a importação manual.
   final VoidCallback onImportBill;
+
+  /// Salva o arquivo do download em lote — capacidade emprestada pela casca.
+  final DocumentSaver onSaveDocument;
 
   /// Filtro de status inicial.
   final String? initialStatus;
@@ -201,6 +205,8 @@ class _BillListPageState extends State<BillListPage> {
     _viewModel = BillListViewModel(
       repository: context.read<BillRepository>(),
       initialStatus: widget.initialStatus,
+      onSaveDocument: widget.onSaveDocument,
+      reporter: context.read<ErrorReporter>(),
     );
   }
 

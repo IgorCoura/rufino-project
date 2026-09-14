@@ -188,4 +188,26 @@ class BillRepositoryImpl implements BillRepository {
         () => apiService.getArtifact(id),
         context: {'op': 'getBillArtifact', 'billId': id},
       );
+
+  @override
+  Future<Result<CapturedArtifact>> exportDocuments({
+    required List<String> billIds,
+    required String pages,
+    required bool includeReceipts,
+    required String packaging,
+  }) =>
+      _guard(
+        () => apiService.exportDocuments(
+          billIds: billIds,
+          pages: pages,
+          includeReceipts: includeReceipts,
+          packaging: packaging,
+        ),
+        context: {
+          'op': 'exportBillDocuments',
+          'count': billIds.length,
+          'pages': pages,
+          'packaging': packaging,
+        },
+      );
 }

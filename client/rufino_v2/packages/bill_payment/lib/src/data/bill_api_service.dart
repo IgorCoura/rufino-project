@@ -452,6 +452,31 @@ class BillApiService {
     return artifactFromResponse(response);
   }
 
+  /// Downloads the documents of several bills as one PDF or one `.zip`.
+  ///
+  /// A read, even though it is a POST — the list of ids would not fit in a
+  /// URL — so it carries no `x-requestid`.
+  Future<CapturedArtifact> exportDocuments({
+    required List<String> billIds,
+    required String pages,
+    required bool includeReceipts,
+    required String packaging,
+  }) async {
+    final response = await client.post(
+      _uri('/bills/documents/export'),
+      headers: await _headers(),
+      body: jsonEncode({
+        'billIds': billIds,
+        'pages': pages,
+        'includeReceipts': includeReceipts,
+        'packaging': packaging,
+      }),
+    );
+    checkApiStatus(response);
+
+    return artifactFromResponse(response);
+  }
+
   /// Fetches the e-mail that brought the bill.
   Future<EmailMessage> getBillEmail(String id) async {
     final response = await client.get(

@@ -899,3 +899,25 @@ abstract final class ReadingStatuses {
   /// Whether this state is worth a line on the screen at all.
   static bool speaks(String status) => label(status).isNotEmpty;
 }
+
+/// Wire values of the backend's `BillDocumentPages` — how much of each bill's
+/// document goes into a documents export.
+///
+/// Only the bill's own document is cut: the payment receipt always goes whole.
+abstract final class BillDocumentPages {
+  /// Every page of the document.
+  static const String all = 'All';
+
+  /// Only the first page.
+  static const String firstPage = 'FirstPage';
+}
+
+/// Wire values of the backend's `BillDocumentPackaging` — how a documents
+/// export is delivered.
+abstract final class BillDocumentPackagings {
+  /// Every bill in one PDF, in the order they were selected.
+  static const String singlePdf = 'SinglePdf';
+
+  /// One PDF per bill, zipped — a single bill comes as the PDF itself.
+  static const String pdfPerBill = 'PdfPerBill';
+}

@@ -73,6 +73,8 @@ Devolve origem com evidência, snapshot da consulta, **todos os checks com motiv
 
 > **Estado (2026-08-19):** o detalhe **não devolve a linha digitável** — quem tem os dígitos, paga, e essa decisão é anterior a este documento. O "link do PDF original" que esta seção prometia virou endpoint próprio: **`GET /bills/{id}/artifact`** serve o arquivo como ele chegou (`bill:view`), e responde 404 para boleto de outro tenant e para boleto importado à mão, que nasce só com os dígitos. O irmão dele é **`GET /capture-items/{id}/artifact`** (`capture-item:view`), que serve a quarentena sob o gate do ADR-008 — sem ele, reivindicar era decidir no escuro.
 
+> **Estado (2026-09-14):** vários boletos baixam de uma vez por **`POST /bills/documents/export`** (`bill:view`) — um PDF único ou um `.zip` com um PDF por boleto, documento inteiro ou só a primeira página, com os comprovantes anexados quando pedido. Boleto sem documento entra como página de aviso com a procedência **e o código de pagamento**: é a exceção deliberada à regra acima, decidida pelo usuário, sob o mesmo portão do documento original. Detalhe no CLAUDE.md do BC.
+
 ### UC-05 — Aprovar boleto
 
 `POST /api/v1/{tenantId}/bills/{id}/approve` — body `{ "scheduleFor": "2026-08-10", "note": "..." }`

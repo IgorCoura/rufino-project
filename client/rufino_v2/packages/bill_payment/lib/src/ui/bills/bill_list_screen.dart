@@ -3,15 +3,20 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:rufino_core/rufino_core.dart';
 
 import '../../bill_payment_permissions.dart';
+import '../../domain/bill.dart';
 import '../../domain/bill_payment_enums.dart';
 import '../bill_payment_back_button.dart';
 import '../shared/formats.dart';
 import '../shared/message_panel.dart';
 import '../shared/status_badge.dart';
+import 'bill_export_sheet.dart';
 import 'bill_list_viewmodel.dart';
 
 /// The bill listing — the approver's work queue when filtered by
 /// "aguardando aprovação".
+///
+/// Also where several bills are selected to download their documents at once:
+/// a long press (or the checkbox on wide screens) starts the selection.
 class BillListScreen extends StatefulWidget {
   /// Creates the screen.
   const BillListScreen({
@@ -66,11 +71,13 @@ class _BillListScreenState extends State<BillListScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    widget.viewModel.addListener(_onViewModelChanged);
     widget.viewModel.load();
   }
 
   @override
   void dispose() {
+    widget.viewModel.removeListener(_onViewModelChanged);
     _scrollController
       ..removeListener(_onScroll)
       ..dispose();
@@ -85,70 +92,149 @@ class _BillListScreenState extends State<BillListScreen> {
     }
   }
 
+  /// Mostra o desfecho do download uma vez só e o esquece — duas vezes
+  /// "Arquivo salvo." seguidas precisam aparecer duas vezes.
+  void _onViewModelChanged() {
+    final message = widget.viewModel.exportMessage;
+    if (message == null || !mounted) return;
+
+    widget.viewModel.clearExportMessage();
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _export() async {
+    final options =
+        await showBillExportSheet(context, widget.viewModel.selectedBills);
+    if (options == null || !mounted) return;
+    await widget.viewModel.exportSelected(options);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Boletos'),
-        leading: BillPaymentBackButton(fallback: widget.backFallback),
-      ),
-      floatingActionButton: BillPaymentPermissionGuard(
-        resource: BillPaymentResources.bill,
-        scope: BillPaymentScopes.import,
-        child: FloatingActionButton.extended(
-          onPressed: widget.onImportBill,
-          icon: const Icon(Symbols.upload_file),
-          label: const Text('Importar'),
-        ),
-      ),
-      body: SafeArea(
-        child: ListenableBuilder(
-          listenable: widget.viewModel,
-          builder: (context, _) => Center(
-            child: ConstrainedBox(
-              constraints:
-                  const BoxConstraints(maxWidth: AppBreakpoints.desktop),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      AppSpacing.md,
-                      AppSpacing.md,
-                      AppSpacing.sm,
+    return ListenableBuilder(
+      listenable: widget.viewModel,
+      builder: (context, _) {
+        final viewModel = widget.viewModel;
+        final selecting = viewModel.isSelecting;
+
+        // Voltar com a seleção ativa sai da seleção, e não da tela.
+        return PopScope(
+          canPop: !selecting,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) viewModel.clearSelection();
+          },
+          child: Scaffold(
+            appBar: selecting
+                ? _SelectionAppBar(
+                    viewModel: viewModel,
+                    onExport: _export,
+                  )
+                : AppBar(
+                    title: const Text('Boletos'),
+                    leading:
+                        BillPaymentBackButton(fallback: widget.backFallback),
+                  ),
+            floatingActionButton: selecting
+                ? null
+                : BillPaymentPermissionGuard(
+                    resource: BillPaymentResources.bill,
+                    scope: BillPaymentScopes.import,
+                    child: FloatingActionButton.extended(
+                      onPressed: widget.onImportBill,
+                      icon: const Icon(Symbols.upload_file),
+                      label: const Text('Importar'),
                     ),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Wrap(
-                        spacing: AppSpacing.sm,
-                        runSpacing: AppSpacing.xs,
-                        children: [
-                          for (final (label, status) in _filters)
-                            FilterChip(
-                              label: Text(label),
-                              selected:
-                                  widget.viewModel.statusFilter == status,
-                              onSelected: (_) =>
-                                  widget.viewModel.selectStatus(status),
-                            ),
-                        ],
+                  ),
+            body: SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints:
+                      const BoxConstraints(maxWidth: AppBreakpoints.desktop),
+                  child: Column(
+                    children: [
+                      if (viewModel.isExporting)
+                        const LinearProgressIndicator(),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.md,
+                          AppSpacing.md,
+                          AppSpacing.md,
+                          AppSpacing.sm,
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Wrap(
+                            spacing: AppSpacing.sm,
+                            runSpacing: AppSpacing.xs,
+                            children: [
+                              for (final (label, status) in _filters)
+                                FilterChip(
+                                  label: Text(label),
+                                  selected: viewModel.statusFilter == status,
+                                  onSelected: (_) =>
+                                      viewModel.selectStatus(status),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
+                      Expanded(
+                        child: _Results(
+                          viewModel: viewModel,
+                          scrollController: _scrollController,
+                          onOpenBill: widget.onOpenBill,
+                          onScheduleBill: widget.onScheduleBill,
+                        ),
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    child: _Results(
-                      viewModel: widget.viewModel,
-                      scrollController: _scrollController,
-                      onOpenBill: widget.onOpenBill,
-                      onScheduleBill: widget.onScheduleBill,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+        );
+      },
+    );
+  }
+}
+
+/// A barra do modo seleção: quantos, marcar os carregados e baixar.
+class _SelectionAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _SelectionAppBar({required this.viewModel, required this.onExport});
+
+  final BillListViewModel viewModel;
+  final VoidCallback onExport;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+
+  @override
+  Widget build(BuildContext context) {
+    final count = viewModel.selectedBills.length;
+
+    return AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        tooltip: 'Sair da seleção',
+        onPressed: viewModel.clearSelection,
       ),
+      title: Text(count == 1 ? '1 selecionado' : '$count selecionados'),
+      actions: [
+        IconButton(
+          icon: const Icon(Symbols.select_all),
+          // A lista é paginada: "todos" são os que já carregaram, e o
+          // tooltip diz isso em vez de prometer o que não vai acontecer.
+          tooltip: 'Selecionar todos os carregados',
+          onPressed: viewModel.selectAllLoaded,
+        ),
+        if (viewModel.canExport)
+          IconButton(
+            icon: const Icon(Symbols.download),
+            tooltip: 'Baixar documentos',
+            onPressed: viewModel.isExporting ? null : onExport,
+          ),
+      ],
     );
   }
 }
@@ -188,6 +274,11 @@ class _Results extends StatelessWidget {
         );
       case BillListStatus.loaded:
       case BillListStatus.loadingMore:
+        // Em tela larga a caixa de seleção fica sempre à vista; no celular ela
+        // só aparece depois do toque longo, para não roubar espaço da linha.
+        final wide = MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet;
+        final selecting = viewModel.isSelecting;
+
         return ListView.builder(
           controller: scrollController,
           padding: const EdgeInsets.fromLTRB(
@@ -205,123 +296,162 @@ class _Results extends StatelessWidget {
               );
             }
             final bill = viewModel.items[index];
-            final theme = Theme.of(context);
-            return Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: Card.outlined(
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () => onOpenBill(bill.id),
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Row(
-                      children: [
-                        Icon(
-                          bill.rail == PaymentRails.pix
-                              ? Symbols.qr_code_2
-                              : Symbols.receipt_long,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (bill.beneficiary?.displayName != null)
-                                Text(
-                                  bill.beneficiary!.displayName!,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.titleSmall,
-                                ),
-                              Text(
-                                formatMoney(bill.amount),
-                                style: theme.textTheme.titleMedium,
-                              ),
-                              Text(
-                                'Vence em ${formatDate(bill.dueDate)}'
-                                '${bill.bankCode == null ? '' : ' · banco ${bill.bankCode}'}'
-                                // A data de pagamento na linha: um Agendado
-                                // sem ela obrigaria a abrir o detalhe.
-                                '${bill.scheduledFor == null ? '' : ' · pagar em ${formatDate(bill.scheduledFor)}'}',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.sm),
-                              Wrap(
-                                spacing: AppSpacing.xs,
-                                runSpacing: AppSpacing.xs,
-                                children: [
-                                  StatusBadge.billStatus(bill.status),
-                                  // Perigo e Extremo Perigo pedem o olho já
-                                  // na fila — os níveis leves não poluem.
-                                  if (RiskLevels.tier(bill.riskLevel) >=
-                                      RiskLevels.tier(RiskLevels.danger))
-                                    StatusBadge(
-                                      label:
-                                          RiskLevels.label(bill.riskLevel),
-                                      tone: BadgeTone.problem,
-                                    ),
-                                  StatusBadge(label: bill.rail),
-                                  StatusBadge(
-                                    label: BillKinds.label(bill.kind),
-                                  ),
-                                  // A análise não bloqueia o boleto, mas quem
-                                  // vê a fila precisa saber que a competência
-                                  // e a descrição ainda estão por vir.
-                                  if (ReadingStatuses.speaks(
-                                    bill.readingStatus,
-                                  ))
-                                    StatusBadge(
-                                      label: ReadingStatuses.label(
-                                        bill.readingStatus,
-                                      ),
-                                    ),
-                                  // Aprovado passou a ter dois significados
-                                  // (ADR-018): sem data espera alguém agendar,
-                                  // com data já tem ordem a caminho. Sem este
-                                  // selo a aba de Aprovados mistura os dois.
-                                  if (BillStatuses.isAwaitingSubmission(
-                                    bill.status,
-                                    bill.scheduledFor,
-                                  ))
-                                    const StatusBadge(
-                                      label: 'Na fila de envio',
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        // O agendamento direto no card: era isso ou abrir o
-                        // detalhe de cada boleto para mandar pagar.
-                        if (BillStatuses.acceptsScheduling(
-                          bill.status,
-                          bill.scheduledFor,
-                        ))
-                          BillPaymentPermissionGuard(
-                            resource: BillPaymentResources.bill,
-                            scope: BillPaymentScopes.schedule,
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                right: AppSpacing.sm,
-                              ),
-                              child: FilledButton.tonal(
-                                onPressed: () => onScheduleBill(bill.id),
-                                child: const Text('Agendar'),
-                              ),
-                            ),
-                          ),
-                        const Icon(Icons.chevron_right),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            return _BillCard(
+              bill: bill,
+              selected: viewModel.isSelected(bill.id),
+              showCheckbox: wide || selecting,
+              selecting: selecting,
+              onToggle: () => viewModel.toggleSelection(bill),
+              onOpen: () => onOpenBill(bill.id),
+              onSchedule: () => onScheduleBill(bill.id),
             );
           },
         );
     }
+  }
+}
+
+class _BillCard extends StatelessWidget {
+  const _BillCard({
+    required this.bill,
+    required this.selected,
+    required this.showCheckbox,
+    required this.selecting,
+    required this.onToggle,
+    required this.onOpen,
+    required this.onSchedule,
+  });
+
+  final Bill bill;
+  final bool selected;
+  final bool showCheckbox;
+  final bool selecting;
+  final VoidCallback onToggle;
+  final VoidCallback onOpen;
+  final VoidCallback onSchedule;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Card.outlined(
+        clipBehavior: Clip.antiAlias,
+        color: selected ? theme.colorScheme.secondaryContainer : null,
+        child: InkWell(
+          // Com a seleção ativa o toque marca em vez de abrir: abrir o
+          // detalhe no meio da seleção a perderia.
+          onTap: selecting ? onToggle : onOpen,
+          onLongPress: onToggle,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Row(
+              children: [
+                if (showCheckbox)
+                  Padding(
+                    padding: const EdgeInsets.only(right: AppSpacing.sm),
+                    child: Checkbox(
+                      value: selected,
+                      onChanged: (_) => onToggle(),
+                    ),
+                  ),
+                Icon(
+                  bill.rail == PaymentRails.pix
+                      ? Symbols.qr_code_2
+                      : Symbols.receipt_long,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (bill.beneficiary?.displayName != null)
+                        Text(
+                          bill.beneficiary!.displayName!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall,
+                        ),
+                      Text(
+                        formatMoney(bill.amount),
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      Text(
+                        'Vence em ${formatDate(bill.dueDate)}'
+                        '${bill.bankCode == null ? '' : ' · banco ${bill.bankCode}'}'
+                        // A data de pagamento na linha: um Agendado
+                        // sem ela obrigaria a abrir o detalhe.
+                        '${bill.scheduledFor == null ? '' : ' · pagar em ${formatDate(bill.scheduledFor)}'}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Wrap(
+                        spacing: AppSpacing.xs,
+                        runSpacing: AppSpacing.xs,
+                        children: [
+                          StatusBadge.billStatus(bill.status),
+                          // Perigo e Extremo Perigo pedem o olho já
+                          // na fila — os níveis leves não poluem.
+                          if (RiskLevels.tier(bill.riskLevel) >=
+                              RiskLevels.tier(RiskLevels.danger))
+                            StatusBadge(
+                              label: RiskLevels.label(bill.riskLevel),
+                              tone: BadgeTone.problem,
+                            ),
+                          StatusBadge(label: bill.rail),
+                          StatusBadge(
+                            label: BillKinds.label(bill.kind),
+                          ),
+                          // A análise não bloqueia o boleto, mas quem
+                          // vê a fila precisa saber que a competência
+                          // e a descrição ainda estão por vir.
+                          if (ReadingStatuses.speaks(bill.readingStatus))
+                            StatusBadge(
+                              label: ReadingStatuses.label(bill.readingStatus),
+                            ),
+                          // Aprovado passou a ter dois significados
+                          // (ADR-018): sem data espera alguém agendar,
+                          // com data já tem ordem a caminho. Sem este
+                          // selo a aba de Aprovados mistura os dois.
+                          if (BillStatuses.isAwaitingSubmission(
+                            bill.status,
+                            bill.scheduledFor,
+                          ))
+                            const StatusBadge(label: 'Na fila de envio'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // O agendamento direto no card: era isso ou abrir o
+                // detalhe de cada boleto para mandar pagar. Some durante a
+                // seleção, que é outro trabalho.
+                if (!selecting &&
+                    BillStatuses.acceptsScheduling(
+                      bill.status,
+                      bill.scheduledFor,
+                    ))
+                  BillPaymentPermissionGuard(
+                    resource: BillPaymentResources.bill,
+                    scope: BillPaymentScopes.schedule,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: AppSpacing.sm),
+                      child: FilledButton.tonal(
+                        onPressed: onSchedule,
+                        child: const Text('Agendar'),
+                      ),
+                    ),
+                  ),
+                if (!selecting) const Icon(Icons.chevron_right),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

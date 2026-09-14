@@ -159,6 +159,7 @@ List<RouteBase> billPaymentRoutes({
         initialStatus: 'AwaitingApproval',
         onOpenBill: (id) => context.push(BillPaymentRoutes.billDetail(id)),
         onImportBill: () => context.push(BillPaymentRoutes.billImport),
+        onSaveDocument: onSaveDocument,
       ),
     ),
     // O segmento literal `artifact` vem ANTES da rota `:id` do detalhe: o
