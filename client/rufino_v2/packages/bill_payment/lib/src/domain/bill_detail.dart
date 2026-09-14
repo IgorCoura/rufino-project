@@ -67,6 +67,7 @@ class PixLookup {
     this.discount,
     this.dueDate,
     this.expiresAt,
+    this.payer,
   });
 
   /// Who receives the money.
@@ -105,8 +106,35 @@ class PixLookup {
   /// When the QR stops being payable.
   final DateTime? expiresAt;
 
+  /// Who the QR was issued against, as the provider returned it. Only the
+  /// Pix rail has one — the bank-slip registry does not return the payer.
+  final PixPayer? payer;
+
   /// When this snapshot was taken.
   final DateTime consultedAt;
+}
+
+/// The payer the Pix decode returned, for display only.
+///
+/// Showing it confirms nothing: whether the payer belongs to the tenant is
+/// the payer check's call (ADR-004/ADR-025).
+class PixPayer {
+  /// Creates the payer record.
+  const PixPayer({
+    required this.isTaxIdComplete,
+    this.name,
+    this.taxId,
+  });
+
+  /// The payer's name.
+  final String? name;
+
+  /// The CPF/CNPJ, punctuated — with the provider's mask where digits were
+  /// hidden.
+  final String? taxId;
+
+  /// Whether no digit of [taxId] was hidden.
+  final bool isTaxIdComplete;
 }
 
 /// What the AI read off the document and the e-mail body.

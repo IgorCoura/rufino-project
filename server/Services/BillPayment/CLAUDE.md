@@ -730,6 +730,29 @@ verificação desta entrega: o `FakeAuthorizationServerClient` não conhecia os 
 `schedule`/`undo-decision`, e os testes de alçada de risco aprovavam **com data** sem pedir a
 alçada de agendamento.
 
+## 2026-09-14 (2) — O pagador do QR chega à tela, e o vencimento deixa de sumir
+
+Pedido do usuário: a seção "Consulta oficial" do detalhe mostrar a data de vencimento e o pagador
+(nome e CPF/CNPJ) — **o pagador só no QR Code**, porque o `bill/simulate` do código de barras não o
+devolve. Zero migração: `PixLookupSnapshot.Payer` já era gravado no jsonb `pix_lookup` desde o
+ADR-024; só nunca tinha entrado no DTO.
+
+- **`PixLookupDto.Payer`** (`PixPayerDto(Name, TaxId, IsTaxIdComplete)`) no `GET …/bills/{id}/detail`.
+  `BankSlipLookupDto` **não** ganha pagador — não há de onde vir.
+- **`MaskedParty.DisplayTaxId`** pontua para exibição: documento resolvido sai por
+  `TaxId.Formatted()`; máscara de 11 ou 14 posições sai pontuada com a máscara no lugar
+  (`***.982.247-**`); outro comprimento sai como veio, porque pontuar ali seria adivinhar o tipo.
+  `IsTaxIdComplete` é `MaskedParty.IsFullyVisible` — a tela acrescenta "(parcial)" quando é falso.
+- ⚠️ **Exibir não é confirmar.** Nada muda no check 8: quem decide se o pagador é do tenant continua
+  sendo `RegisteredPayerTaxId`/`ResolvedTaxId` (ADR-025), com as travas no tipo. `DisplayTaxId` não
+  deve ser usado em comparação nenhuma — ele devolve máscara e documento com DV inválido.
+- No cliente, a linha **Vencimento** dos dois blocos passa a existir sempre, com "Não informado"
+  quando o provedor não devolve a data (antes a linha sumia, e ausência parecia omissão da tela).
+
+Cobertura: `Lookups/MaskedPartyTests` (+5, os três formatos e o DV inválido) e
+`Bills/ValidateBillTests` (+3: pagador completo com vencimento, máscara marcada incompleta, e a
+contraprova do boleto só com código de barras sem bloco Pix).
+
 ## 2026-09-14 — Baixar documentos de vários boletos de uma vez
 
 Pedido do usuário: selecionar boletos na lista e baixar os documentos, escolhendo **documento

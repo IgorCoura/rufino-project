@@ -157,7 +157,21 @@ public sealed record PixLookupDto(
     /// </summary>
     DateTime? ExpiresAt,
 
+    /// <summary>
+    /// Contra quem o QR foi emitido, como o provedor devolveu. Só existe no trilho Pix — o
+    /// <c>bill/simulate</c> do boleto não traz pagador. Nulo quando o decode não o trouxe.
+    /// </summary>
+    PixPayerDto? Payer,
+
     DateTime ConsultedAt);
+
+/// <summary>
+/// O pagador do decode Pix, <strong>para exibição</strong>. <c>TaxId</c> vem pontuado e, quando o
+/// provedor mascarou, com a máscara no lugar dos dígitos ocultos; <c>IsTaxIdComplete</c> diz se
+/// algum dígito foi escondido, para a tela não apresentar uma máscara como o documento inteiro.
+/// Exibir não é confirmar: quem decide se o pagador é do tenant é o check 8 (ADR-004/ADR-025).
+/// </summary>
+public sealed record PixPayerDto(string? Name, string? TaxId, bool IsTaxIdComplete);
 
 /// <summary>
 /// <c>ReasonCode</c> é o contrato de tradução da UI; <c>Evidence</c> é o texto que explica a

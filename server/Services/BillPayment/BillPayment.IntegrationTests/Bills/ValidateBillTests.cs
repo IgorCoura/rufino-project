@@ -247,6 +247,63 @@ public sealed class ValidateBillTests : BaseIntegrationTest, IDisposable
         Assert.True(check.IsBlockingFailure);
     }
 
+    // O detalhe expõe o pagador que o decode do QR devolveu — inteiro, pontuado — junto com o
+    // vencimento do retrato. É o que a seção "Consulta oficial" da tela mostra.
+    [Fact]
+    public async Task GetDetail_WhenTheQrDecodeBringsThePayer_ShouldExposeItWithTheDueDate()
+    {
+        _lookups.PixResult = ResolvedPix(BeneficiaryCnpj, payerTaxId: TenantCnpj);
+
+        var billId = await ImportAsync(line: null, DynamicPix);
+        await DrainOutboxAsync();
+
+        var detail = await GetDetailAsync(billId);
+
+        var pix = detail.Lookups!.Pix!;
+        Assert.Equal(new DateOnly(2026, 6, 25), pix.DueDate);
+        Assert.Equal("RUFINO EMPREITEIRA LTDA", pix.Payer!.Name);
+        Assert.Equal("45.678.901/0001-75", pix.Payer.TaxId);
+        Assert.True(pix.Payer.IsTaxIdComplete);
+    }
+
+    // Documento mascarado sai com a máscara no lugar e marcado como incompleto — a tela não pode
+    // apresentá-lo como o documento inteiro.
+    [Fact]
+    public async Task GetDetail_WhenTheQrDecodeMasksThePayer_ShouldExposeTheMaskAsIncomplete()
+    {
+        _lookups.PixResult = ResolvedPix(BeneficiaryCnpj, payerTaxId: "**.678.901/0001-**");
+
+        var billId = await ImportAsync(line: null, DynamicPix);
+        await DrainOutboxAsync();
+
+        var detail = await GetDetailAsync(billId);
+
+        var payer = detail.Lookups!.Pix!.Payer!;
+        Assert.Equal("**.678.901/0001-**", payer.TaxId);
+        Assert.False(payer.IsTaxIdComplete);
+    }
+
+    // CONTRAPROVA: o bill/simulate não traz pagador — boleto só com código de barras tem o
+    // vencimento do registro e nenhum bloco de QR de onde um pagador pudesse vir.
+    [Fact]
+    public async Task GetDetail_OnABarcodeOnlyBill_ShouldExposeTheDueDateAndNoPayer()
+    {
+        _lookups.BankSlipResult = ResolvedBankSlip();
+
+        var billId = await ImportAsync(BankSlipLine);
+        await DrainOutboxAsync();
+
+        var detail = await GetDetailAsync(billId);
+
+        Assert.Equal(new DateOnly(2026, 6, 25), detail.Lookups!.BankSlip!.DueDate);
+        Assert.Null(detail.Lookups.Pix);
+    }
+
+    private async Task<BillDetailContract> GetDetailAsync(Guid billId)
+        => (await _client.GetFromJsonAsync<BillDetailContract>(
+            new Uri($"/api/v1/{TenantId}/bills/{billId}/detail", UriKind.Relative),
+            CancellationToken.None))!;
+
     private Task SeedPayerProfileAsync(string taxId)
         => ExecuteDbContextAsync(async db =>
         {

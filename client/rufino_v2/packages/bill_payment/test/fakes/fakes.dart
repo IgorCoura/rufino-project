@@ -933,8 +933,12 @@ BillDetail billDetail({
   String readingStatus = ReadingStatuses.notApplicable,
   DateTime? scheduledFor,
   List<BillHistoryEntry> history = const [],
+  BankSlipLookup? bankSlipLookup,
+  PixLookup? pixLookup,
 }) {
   return BillDetail(
+    bankSlipLookup: bankSlipLookup,
+    pixLookup: pixLookup,
     id: id,
     status: status,
     riskLevel: riskLevel,

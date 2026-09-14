@@ -258,7 +258,11 @@ internal sealed class BillQueries(
                 snapshot.Discount?.Amount,
                 snapshot.DueDate,
                 snapshot.ExpirationDate?.UtcDateTime,
+                ToPixPayerDto(snapshot.Payer),
                 snapshot.ConsultedAt.UtcDateTime);
+
+    private static PixPayerDto? ToPixPayerDto(MaskedParty? payer)
+        => payer is null ? null : new PixPayerDto(payer.Name, payer.DisplayTaxId, payer.IsFullyVisible);
 
     private static BillReadingDto? ToReadingDto(DocumentReading? reading)
         => reading is null

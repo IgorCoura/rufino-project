@@ -93,7 +93,16 @@ internal sealed record BillDetailContract(
     DateOnly? ScheduledFor,
     BillOriginContract Origin,
     DateTime CreatedAt,
-    IReadOnlyList<BillHistoryEntryContract> History);
+    IReadOnlyList<BillHistoryEntryContract> History,
+    BillLookupsContract? Lookups = null);
+
+internal sealed record BillLookupsContract(BankSlipLookupContract? BankSlip, PixLookupContract? Pix);
+
+internal sealed record BankSlipLookupContract(BillPartyContract? Beneficiary, DateOnly? DueDate);
+
+internal sealed record PixLookupContract(BillPartyContract? Receiver, DateOnly? DueDate, PixPayerContract? Payer);
+
+internal sealed record PixPayerContract(string? Name, string? TaxId, bool IsTaxIdComplete);
 
 internal sealed record BillHistoryEntryContract(
     string Action,

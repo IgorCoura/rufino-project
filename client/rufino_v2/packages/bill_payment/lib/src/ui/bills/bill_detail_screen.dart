@@ -491,12 +491,34 @@ class _LookupSection extends StatelessWidget {
                         ? ' (com encargos)'
                         : ''),
               ),
-            if (pix.dueDate != null)
+            // Sempre presente: some a linha e "o provedor não informou"
+            // fica igual a "a tela não mostra vencimento".
+            InfoRow(
+              icon: Symbols.event,
+              label: 'Vencimento',
+              value: pix.dueDate != null
+                  ? formatDate(pix.dueDate)
+                  : 'Não informado',
+            ),
+            // Só o decode do QR traz pagador — o registro do boleto não. E
+            // exibir não confirma: quem decide é a verificação do pagador.
+            if (pix.payer != null) ...[
               InfoRow(
-                icon: Symbols.event,
-                label: 'Vencimento',
-                value: formatDate(pix.dueDate),
+                icon: Symbols.person,
+                label: 'Pagador',
+                value: pix.payer!.name ?? 'Não informado',
               ),
+              if (pix.payer!.taxId != null)
+                InfoRow(
+                  icon: Symbols.badge,
+                  label: 'CPF/CNPJ do pagador',
+                  // Máscara não é o documento: "(parcial)" impede que
+                  // quatro dígitos visíveis passem por identificação.
+                  value: pix.payer!.isTaxIdComplete
+                      ? pix.payer!.taxId!
+                      : '${pix.payer!.taxId!} (parcial)',
+                ),
+            ],
             InfoRow(
               icon: Symbols.schedule,
               label: 'Consultado em',
@@ -537,12 +559,13 @@ class _LookupSection extends StatelessWidget {
                         ? ' (original ${formatMoney(bankSlip.originalAmount)})'
                         : ''),
               ),
-            if (bankSlip.dueDate != null)
-              InfoRow(
-                icon: Symbols.event,
-                label: 'Vencimento',
-                value: formatDate(bankSlip.dueDate),
-              ),
+            InfoRow(
+              icon: Symbols.event,
+              label: 'Vencimento',
+              value: bankSlip.dueDate != null
+                  ? formatDate(bankSlip.dueDate)
+                  : 'Não informado',
+            ),
             InfoRow(
               icon: Symbols.schedule,
               label: 'Consultado em',

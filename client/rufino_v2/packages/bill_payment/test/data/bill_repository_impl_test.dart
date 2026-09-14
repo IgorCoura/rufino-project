@@ -356,5 +356,42 @@ void main() {
       expect(bill.bankCode, isNull);
       expect(bill.isTerminal, isFalse);
     });
+
+    Map<String, dynamic> pixJson({Object? payer}) => {
+          'isDynamic': true,
+          'canBePaid': true,
+          'dueDate': '2026-06-25',
+          'consultedAt': '2026-06-20T09:00:00Z',
+          'payer': payer,
+        };
+
+    test('maps the payer the Pix decode returned', () {
+      final lookup = BillMapper.pixLookupFromJson(pixJson(payer: {
+        'name': 'RUFINO EMPREITEIRA LTDA',
+        'taxId': '45.678.901/0001-75',
+        'isTaxIdComplete': true,
+      }))!;
+
+      expect(lookup.dueDate, DateTime(2026, 6, 25));
+      expect(lookup.payer!.name, 'RUFINO EMPREITEIRA LTDA');
+      expect(lookup.payer!.taxId, '45.678.901/0001-75');
+      expect(lookup.payer!.isTaxIdComplete, isTrue);
+    });
+
+    test('keeps the Pix payer null when the decode brought none', () {
+      final lookup = BillMapper.pixLookupFromJson(pixJson())!;
+
+      expect(lookup.payer, isNull);
+    });
+
+    // Sem a garantia do servidor, o documento não pode ser lido como inteiro.
+    test('reads a missing completeness flag as an incomplete document', () {
+      final lookup = BillMapper.pixLookupFromJson(pixJson(payer: {
+        'name': 'Fulano',
+        'taxId': '***.982.247-**',
+      }))!;
+
+      expect(lookup.payer!.isTaxIdComplete, isFalse);
+    });
   });
 }
