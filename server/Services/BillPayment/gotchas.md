@@ -993,3 +993,15 @@ Os dois últimos parecem a mesma coisa e não são. No terceiro a credencial já
 **Regra:** contra serviço S3 auto-hospedado (Garage, MinIO, Ceph), desligue os dois checksums do SDK 4 no `AmazonS3Config` — `RequestChecksumCalculation` e `ResponseChecksumValidation` em `WHEN_REQUIRED`. Só o primeiro conserta a escrita; sem o segundo, a leitura do documento original quebra do mesmo jeito quando o servidor não devolve os cabeçalhos de checksum. **Ao subir o `AWSSDK.S3` do PeopleManagement de 3.7.x para 4.x, esta configuração vai junto** — senão o mesmo defeito nasce lá.
 
 **Como pegar de novo:** leia o **verbo** do erro antes de mexer em credencial — `Invalid signature` (403) e `Invalid payload signature` (400) apontam para lados opostos. E toda configuração de cliente de serviço externo precisa de um teste que monte o contêiner a partir do `AddInfraDependencies`, como já valia para o `User-Agent` do Asaas: `Storage/S3ClientConfigurationTests` é a guarda desta, e foi provada reprovando com a correção removida.
+
+## As fontes padrão do PdfPig não escrevem português (2026-09-14)
+
+**Quando:** 2026-09-14, montando a página de aviso da exportação de documentos em lote.
+
+**O que aconteceu:** `page.AddText("Não há documento", ..., builder.AddStandard14Font(Standard14Font.Helvetica))` lança `InvalidOperationException: The font does not contain a character: 'ç' (0xE7)`. As catorze fontes padrão do PDF, no escritor do PdfPig, não cobrem os acentos do português. Os testes que já geravam PDF com elas passavam só porque escreviam texto sem acento.
+
+**Por que é traiçoeiro:** a imagem do contêiner (`aspnet:10.0`) não tem fonte nenhuma instalada, então "usar uma fonte do sistema" funciona no Windows de quem desenvolve e quebra em produção. E a variante `NoDependencies` do SkiaSharp também não enxerga fonte do sistema, então rasterizar o texto por ela não resolve.
+
+**Regra:** texto escrito em PDF pelo BC usa a Roboto embutida no assembly da Infra (`Infra/Documents/Fonts/`, Apache 2.0, licença ao lado), carregada por `AddTrueTypeFont`. O PdfPig embute só os glifos usados — a página de aviso fica com ~8 KB.
+
+**Como pegar de novo:** todo teste que escreve texto em PDF inclui pelo menos uma palavra acentuada (`PdfComposerTests.AppendNotice_WithAccentsAndAnUnbrokenPixPayload_ShouldWriteEverything` é a guarda desta).

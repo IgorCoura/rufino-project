@@ -9,6 +9,11 @@
          decide um check de pagamento e não pode depender do bcb.gov.br estar no ar em tempo
          de validação. Atualize com tools/fetch-bacen-participants.js e revise o diff. -->
     <EmbeddedResource Include="BankDirectory/bacen-participants.csv" />
+    <!-- Fonte da página de aviso da exportação de documentos. As catorze fontes padrão do PDF
+         não têm acento; a imagem do contêiner não tem fonte nenhuma. Roboto, Apache 2.0 — a
+         licença acompanha o arquivo. -->
+    <EmbeddedResource Include="Documents/Fonts/Roboto-Regular.ttf" />
+    <EmbeddedResource Include="Documents/Fonts/Roboto-Bold.ttf" />
   </ItemGroup>
 
   <ItemGroup>

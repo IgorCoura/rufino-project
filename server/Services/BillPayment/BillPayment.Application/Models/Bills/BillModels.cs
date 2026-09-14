@@ -3,6 +3,8 @@ namespace BillPayment.Application.Models.Bills;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using BillPayment.Application.Bills.Commands;
+using BillPayment.Application.Queries.Bills;
+using BillPayment.Domain.SeedWork;
 
 /// <summary>
 /// Modelos HTTP existem porque o <c>tenantId</c> vem da rota, não do corpo — mandar o
@@ -145,4 +147,26 @@ public sealed record BillDecisionModel([property: JsonRequired] string Reason)
 
     public UndoBillDecisionCommand ToUndoCommand(Guid tenantId, Guid billId, Guid decidedBy, string? actorName)
         => new(tenantId, billId, decidedBy, Reason, actorName);
+}
+
+/// <summary>
+/// O pedido de baixar documentos de vários boletos. Os ids vêm na ordem em que foram marcados —
+/// é a ordem do arquivo.
+/// </summary>
+/// <remarks>
+/// <c>Pages</c> e <c>Packaging</c> chegam como texto e são traduzidos aqui: valor desconhecido
+/// sobe como <c>EnumerationNotFoundException</c>, que o filtro devolve como 400.
+/// </remarks>
+public sealed record ExportBillDocumentsModel(
+    [property: JsonRequired] IReadOnlyList<Guid> BillIds,
+    [property: JsonRequired] string Pages,
+    bool IncludeReceipts,
+    [property: JsonRequired] string Packaging)
+{
+    public BillDocumentExportRequest ToRequest()
+        => new(
+            BillIds,
+            Enumeration.FromDisplayName<BillDocumentPages>(Pages),
+            IncludeReceipts,
+            Enumeration.FromDisplayName<BillDocumentPackaging>(Packaging));
 }

@@ -1205,6 +1205,37 @@ class FakeBillRepository implements BillRepository {
     return Result.success(artifact());
   }
 
+  /// What the last [exportDocuments] call carried.
+  ({
+    List<String> billIds,
+    String pages,
+    bool includeReceipts,
+    String packaging,
+  })? lastExport;
+
+  /// Makes only the documents export fail.
+  bool exportShouldFail = false;
+
+  @override
+  Future<Result<CapturedArtifact>> exportDocuments({
+    required List<String> billIds,
+    required String pages,
+    required bool includeReceipts,
+    required String packaging,
+  }) async {
+    if (_shouldFail || exportShouldFail) return _fail();
+    lastExport = (
+      billIds: billIds,
+      pages: pages,
+      includeReceipts: includeReceipts,
+      packaging: packaging,
+    );
+    calls.add('exportDocuments');
+    return Result.success(
+      artifact(contentType: 'application/pdf', fileName: 'boletos-2026-09-14.pdf'),
+    );
+  }
+
   @override
   Future<Result<EmailMessage>> getEmail(String id) async {
     if (_shouldFail) return _fail();

@@ -20,6 +20,7 @@ using Amazon.S3;
 using BillPayment.Infra.Asaas;
 using BillPayment.Infra.BankDirectory;
 using BillPayment.Infra.DocumentIntelligence;
+using BillPayment.Infra.Documents;
 using BillPayment.Infra.DocumentIntelligence.Gemini;
 using BillPayment.Infra.Extraction;
 using BillPayment.Infra.Extraction.Links;
@@ -84,6 +85,10 @@ public static class InfraDependencies
         services.AddScoped<IBoletoDocumentParser, CascadingBoletoDocumentParser>();
 
         services.AddAttachmentStorage(configuration);
+
+        // Singleton: o montador não guarda estado — cada exportação abre a própria composição.
+        services.AddSingleton<IPdfComposer, PdfComposer>();
+
         services.AddDocumentIntelligence(configuration);
         services.AddLinkResolution(configuration);
 

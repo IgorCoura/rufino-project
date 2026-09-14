@@ -104,6 +104,7 @@ public static class ApplicationDependencies
 
         services.AddScoped<ITrustedOriginQueries, TrustedOriginQueries>();
         services.AddScoped<IBillQueries, BillQueries>();
+        services.AddScoped<IBillDocumentExportQueries, BillDocumentExportQueries>();
         services.AddScoped<IBillReadingWorkQueries, BillReadingWorkQueries>();
         services.AddScoped<IBillRevalidationWorkQueries, BillRevalidationWorkQueries>();
 

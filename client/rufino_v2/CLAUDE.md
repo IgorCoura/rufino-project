@@ -1133,7 +1133,7 @@ refresh de token e limpa no logout — junto com as outras duas.
 | Rota | Tela | Guard (recurso/escopo) |
 |---|---|---|
 | `/bill-payment/pending` | Painel diário: fila de aprovação + 3 listas de pendências + nudge de onboarding | `expectation`/`view` |
-| `/bill-payment/bills` | Fila de boletos, filtro `?status=` **no servidor**, abre em Aguardando aprovação; filtros Agendados/Pagos/Falhou e a linha "pagar em" quando há data efetiva | `bill`/`view` |
+| `/bill-payment/bills` | Fila de boletos, filtro `?status=` **no servidor**, abre em Aguardando aprovação; filtros Agendados/Pagos/Falhou e a linha "pagar em" quando há data efetiva; **seleção de vários boletos para baixar os documentos** (toque longo, ou caixa de seleção em tela larga) | `bill`/`view` |
 | `/bill-payment/bills/import` | Importação manual: linha digitável, código Pix e/ou **anexo do boleto** (PDF/imagem) — um dos três basta | `bill`/`import` |
 | `/bill-payment/bills/:id` | Aprovação: banner de risco (Seguro/Atenção/Perigo), 14 verificações, consulta oficial por inteiro, resumo com competência/descrição da IA + revalidar/negar/cancelar/aprovar (Perigo exige a caixa "assumo o risco"); pós-aprovação, a seção **Execução do pagamento** (fase 3) com status/retenção/datas da ordem, cancelar agendamento, confirmar pagamento imediato e reabrir boleto falhado | `bill`/`view` (cancelar ordem: `bill`/`cancel`; confirmar/reabrir: `bill`/`approve`) |
 | `/bill-payment/bills/:id/artifact` | O documento original do boleto, em tela cheia, **com botão de baixar** | `bill`/`view` |
@@ -1149,6 +1149,22 @@ refresh de token e limpa no logout — junto com as outras duas.
 
 Coisas que não podem erodir:
 
+- **Download de documentos em lote (2026-09-14) mora na lista de boletos.** Toque longo inicia a
+  seleção (em tela ≥ `AppBreakpoints.tablet` a caixa fica sempre à vista); com a seleção ativa o
+  toque MARCA em vez de abrir o boleto, o botão Agendar e o FAB somem, e voltar sai da seleção em vez
+  da tela (`PopScope`). A barra troca para "N selecionados" com **Selecionar todos os carregados** —
+  a lista é paginada, e o tooltip diz isso em vez de prometer o que não vai acontecer — e **Baixar
+  documentos**, que abre `showBillExportSheet` com as três escolhas (documento inteiro / só a primeira
+  página; anexar comprovantes; PDF único / um PDF por boleto, que baixa `.zip`). Quem monta o arquivo
+  é o servidor (`POST /bills/documents/export`): o PDF cifrado só abre lá, e a senha não sai.
+  Regras que os testes de `bill_document_export_test.dart` fixam: **a ordem do arquivo é a ordem em
+  que os boletos foram marcados** (`LinkedHashMap` no ViewModel — não troque por `Set` sem ordem),
+  **trocar o filtro limpa a seleção**, salvar limpa a seleção, e desistir do "salvar como" ou falha
+  do servidor MANTÊM a seleção para tentar de novo. A folha avisa quantos boletos não têm documento:
+  para eles o servidor põe uma página de aviso com a origem **e o código de pagamento** — exceção
+  deliberada, decidida pelo usuário, à regra de que a API não devolve os dígitos (ela continua valendo
+  para todo o resto da tela). O salvador é o mesmo `DocumentSaver` dos visualizadores, agora passado
+  também à `BillListPage`.
 - **A importação manual aceita TRÊS entradas, e uma delas basta**: linha digitável, código Pix ou o
   arquivo do boleto. O anexo sobe por `multipart/form-data` na mesma rota do JSON — quem escolhe o
   handler no servidor é o `Content-Type` —, e mandar o arquivo dentro do JSON seria base64,

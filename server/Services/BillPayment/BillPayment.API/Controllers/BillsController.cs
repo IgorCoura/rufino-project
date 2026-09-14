@@ -24,6 +24,7 @@ using Microsoft.AspNetCore.RateLimiting;
 public sealed class BillsController(
     IMediator mediator,
     IBillQueries queries,
+    IBillDocumentExportQueries documentExports,
     ICapturedMessageQueries capturedMessages,
     IPaymentSchedulePreviewQueries schedulePreviews,
     IScheduleOptionQueries scheduleOptions,
@@ -165,6 +166,45 @@ public sealed class BillsController(
         ArtifactAccessLog(tenantId, "bill", id, artifact.Unlocked);
 
         return File(artifact.Content, artifact.ContentType, artifact.FileName, enableRangeProcessing: true);
+    }
+
+    /// <summary>
+    /// Baixa os documentos de vários boletos: um PDF só, ou um PDF por boleto num .zip, com o
+    /// comprovante de pagamento anexado quando pedido.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Leitura pura</strong> — sem <c>x-requestid</c>. É <c>POST</c> só porque a lista de
+    /// ids estouraria a URL. O portão é o mesmo do documento avulso (<c>bill:view</c>), e cada
+    /// boleto incluído deixa a sua linha na trilha.
+    /// </para>
+    /// <para>
+    /// <c>404</c> quando qualquer boleto pedido não é deste tenant: a mesma resposta de um id que
+    /// não existe.
+    /// </para>
+    /// </remarks>
+    [HttpPost("documents/export")]
+    [EnableRateLimiting(RateLimitingExtensions.EXPENSIVE_POLICY)]
+    [ProtectedResource("bill", "view")]
+    public async Task<IActionResult> ExportDocuments(
+        [FromRoute] Guid tenantId,
+        [FromBody] ExportBillDocumentsModel model,
+        CancellationToken cancellationToken)
+    {
+        var export = await documentExports.ExportAsync(tenantId, model.ToRequest(), cancellationToken);
+        if (export is null)
+            return NotFound();
+
+        foreach (var bill in export.Bills)
+        {
+            ArtifactAccessLog(
+                tenantId,
+                bill.PaymentCodeDisclosed ? "bill-export-payment-code" : "bill-export",
+                bill.BillId,
+                bill.Unlocked);
+        }
+
+        return File(export.Content, export.ContentType, export.FileName);
     }
 
     /// <summary>

@@ -150,6 +150,21 @@ abstract class BillRepository {
   /// digits never leave the server, and whoever has them, pays.
   Future<Result<CapturedArtifact>> getArtifact(String id);
 
+  /// Downloads the documents of several bills as one file.
+  ///
+  /// [billIds] go in the order they were selected — it is the order of the
+  /// file. [pages] is one of `BillDocumentPages` and only cuts the bill's own
+  /// document; with [includeReceipts] the payment receipt goes whole right
+  /// after it. [packaging] is one of `BillDocumentPackagings`: one PDF, or a
+  /// `.zip` with one PDF per bill. A bill without a readable document comes as
+  /// a notice page, built on the server.
+  Future<Result<CapturedArtifact>> exportDocuments({
+    required List<String> billIds,
+    required String pages,
+    required bool includeReceipts,
+    required String packaging,
+  });
+
   /// Fetches the e-mail that brought this bill — title, sender and body.
   ///
   /// Only applies to bills born from a mailbox; a manual import has no
