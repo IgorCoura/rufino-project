@@ -77,7 +77,17 @@ public sealed record BillDetailDto(
     /// (<see cref="Approval"/>) responde "vale?" enquanto esta responde "o que houve?" — as duas
     /// perguntas convivem no mesmo detalhe.
     /// </remarks>
-    IReadOnlyList<BillHistoryEntryDto> History);
+    IReadOnlyList<BillHistoryEntryDto> History,
+
+    /// <summary>
+    /// O número da conta que a reivindicação pediu para lembrar e que ainda não foi lembrado,
+    /// porque o beneficiário do boleto não está cadastrado (ADR-026). Nulo no caso comum.
+    /// </summary>
+    /// <remarks>
+    /// Sem isto o pedido ficava pendente em silêncio: a pessoa marcou "lembrar desta conta", e o mês
+    /// seguinte voltava para a fila sem que nada dissesse o que faltava fazer.
+    /// </remarks>
+    string? PendingAccountReference = null);
 
 /// <param name="ActorName">
 /// O nome de quem agiu, congelado no instante da ação. "Sistema" quando não partiu de uma pessoa.
@@ -157,7 +167,21 @@ public sealed record PixLookupDto(
     /// </summary>
     DateTime? ExpiresAt,
 
+    /// <summary>
+    /// Contra quem o QR foi emitido, como o provedor devolveu. Só existe no trilho Pix — o
+    /// <c>bill/simulate</c> do boleto não traz pagador. Nulo quando o decode não o trouxe.
+    /// </summary>
+    PixPayerDto? Payer,
+
     DateTime ConsultedAt);
+
+/// <summary>
+/// O pagador do decode Pix, <strong>para exibição</strong>. <c>TaxId</c> vem pontuado e, quando o
+/// provedor mascarou, com a máscara no lugar dos dígitos ocultos; <c>IsTaxIdComplete</c> diz se
+/// algum dígito foi escondido, para a tela não apresentar uma máscara como o documento inteiro.
+/// Exibir não é confirmar: quem decide se o pagador é do tenant é o check 8 (ADR-004/ADR-025).
+/// </summary>
+public sealed record PixPayerDto(string? Name, string? TaxId, bool IsTaxIdComplete);
 
 /// <summary>
 /// <c>ReasonCode</c> é o contrato de tradução da UI; <c>Evidence</c> é o texto que explica a

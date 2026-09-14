@@ -115,6 +115,14 @@ Um `CaptureItem` com boleto válido passa pelos degraus na ordem. O primeiro que
 > | 3 — beneficiário exclusivo | resíduo | resíduo | ✅ implementado |
 > | 4 — `Unrouted` | — | — | ✅ implementado |
 
+> **Revisada em 2026-09-14.** A escada ganhou dois degraus e foi renumerada no código
+> (`BillRoutingService`): **0** senha derivada → **1** pagador oficial do Pix dinâmico
+> ([`ADR-025`](adr/ADR-025-pagador-verificavel-no-trilho-pix.md), adendo — e o pagador oficial de
+> OUTRA pessoa descarta) → **2** TaxId do pagador impresso (o "degrau 1" abaixo) e o seu negativo por
+> rótulo → **3** número da conta cadastrado na expectativa
+> ([`ADR-026`](adr/ADR-026-numero-da-conta-na-escada-de-roteamento.md)) → **4** beneficiário
+> exclusivo (o "degrau 3" abaixo) → **5** `Unrouted`. As seções abaixo mantêm a numeração da 2.6.
+
 ### Degrau 1 — TaxId do pagador extraído (medido: 93,3%)
 
 Pagador extraído do PDF (nome + CPF/CNPJ, com DV validado) confrontado com `PayerProfile.PrimaryTaxId` + `AdditionalTaxIds`, e com a raiz do CNPJ quando `MatchByCnpjRoot`.

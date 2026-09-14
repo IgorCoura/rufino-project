@@ -1,5 +1,25 @@
 namespace BillPayment.Application.Models.CaptureItems;
 
+using BillPayment.Application.CaptureItems.Commands;
+
+/// <summary>
+/// Corpo da reivindicação de um item da quarentena. Opcional: sem corpo, reivindica sem lembrar.
+/// </summary>
+/// <remarks>
+/// Como na reprovação, <strong>quem reivindica vem do token</strong>, nunca do corpo.
+/// </remarks>
+public sealed class ClaimCaptureItemModel
+{
+    /// <summary>
+    /// "Lembrar desta conta" (ADR-026): o número que deve rotear os próximos boletos deste emissor.
+    /// Vazio quando a pessoa desmarcou.
+    /// </summary>
+    public string? RememberAccountReference { get; set; }
+
+    public ClaimCaptureItemCommand ToCommand(Guid tenantId, Guid captureItemId, Guid userId)
+        => new(tenantId, captureItemId, userId, RememberAccountReference);
+}
+
 /// <summary>
 /// Corpo da reprovação de um item da quarentena.
 /// </summary>

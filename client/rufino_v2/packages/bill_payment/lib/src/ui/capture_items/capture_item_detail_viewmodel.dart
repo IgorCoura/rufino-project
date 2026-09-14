@@ -35,6 +35,13 @@ class CaptureItemDetailViewModel extends ChangeNotifier {
   String? _infoMessage;
   bool _isMutating = false;
   String? _claimedBillId;
+  String? _lastErrorCode;
+
+  /// The domain codes of a claim refused because of the account to remember.
+  ///
+  /// The claim dialog stays open for these — the fix is to correct the number
+  /// or untick the box, and closing would throw away what was typed.
+  static const Set<String> accountReferenceRefusals = {'BLP.CPI18', 'BLP.CPI19'};
 
   /// The item, once loaded.
   CaptureItem? get item => _item;
@@ -53,6 +60,10 @@ class CaptureItemDetailViewModel extends ChangeNotifier {
 
   /// The bill created by a successful claim — the screen navigates to it.
   String? get claimedBillId => _claimedBillId;
+
+  /// Whether the last claim was refused because of the account to remember.
+  bool get claimRefusedAccountReference =>
+      accountReferenceRefusals.contains(_lastErrorCode);
 
   /// Loads the item.
   Future<void> load() async {
@@ -78,20 +89,29 @@ class CaptureItemDetailViewModel extends ChangeNotifier {
   }
 
   /// Claims the item as this tenant's bill.
-  Future<bool> claim() async {
+  ///
+  /// [rememberAccountReference] is "lembrar desta conta" (ADR-026): when set,
+  /// the next bills carrying this account number arrive already routed.
+  Future<bool> claim({String? rememberAccountReference}) async {
     _isMutating = true;
     _errorMessage = null;
+    _lastErrorCode = null;
     notifyListeners();
 
     var succeeded = false;
     try {
-      final result = await _repository.claimItem(itemId);
+      final result = await _repository.claimItem(
+        itemId,
+        rememberAccountReference: rememberAccountReference,
+      );
       result.fold(
         onSuccess: (outcome) {
           succeeded = true;
           _claimedBillId = outcome.billId;
         },
         onError: (error, _) {
+          _lastErrorCode =
+              error is BillPaymentRuleException ? error.code : null;
           _errorMessage = billPaymentErrorMessage(
             error,
             fallback: 'Não foi possível reivindicar o item.',

@@ -162,16 +162,22 @@ public sealed class CaptureItemsController(
     /// escada já sabia que não era dela) e boleto já sob gestão de outra conta
     /// (<c>BLP.BIL02</c>, com aviso genérico que não identifica quem).
     /// </para>
+    /// <para>
+    /// "Lembrar desta conta" (ADR-026) vem no corpo, opcional. O número tem de estar no documento:
+    /// fora dele é <c>400 BLP.CPI18</c>, e com menos de seis dígitos <c>400 BLP.CPI19</c> — nos dois
+    /// casos nada é reivindicado, e a pessoa corrige ou desmarca.
+    /// </para>
     /// </remarks>
     [HttpPost("{id:guid}/claim")]
     [ProtectedResource("capture-item", "claim")]
     public async Task<ActionResult<ClaimCaptureItemResponse>> Claim(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
+        [FromBody] ClaimCaptureItemModel? model,
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
-        var command = new ClaimCaptureItemCommand(tenantId, id, ResolveDecidingUserId());
+        var command = (model ?? new ClaimCaptureItemModel()).ToCommand(tenantId, id, ResolveDecidingUserId());
         var identified = new IdentifiedCommand<ClaimCaptureItemCommand, ClaimCaptureItemResponse>(
             command, EnsureRequestId(requestId));
 

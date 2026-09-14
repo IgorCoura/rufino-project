@@ -641,8 +641,11 @@ class FakeCaptureItemRepository implements CaptureItemRepository {
   // ignore: avoid_positional_boolean_parameters
   void setShouldFail(bool value) => _shouldFail = value;
 
+  /// The domain code the failures carry.
+  String failureCode = 'BLP.TST';
+
   Result<T> _fail<T>() => Result.error(
-        const BillPaymentRuleException('regra disse não', code: 'BLP.TST'),
+        BillPaymentRuleException('regra disse não', code: failureCode),
       );
 
   @override
@@ -675,9 +678,12 @@ class FakeCaptureItemRepository implements CaptureItemRepository {
   }
 
   @override
-  Future<Result<ClaimOutcome>> claimItem(String id) async {
+  Future<Result<ClaimOutcome>> claimItem(
+    String id, {
+    String? rememberAccountReference,
+  }) async {
     if (_shouldFail) return _fail();
-    calls.add('claimItem:$id');
+    calls.add('claimItem:$id:${rememberAccountReference ?? ''}');
     return const Result.success(
       ClaimOutcome(id: 'item-1', billId: 'bill-7', status: 'Promoted'),
     );
@@ -933,8 +939,14 @@ BillDetail billDetail({
   String readingStatus = ReadingStatuses.notApplicable,
   DateTime? scheduledFor,
   List<BillHistoryEntry> history = const [],
+  BankSlipLookup? bankSlipLookup,
+  PixLookup? pixLookup,
+  String? pendingAccountReference,
 }) {
   return BillDetail(
+    pendingAccountReference: pendingAccountReference,
+    bankSlipLookup: bankSlipLookup,
+    pixLookup: pixLookup,
     id: id,
     status: status,
     riskLevel: riskLevel,

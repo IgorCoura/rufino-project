@@ -24,6 +24,12 @@ public sealed class ExtractionResult : ValueObject
     public const int REASON_CODE_MAX_LENGTH = 100;
     public const int UNLOCKED_BY_MAX_LENGTH = 100;
 
+    /// <summary>
+    /// Teto do texto guardado para o roteamento. Boleto cabe folgado; o que passa disso é
+    /// relatório, e procurar número de conta nele só aumentaria a chance de coincidência.
+    /// </summary>
+    public const int DOCUMENT_TEXT_MAX_LENGTH = 200_000;
+
     private readonly List<PaymentInstrument> _instruments;
     private readonly List<PartyCandidate> _parties;
 
@@ -56,18 +62,31 @@ public sealed class ExtractionResult : ValueObject
     /// <summary>Por que não resolveu, em código estável. Nulo quando resolveu.</summary>
     public string? ReasonCode { get; }
 
+    /// <summary>
+    /// O texto lido do artefato — a camada de texto do PDF ou o corpo do e-mail sem marcação.
+    /// Nulo quando o degrau que resolveu não lê texto (QR em documento sem camada de texto, visão).
+    /// </summary>
+    /// <remarks>
+    /// Existe para o degrau 3 da escada de roteamento, que procura nele o número da conta que o
+    /// tenant cadastrou. <strong>Nunca é persistido nem logado</strong>: é conteúdo do documento, e
+    /// vive só enquanto o artefato é processado.
+    /// </remarks>
+    public string? DocumentText { get; }
+
     private ExtractionResult(
         List<PaymentInstrument> instruments,
         List<PartyCandidate> parties,
         ExtractionMethod? method,
         string? unlockedBy,
-        string? reasonCode)
+        string? reasonCode,
+        string? documentText = null)
     {
         _instruments = instruments;
         _parties = parties;
         Method = method;
         UnlockedBy = unlockedBy;
         ReasonCode = reasonCode;
+        DocumentText = documentText;
     }
 
     public bool Resolved => _instruments.Count > 0;
@@ -76,7 +95,8 @@ public sealed class ExtractionResult : ValueObject
         IEnumerable<PaymentInstrument> instruments,
         ExtractionMethod method,
         string? unlockedBy = null,
-        IEnumerable<PartyCandidate>? parties = null)
+        IEnumerable<PartyCandidate>? parties = null,
+        string? documentText = null)
     {
         ArgumentNullException.ThrowIfNull(instruments);
         ArgumentNullException.ThrowIfNull(method);
@@ -90,7 +110,8 @@ public sealed class ExtractionResult : ValueObject
             parties?.Distinct().ToList() ?? [],
             method,
             Clamp(unlockedBy, UNLOCKED_BY_MAX_LENGTH),
-            reasonCode: null);
+            reasonCode: null,
+            ClampText(documentText));
     }
 
     /// <summary>
@@ -119,7 +140,7 @@ public sealed class ExtractionResult : ValueObject
 
         return merged.Count == _parties.Count
             ? this
-            : new ExtractionResult(_instruments, merged, Method, UnlockedBy, ReasonCode);
+            : new ExtractionResult(_instruments, merged, Method, UnlockedBy, ReasonCode, DocumentText);
     }
 
     /// <summary>
@@ -153,6 +174,14 @@ public sealed class ExtractionResult : ValueObject
 
         foreach (var party in _parties)
             yield return party;
+    }
+
+    private static string? ClampText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        return value.Length > DOCUMENT_TEXT_MAX_LENGTH ? value[..DOCUMENT_TEXT_MAX_LENGTH] : value;
     }
 
     private static string? Clamp(string? value, int maxLength)

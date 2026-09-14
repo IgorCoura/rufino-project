@@ -5,7 +5,10 @@ using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureItems;
 using BillPayment.Domain.CapturedMessages;
 using BillPayment.Domain.CaptureSources;
+using BillPayment.Domain.Expectations;
 using BillPayment.Domain.Extraction;
+using BillPayment.Domain.Instruments;
+using BillPayment.Domain.Lookups;
 using BillPayment.Domain.Payees;
 using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.Ports;
@@ -79,10 +82,12 @@ public sealed class ProcessCaptureItemCommandHandler(
     IPayerProfileRepository payerProfiles,
     IPayeeRepository payees,
     IBillRepository bills,
+    IBillExpectationRepository expectations,
     IMailboxReader mailboxReader,
     IBoletoDocumentParser parser,
     IDocumentLinkResolver linkResolver,
     IDocumentIntelligence documentIntelligence,
+    IPixLookupService pixLookup,
     IAttachmentStorage storage,
     TimeProvider clock,
     IUnitOfWork unitOfWork,
@@ -97,6 +102,15 @@ public sealed class ProcessCaptureItemCommandHandler(
 
     /// <summary>Motivo enquanto o artefato espera a vez na fila do extrator de IA.</summary>
     private const string AWAITING_VISION = "awaiting_vision";
+
+    /// <summary>O corpo do e-mail repetia o boleto de um anexo da mesma mensagem.</summary>
+    public const string DUPLICATE_OF_ATTACHMENT = "duplicate_of_attachment";
+
+    /// <summary>
+    /// Desfechos de anexo que guardaram o documento e passaram pela cascata com boleto achado.
+    /// </summary>
+    private static readonly CaptureItemStatus[] ResolvedSiblingStatuses =
+        [CaptureItemStatus.Parsed, CaptureItemStatus.Promoted, CaptureItemStatus.Unrouted];
 
     public async Task<ProcessCaptureItemResponse> Handle(
         ProcessCaptureItemCommand request,
@@ -194,6 +208,24 @@ public sealed class ProcessCaptureItemCommandHandler(
             }
         }
 
+        // O corpo que repete o boleto de um anexo irmão não é outro boleto: é o mesmo, escrito no
+        // texto. A fila só entrega o corpo depois de os anexos decidirem, e é aqui que a repetição
+        // é reconhecida — antes de gastar IA e antes de o HTML ir para o balde como "documento".
+        if (extraction.Resolved && IsMessageBody(item)
+            && await FindSiblingWithSameInstrumentAsync(item, extraction, tenantId, passwords, knownTaxIds, now.UtcDateTime, cancellationToken)
+                is { } sibling)
+        {
+            item.Discard(sibling.Id, now.UtcDateTime);
+
+            await RecordCapturedOutcomeAsync(
+                item, ArtifactOutcome.Discarded, DUPLICATE_OF_ATTACHMENT,
+                tenantId, now.UtcDateTime, cancellationToken);
+
+            await unitOfWork.SaveEntitiesAsync(cancellationToken);
+
+            return new ProcessCaptureItemResponse(item.Id.Value, "Discarded", extraction.Instruments.Count);
+        }
+
         // A IA roda para TODO candidato a boleto (decisão de 2026-08-27): o que o determinístico
         // resolveu ganha o retrato de enriquecimento (competência, descrição, pagador), e o que
         // não resolveu ganha o degrau 3 como sempre. PDF cifrado continua fora — mandar um
@@ -247,8 +279,12 @@ public sealed class ProcessCaptureItemCommandHandler(
         // não-boleto — sem arquivo no balde, sem item, só a linha do livro-caixa. É a regra de
         // isolamento fechada em 2026-08-28: o que não é deste tenant some, e ninguém fica sabendo
         // de quem era (ADR-008, revisado).
+        var officialPix = decision == CaptureTriageDecision.Parse
+            ? await ConsultDynamicPixAsync(extraction, profile, now, cancellationToken)
+            : null;
+
         var routing = decision == CaptureTriageDecision.Parse
-            ? await DecideRouteAsync(extraction, profile, tenantId, cancellationToken)
+            ? await DecideRouteAsync(item, extraction, profile, officialPix, tenantId, cancellationToken)
             : null;
 
         var isForeign = routing?.Outcome == RoutingOutcome.Foreign;
@@ -259,7 +295,7 @@ public sealed class ProcessCaptureItemCommandHandler(
             item, decision, extraction, payload, payloadType, tenantId, now.UtcDateTime, cancellationToken);
 
         if (decision == CaptureTriageDecision.Parse)
-            await ApplyRoutingAsync(item, extraction, reading, routing!, tenantId, now.UtcDateTime, cancellationToken);
+            await ApplyRoutingAsync(item, extraction, reading, routing!, officialPix, tenantId, now.UtcDateTime, cancellationToken);
 
         await RecordCapturedOutcomeAsync(
             item,
@@ -312,6 +348,60 @@ public sealed class ProcessCaptureItemCommandHandler(
 
         return await mailboxReader.DownloadArtifactAsync(
             source.Address, source.Credential!, item.ExternalMessageId, item.ArtifactKey, cancellationToken);
+    }
+
+    private static bool IsMessageBody(CaptureItem item)
+        => !item.ManuallySupplied
+            && string.Equals(item.ArtifactKey, IMailboxReader.BODY_ARTIFACT_KEY, StringComparison.Ordinal);
+
+    /// <summary>
+    /// O anexo da mesma mensagem que já resolveu o mesmo instrumento deste corpo, se houver.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Relê o documento do anexo em vez de guardar os instrumentos no item.</strong> O
+    /// <c>CaptureItem</c> não carrega instrumento — é o boleto que carrega —, e o anexo pode estar
+    /// na fila de reivindicação, sem boleto ainda. A releitura é a cascata determinística barata
+    /// (a mesma mediana de 150 ms), e só acontece no caso raro de mensagem com corpo E anexo que
+    /// resolveram.
+    /// </para>
+    /// <para>
+    /// Comparar pela chave natural, e não só "o anexo resolveu": um e-mail com dois boletos
+    /// diferentes — um no texto, outro no PDF — continua produzindo os dois.
+    /// </para>
+    /// </remarks>
+    private async Task<CaptureItem?> FindSiblingWithSameInstrumentAsync(
+        CaptureItem item,
+        ExtractionResult extraction,
+        TenantId tenantId,
+        IReadOnlyList<PasswordCandidate> passwords,
+        IReadOnlyList<TaxId> knownTaxIds,
+        DateTime occurredAt,
+        CancellationToken cancellationToken)
+    {
+        var siblings = await items.ListByMessageAsync(
+            tenantId, item.SourceId, item.ExternalMessageId, cancellationToken);
+
+        var keys = extraction.Instruments.Select(i => i.NaturalKey).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var sibling in siblings.Where(s => !s.Id.Equals(item.Id)
+            && !string.Equals(s.ArtifactKey, IMailboxReader.BODY_ARTIFACT_KEY, StringComparison.Ordinal)
+            && ResolvedSiblingStatuses.Contains(s.Status)
+            && s.HasStoredArtifact))
+        {
+            var stored = await storage.RetrieveAsync(tenantId, sibling.StorageKey!, cancellationToken);
+            if (stored.IsEmpty)
+                continue;
+
+            var reread = await parser.ParseAsync(
+                stored, sibling.ContentType, passwords, knownTaxIds,
+                DateOnly.FromDateTime(occurredAt), cancellationToken);
+
+            if (reread.Instruments.Any(i => keys.Contains(i.NaturalKey)))
+                return sibling;
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -380,13 +470,107 @@ public sealed class ProcessCaptureItemCommandHandler(
     /// </para>
     /// </remarks>
     private async Task<RoutingDecision> DecideRouteAsync(
+        CaptureItem item,
         ExtractionResult extraction,
         PayerProfile? profile,
+        PixLookupResult? officialPix,
         TenantId tenantId,
         CancellationToken cancellationToken)
     {
         var exclusive = await ResolveExclusivePayeesAsync(tenantId, extraction, cancellationToken);
-        return BillRoutingService.Route(extraction, profile, exclusive);
+        var accountMatch = await MatchAccountReferenceAsync(item, extraction, tenantId, cancellationToken);
+
+        return BillRoutingService.Route(
+            extraction, profile, exclusive, officialPix?.Snapshot?.RegisteredPayerTaxId, accountMatch);
+    }
+
+    /// <summary>
+    /// A expectativa do tenant cujo número de conta está no artefato — o degrau 3 (ADR-026).
+    /// </summary>
+    /// <remarks>
+    /// Procura no texto do documento <strong>e no corpo do e-mail que o trouxe</strong>: na fatura
+    /// da Vivo o número da conta está no PDF e no corpo, e um anexo escaneado sem camada de texto
+    /// ainda tem o corpo. Para o próprio item do corpo, o texto do documento já é o corpo.
+    /// </remarks>
+    private async Task<AccountReferenceMatch?> MatchAccountReferenceAsync(
+        CaptureItem item,
+        ExtractionResult extraction,
+        TenantId tenantId,
+        CancellationToken cancellationToken)
+    {
+        var withAccount = await expectations.ListWithAccountReferenceAsync(tenantId, cancellationToken);
+        if (withAccount.Count == 0)
+            return null;
+
+        var body = IsMessageBody(item) ? null : await LoadBodyTextAsync(item, tenantId, cancellationToken);
+
+        return AccountReferenceMatchingService.Match(
+            extraction.Instruments, [extraction.DocumentText, body?.Text], withAccount);
+    }
+
+    /// <summary>
+    /// A consulta oficial do QR Pix dinâmico, feita ANTES do roteamento — é o degrau 1 da escada.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Só roda com Pix dinâmico e conta vinculada.</strong> QR estático não carrega
+    /// cobrança registrada, e sem a chave do tenant a consulta não tem com o que ser feita — nos
+    /// dois casos a escada segue exatamente como seria sem o degrau.
+    /// </para>
+    /// <para>
+    /// <strong>Consulta que não responde não decide nada</strong>: quem descarta é um pagador
+    /// oficial de outra pessoa, nunca a ausência de resposta. O resultado resolvido segue para o
+    /// boleto, e a primeira validação o reaproveita em vez de ler o QR de novo — o provedor limita
+    /// leituras de QR por conta.
+    /// </para>
+    /// </remarks>
+    private async Task<PixLookupResult?> ConsultDynamicPixAsync(
+        ExtractionResult extraction,
+        PayerProfile? profile,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        if (profile?.AsaasAccountRef is not { } credential)
+            return null;
+
+        var dynamicPix = extraction.Instruments.FirstOrDefault(
+            i => i.Kind == PaymentInstrumentKind.PixQr && i.PixPayload.IsDynamic);
+
+        if (dynamicPix is null)
+            return null;
+
+        return await pixLookup.DecodeAsync(
+            credential, dynamicPix.PixPayload, DateOnly.FromDateTime(now.UtcDateTime), cancellationToken);
+    }
+
+    /// <summary>
+    /// O número da conta que a reivindicação vai oferecer lembrar (ADR-026).
+    /// </summary>
+    /// <remarks>
+    /// <strong>Sai da leitura por IA, mas só vale se os dígitos estiverem no documento</strong> — no
+    /// campo livre do código de barras ou como sequência inteira no texto (ADR-011). O modelo lê
+    /// "Número da fatura" como conta com frequência suficiente para que sugerir sem conferir
+    /// oferecesse, marcado por padrão, um número que nunca rotearia nada.
+    /// </remarks>
+    private async Task SuggestAccountReferenceAsync(
+        CaptureItem item,
+        ExtractionResult extraction,
+        DocumentReading? reading,
+        TenantId tenantId,
+        DateTime occurredAt,
+        CancellationToken cancellationToken)
+    {
+        var digits = AccountReferenceMatchingService.SignificantDigits(reading?.AccountReference);
+        if (digits is null)
+            return;
+
+        var body = IsMessageBody(item) ? null : await LoadBodyTextAsync(item, tenantId, cancellationToken);
+
+        var evidence = AccountReferenceMatchingService.Locate(
+            digits, extraction.Instruments, [extraction.DocumentText, body?.Text]);
+
+        if (evidence != AccountReferenceEvidence.None)
+            item.SuggestAccountReference(digits, occurredAt);
     }
 
     /// <summary>
@@ -398,6 +582,7 @@ public sealed class ProcessCaptureItemCommandHandler(
         ExtractionResult extraction,
         DocumentReading? reading,
         RoutingDecision routing,
+        PixLookupResult? officialPix,
         TenantId tenantId,
         DateTime occurredAt,
         CancellationToken cancellationToken)
@@ -405,10 +590,11 @@ public sealed class ProcessCaptureItemCommandHandler(
         if (routing.Outcome == RoutingOutcome.Unrouted)
         {
             item.MarkUnrouted(routing.Reason, occurredAt);
+            await SuggestAccountReferenceAsync(item, extraction, reading, tenantId, occurredAt, cancellationToken);
             return;
         }
 
-        await PromoteAsync(item, extraction, reading, routing, tenantId, occurredAt, cancellationToken);
+        await PromoteAsync(item, extraction, reading, routing, officialPix, tenantId, occurredAt, cancellationToken);
     }
 
     /// <summary>
@@ -466,6 +652,7 @@ public sealed class ProcessCaptureItemCommandHandler(
         ExtractionResult extraction,
         DocumentReading? reading,
         RoutingDecision routing,
+        PixLookupResult? officialPix,
         TenantId tenantId,
         DateTime occurredAt,
         CancellationToken cancellationToken)
@@ -509,6 +696,11 @@ public sealed class ProcessCaptureItemCommandHandler(
                 return;
             }
         }
+
+        // A consulta que decidiu o degrau 1 fica no boleto: é a mesma pergunta que a validação
+        // faria segundos depois, e o provedor limita leituras de QR por conta.
+        if (officialPix is { IsResolved: true })
+            bill.AttachLookups(bankSlip: null, officialPix, occurredAt);
 
         await bills.AddAsync(bill, cancellationToken);
         item.Promote(bill.Id, routing.Confidence!, occurredAt);

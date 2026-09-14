@@ -1,5 +1,6 @@
 namespace BillPayment.Domain.CaptureItems;
 
+using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.SharedKernel;
 
@@ -37,6 +38,15 @@ public interface ICaptureItemRepository
     /// Todos os itens de um e-mail — um por anexo —, <em>tracked</em>, para a recaptura reescrever
     /// cada um em cima do que existe em vez de apagar e recriar.
     /// </summary>
+    /// <summary>
+    /// O item reivindicado que virou este boleto com o pedido "lembrar desta conta" (ADR-026). Sem
+    /// rastreamento: quem pergunta só lê o número pedido.
+    /// </summary>
+    Task<CaptureItem?> FindRememberingAccountForBillAsync(
+        TenantId tenantId,
+        BillId billId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<CaptureItem>> ListByMessageAsync(
         TenantId tenantId,
         CaptureSourceId sourceId,

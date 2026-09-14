@@ -28,6 +28,8 @@ class CaptureItem {
     this.processingAttempts = 0,
     this.lastError,
     this.linkHost,
+    this.accountReferenceSuggestion,
+    this.rememberedAccountReference,
   });
 
   /// The item's id.
@@ -98,6 +100,16 @@ class CaptureItem {
   /// only says WHICH issuer, and it is what decides which link recipe to register.
   /// Present on quarantined items whose link had no recipe.
   final String? linkHost;
+
+  /// The customer account number the claim offers to remember — read by the
+  /// AI and FOUND in the document's own digits by the server (ADR-026).
+  ///
+  /// Only significant digits. Arrives only when the status exposes financial
+  /// detail, like [billId].
+  final String? accountReferenceSuggestion;
+
+  /// The account number the claimer asked to remember, when they did.
+  final String? rememberedAccountReference;
 
   /// Whether the claim action applies.
   bool get acceptsClaim => CaptureItemStatuses.acceptsClaim(status);

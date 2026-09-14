@@ -324,6 +324,26 @@ public sealed class BillExpectation : AggregateRoot<BillExpectationId>
     }
 
     /// <summary>
+    /// A conta que esta expectativa vigia ganha o número que a identifica — o "lembrar desta conta"
+    /// de uma reivindicação (ADR-026).
+    /// </summary>
+    /// <remarks>
+    /// <strong>Não é <see cref="Reconfigure"/></strong>, e a diferença importa: reconfigurar torna a
+    /// expectativa <c>Manual</c> e reposiciona ciclos, o que desligaria em silêncio o aprendizado de
+    /// uma expectativa aprendida só porque alguém informou o número da conta. Aqui nada muda além do
+    /// número. Só preenche expectativa que ainda não tinha número: trocar um número existente é
+    /// edição, e passa pela tela.
+    /// </remarks>
+    public void AssignAccountReference(string accountReference, DateTime occurredAt)
+    {
+        if (!string.IsNullOrEmpty(AccountReference))
+            throw BillExpectationErrors.AccountReferenceAlreadySet();
+
+        SetAccountReference(accountReference);
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>
     /// Corrige o cadastro da expectativa. <strong>O beneficiário não entra</strong> — trocá-lo é
     /// excluir e cadastrar de novo.
     /// </summary>

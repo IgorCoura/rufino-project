@@ -59,8 +59,11 @@ public sealed class LearnBillExpectationsCommandHandler(
         var tenantId = TenantId.From(request.TenantId);
         var payeeId = PayeeId.From(request.PayeeId);
 
-        // Já monitorado sem referência de conta: não há o que aprender de novo.
-        if (await expectations.ExistsAsync(tenantId, payeeId, string.Empty, cancellationToken: cancellationToken))
+        // Já monitorado — com ou sem número de conta —: não há o que aprender de novo. Até
+        // 2026-09-14 só a expectativa SEM número contava, e a conta lembrada numa reivindicação
+        // (ADR-026) ganhava ao lado uma gêmea aprendida sem número: alerta em dobro e casamento de
+        // ciclo ambíguo entre as duas.
+        if ((await expectations.ListByPayeeAsync(tenantId, payeeId, cancellationToken)).Count > 0)
             return new LearnBillExpectationsResponse(null, OUTCOME_ALREADY_EXISTS);
 
         var payee = await payees.GetAsync(tenantId, payeeId, cancellationToken)

@@ -67,6 +67,11 @@ public static class ApplicationDependencies
 
         // Expectativa (2.7): o par cumprimento/aprendizado fecha o ciclo, e os três de aviso
         // levam o alerta ao usuário. Todos passam pelo outbox, então precisam ser idempotentes.
+        // "Lembrar desta conta" (ADR-026). Registrar é obrigatório: o dispatcher do outbox só
+        // resolve o handler que o contêiner conhece, e esquecer este apaga o pedido em silêncio. E
+        // ANTES do cumprimento, de propósito: a expectativa que ele cria já é encontrada pelo
+        // cumprimento do mesmo boleto, em vez de esperar o mês seguinte.
+        services.AddScoped<IDomainEventHandler<BillValidatedDomainEvent>, RememberClaimedAccountOnBillValidatedHandler>();
         services.AddScoped<IDomainEventHandler<BillValidatedDomainEvent>, FulfillExpectationOnBillValidatedHandler>();
         services.AddScoped<IDomainEventHandler<BillApprovedDomainEvent>, LearnExpectationOnBillApprovedHandler>();
         services.AddScoped<IDomainEventHandler<BillExpectationLearnedDomainEvent>, NotifyExpectationLearnedHandler>();

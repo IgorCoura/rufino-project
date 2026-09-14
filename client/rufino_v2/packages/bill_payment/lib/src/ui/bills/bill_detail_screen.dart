@@ -254,6 +254,11 @@ class _SummarySection extends StatelessWidget {
           // ler" ficavam idênticos na tela, que é o que este aviso desfaz.
           if (ReadingStatuses.speaks(bill.readingStatus))
             _ReadingNotice(status: bill.readingStatus),
+          // O pedido de "lembrar desta conta" espera o beneficiário: sem este
+          // aviso ele ficava pendente em silêncio, e o mês seguinte voltava
+          // para a fila sem nada dizer o que faltava.
+          if (bill.pendingAccountReference != null)
+            _PendingAccountNotice(account: bill.pendingAccountReference!),
           InfoRow(
             icon: Symbols.payments,
             label: 'Valor',
@@ -384,6 +389,44 @@ class _RiskBanner extends StatelessWidget {
   }
 }
 
+/// Tells that "lembrar desta conta" waits for the payee to be registered.
+class _PendingAccountNotice extends StatelessWidget {
+  const _PendingAccountNotice({required this.account});
+
+  final String account;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onColor = theme.colorScheme.onSurfaceVariant;
+
+    return Container(
+      key: const Key('bill-pending-account-notice'),
+      margin: const EdgeInsets.only(top: AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Symbols.bookmark_add, color: onColor, size: 20),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'Para lembrar a conta $account, cadastre o beneficiário deste '
+              'boleto e revalide. Até lá, os próximos boletos desta conta '
+              'continuam indo para a reivindicação.',
+              style: theme.textTheme.bodySmall?.copyWith(color: onColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Says where the AI reading stands, so an empty summary stops looking final.
 ///
 /// Deliberately quieter than [_RiskBanner]: this is not a signal about the
@@ -491,12 +534,34 @@ class _LookupSection extends StatelessWidget {
                         ? ' (com encargos)'
                         : ''),
               ),
-            if (pix.dueDate != null)
+            // Sempre presente: some a linha e "o provedor não informou"
+            // fica igual a "a tela não mostra vencimento".
+            InfoRow(
+              icon: Symbols.event,
+              label: 'Vencimento',
+              value: pix.dueDate != null
+                  ? formatDate(pix.dueDate)
+                  : 'Não informado',
+            ),
+            // Só o decode do QR traz pagador — o registro do boleto não. E
+            // exibir não confirma: quem decide é a verificação do pagador.
+            if (pix.payer != null) ...[
               InfoRow(
-                icon: Symbols.event,
-                label: 'Vencimento',
-                value: formatDate(pix.dueDate),
+                icon: Symbols.person,
+                label: 'Pagador',
+                value: pix.payer!.name ?? 'Não informado',
               ),
+              if (pix.payer!.taxId != null)
+                InfoRow(
+                  icon: Symbols.badge,
+                  label: 'CPF/CNPJ do pagador',
+                  // Máscara não é o documento: "(parcial)" impede que
+                  // quatro dígitos visíveis passem por identificação.
+                  value: pix.payer!.isTaxIdComplete
+                      ? pix.payer!.taxId!
+                      : '${pix.payer!.taxId!} (parcial)',
+                ),
+            ],
             InfoRow(
               icon: Symbols.schedule,
               label: 'Consultado em',
@@ -537,12 +602,13 @@ class _LookupSection extends StatelessWidget {
                         ? ' (original ${formatMoney(bankSlip.originalAmount)})'
                         : ''),
               ),
-            if (bankSlip.dueDate != null)
-              InfoRow(
-                icon: Symbols.event,
-                label: 'Vencimento',
-                value: formatDate(bankSlip.dueDate),
-              ),
+            InfoRow(
+              icon: Symbols.event,
+              label: 'Vencimento',
+              value: bankSlip.dueDate != null
+                  ? formatDate(bankSlip.dueDate)
+                  : 'Não informado',
+            ),
             InfoRow(
               icon: Symbols.schedule,
               label: 'Consultado em',

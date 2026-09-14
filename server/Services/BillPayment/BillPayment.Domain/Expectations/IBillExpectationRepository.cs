@@ -37,6 +37,18 @@ public interface IBillExpectationRepository
         TenantId tenantId, PayeeId payeeId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// As expectativas do tenant que têm número de conta cadastrado — o insumo do degrau 3 da
+    /// escada de roteamento (ADR-026).
+    /// </summary>
+    /// <remarks>
+    /// <strong>Sem rastreamento e sem os ciclos</strong>: quem pergunta só lê o número da conta, e
+    /// um agregado parcial rastreado seria armadilha para qualquer mutação na mesma transação.
+    /// Inclui as desativadas: parar de vigiar a chegada não muda de quem a conta é.
+    /// </remarks>
+    Task<IReadOnlyCollection<BillExpectation>> ListWithAccountReferenceAsync(
+        TenantId tenantId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// As expectativas que costumam receber conta por aquela fonte.
     /// </summary>
     /// <remarks>

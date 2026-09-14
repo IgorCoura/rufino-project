@@ -1,6 +1,7 @@
 namespace BillPayment.Application.Queries.CaptureItems;
 
 using BillPayment.Domain.CaptureItems;
+using BillPayment.Domain.Ports;
 using BillPayment.Infra.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -59,14 +60,26 @@ internal sealed class CaptureItemWorkQueries(BillPaymentDbContext context, TimeP
         var schema = BillPaymentDbContext.DEFAULT_SCHEMA;
 
         // Só o nome do schema é interpolado, e ele é constante de compilação; todo valor vindo
-        // de fora entra parametrizado ({0}..{3}).
+        // de fora entra parametrizado ({0}..{6}).
+        //
+        // O corpo do e-mail ESPERA os anexos da mesma mensagem (2026-09-14). A fatura da Vivo traz
+        // o Pix e o código de barras escritos no corpo E o PDF anexado; processados em paralelo,
+        // os dois viravam itens independentes e o corpo — sem documento fiscal nenhum — ia para a
+        // fila de reivindicação com o HTML do e-mail no lugar do documento. Esperando, o corpo
+        // encontra o anexo já decidido e pode reconhecer que é o mesmo boleto. O item que espera
+        // não é reivindicado, então não gasta tentativa.
         var sql =
             $"UPDATE {schema}.capture_items SET "
             + "lease_expires_at = {0}, processing_attempts = processing_attempts + 1, updated_at = {1} "
             + "WHERE id IN ("
-            + $"SELECT id FROM {schema}.capture_items "
-            + "WHERE status = {2} AND (lease_expires_at IS NULL OR lease_expires_at <= {1}) "
-            + "ORDER BY received_at, id LIMIT {3} FOR UPDATE SKIP LOCKED) "
+            + $"SELECT c.id FROM {schema}.capture_items c "
+            + "WHERE c.status = {2} AND (c.lease_expires_at IS NULL OR c.lease_expires_at <= {1}) "
+            + "AND NOT (c.artifact_key = {4} AND EXISTS ("
+            + $"SELECT 1 FROM {schema}.capture_items s "
+            + "WHERE s.tenant_id = c.tenant_id AND s.source_id = c.source_id "
+            + "AND s.external_message_id = c.external_message_id "
+            + "AND s.artifact_key <> {4} AND s.status IN ({5}, {6}))) "
+            + "ORDER BY c.received_at, c.id LIMIT {3} FOR UPDATE OF c SKIP LOCKED) "
             // xmin é o token de concorrência do agregado (coluna de sistema): RETURNING * não a
             // devolve, e o EF materializa o item esperando esse campo a mais.
             + "RETURNING *, xmin";
@@ -74,7 +87,15 @@ internal sealed class CaptureItemWorkQueries(BillPaymentDbContext context, TimeP
         var now = clock.GetUtcNow().UtcDateTime;
 
         var claimed = await context.CaptureItems
-            .FromSqlRaw(sql, leaseUntil.UtcDateTime, now, status.Id, limit)
+            .FromSqlRaw(
+                sql,
+                leaseUntil.UtcDateTime,
+                now,
+                status.Id,
+                limit,
+                IMailboxReader.BODY_ARTIFACT_KEY,
+                CaptureItemStatus.Received.Id,
+                CaptureItemStatus.VisionPending.Id)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 

@@ -115,7 +115,11 @@ void main() {
 
     test('a contradicted claim surfaces BLP.CPI04 without reporting',
         () async {
-      when(() => apiService.claimItem(any())).thenThrow(
+      when(() => apiService.claimItem(
+            any(),
+            rememberAccountReference:
+                any(named: 'rememberAccountReference'),
+          )).thenThrow(
         const HttpException(
           statusCode: 409,
           message: 'HTTP 409',
@@ -135,7 +139,11 @@ void main() {
     });
 
     test('a successful claim resolves to the new bill id', () async {
-      when(() => apiService.claimItem(any())).thenAnswer(
+      when(() => apiService.claimItem(
+            any(),
+            rememberAccountReference:
+                any(named: 'rememberAccountReference'),
+          )).thenAnswer(
         (_) async => const ClaimOutcome(
           id: 'item-1',
           billId: 'bill-7',
@@ -149,6 +157,42 @@ void main() {
         onSuccess: (outcome) => expect(outcome.billId, 'bill-7'),
         onError: (error, _) => fail('should have succeeded: $error'),
       );
+    });
+
+    test('a claim that asks to remember the account forwards the number',
+        () async {
+      when(() => apiService.claimItem(
+            any(),
+            rememberAccountReference:
+                any(named: 'rememberAccountReference'),
+          )).thenAnswer(
+        (_) async => const ClaimOutcome(
+          id: 'item-1',
+          billId: 'bill-7',
+          status: 'Promoted',
+        ),
+      );
+
+      await repository.claimItem('item-1', rememberAccountReference: '1123004411');
+
+      verify(() => apiService.claimItem(
+            'item-1',
+            rememberAccountReference: '1123004411',
+          )).called(1);
+    });
+
+    test('the quarantine mapper reads the account suggestion and the request', () {
+      final item = CaptureItemMapper.fromJson({
+        'id': 'item-1',
+        'sourceId': 'src-1',
+        'receivedAt': '2026-09-13T03:20:00Z',
+        'status': 'Unrouted',
+        'accountReferenceSuggestion': '1123004411',
+        'rememberedAccountReference': null,
+      });
+
+      expect(item.accountReferenceSuggestion, '1123004411');
+      expect(item.rememberedAccountReference, isNull);
     });
 
     test('the quarantine mapper renders absent financial fields as null', () {

@@ -1135,7 +1135,7 @@ refresh de token e limpa no logout — junto com as outras duas.
 | `/bill-payment/pending` | Painel diário: fila de aprovação + 3 listas de pendências + nudge de onboarding | `expectation`/`view` |
 | `/bill-payment/bills` | Fila de boletos, filtro `?status=` **no servidor**, abre em Aguardando aprovação; filtros Agendados/Pagos/Falhou e a linha "pagar em" quando há data efetiva; **seleção de vários boletos para baixar os documentos** (ligada pelo botão flutuante "Baixar documentos" ou toque longo; desliga no X ou ao salvar) | `bill`/`view` |
 | `/bill-payment/bills/import` | Importação manual: linha digitável, código Pix e/ou **anexo do boleto** (PDF/imagem) — um dos três basta | `bill`/`import` |
-| `/bill-payment/bills/:id` | Aprovação: banner de risco (Seguro/Atenção/Perigo), 14 verificações, consulta oficial por inteiro, resumo com competência/descrição da IA + revalidar/negar/cancelar/aprovar (Perigo exige a caixa "assumo o risco"); pós-aprovação, a seção **Execução do pagamento** (fase 3) com status/retenção/datas da ordem, cancelar agendamento, confirmar pagamento imediato e reabrir boleto falhado | `bill`/`view` (cancelar ordem: `bill`/`cancel`; confirmar/reabrir: `bill`/`approve`) |
+| `/bill-payment/bills/:id` | Aprovação: banner de risco (Seguro/Atenção/Perigo), 14 verificações, consulta oficial por inteiro (vencimento sempre visível, "Não informado" quando o provedor não devolve; **pagador — nome e CPF/CNPJ — só no bloco do QR Pix**, com "(parcial)" quando o documento vem mascarado, porque o registro do boleto não traz pagador), resumo com competência/descrição da IA + revalidar/negar/cancelar/aprovar (Perigo exige a caixa "assumo o risco"); pós-aprovação, a seção **Execução do pagamento** (fase 3) com status/retenção/datas da ordem, cancelar agendamento, confirmar pagamento imediato e reabrir boleto falhado | `bill`/`view` (cancelar ordem: `bill`/`cancel`; confirmar/reabrir: `bill`/`approve`) |
 | `/bill-payment/bills/:id/artifact` | O documento original do boleto, em tela cheia, **com botão de baixar** | `bill`/`view` |
 | `/bill-payment/bills/:id/receipt` | O comprovante de pagamento vindo do provedor, em tela cheia (só existe após Pago), **com botão de baixar** | `bill`/`view` |
 | `/bill-payment/bills/:id/email` | O e-mail que trouxe o boleto — título, remetente e corpo renderizado | `bill`/`view` |
@@ -1360,6 +1360,21 @@ Coisas que não podem erodir:
   código desconhecido cai para a `evidence` do servidor (coberto por teste que varre os 46).
 - **A quarentena renderiza o que veio** — os campos financeiros chegam `null` fora de
   `Promoted`/`Unrouted` porque o servidor decide a visibilidade, nunca a tela.
+- **Reivindicar pode ensinar o número da conta — "Lembrar desta conta" (ADR-026 do BC,
+  2026-09-14).** O diálogo (`ClaimDialog`, `ui/capture_items/claim_dialog.dart`) vem **marcado só
+  quando o servidor mandou `accountReferenceSuggestion`** — número lido pela IA e ENCONTRADO nos
+  dígitos do documento; sem sugestão nasce desmarcado, porque marcar por padrão pediria um número
+  que ninguém conferiu. Marcado, o campo é obrigatório (vazio → validação local, nada é enviado).
+  O número vai no corpo de `POST /capture-items/{id}/claim` (`rememberAccountReference`); o
+  servidor o confere contra o documento e recusa a reivindicação inteira com `BLP.CPI18` (não está
+  no boleto) ou `BLP.CPI19` (curto demais). **Essas duas recusas mantêm o diálogo aberto** com o
+  motivo em vermelho (`CaptureItemDetailViewModel.claimRefusedAccountReference`, por código,
+  nunca por texto) — fechar jogaria fora o que foi digitado; qualquer outra recusa fecha e segue
+  pelo `errorMessage` de sempre. O diálogo é `StatefulWidget` dono do próprio controller, pela
+  mesma armadilha do `_ScheduleSignDialog`. O número **não entra no contexto do reporter**: ele
+  identifica o cliente na concessionária. No detalhe do boleto, `pendingAccountReference` desenha
+  o aviso "cadastre o beneficiário deste boleto e revalide" enquanto o pedido espera o
+  beneficiário — sem ele o pedido ficava pendente em silêncio.
 - **O painel não colapsa as três listas** (`missing` / `captureFailed` / `dueSoon`): cada uma
   tem uma ação diferente. `captureFailed` navega para o item da quarentena.
 - **O piso temporal (`captureSince`) nasce preenchido com 90 dias, e o campo vazio é escolha

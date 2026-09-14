@@ -117,7 +117,20 @@ abstract final class BillMapper {
       discount: (json['discount'] as num?)?.toDouble(),
       dueDate: _day(json['dueDate']),
       expiresAt: _date(json['expiresAt']),
+      payer: pixPayerFromJson(json['payer'] as Map<String, dynamic>?),
       consultedAt: DateTime.parse(json['consultedAt'] as String),
+    );
+  }
+
+  /// Builds a [PixPayer] from the API's JSON, when the decode brought one.
+  static PixPayer? pixPayerFromJson(Map<String, dynamic>? json) {
+    if (json == null) return null;
+    return PixPayer(
+      name: json['name'] as String?,
+      taxId: json['taxId'] as String?,
+      // Ausente lê como incompleto: sem a garantia do servidor, a tela
+      // não apresenta o documento como inteiro.
+      isTaxIdComplete: json['isTaxIdComplete'] as bool? ?? false,
     );
   }
 
@@ -220,6 +233,7 @@ abstract final class BillMapper {
       minimumScheduleDate: _day(json['minimumScheduleDate']),
       lastConsultedAt: _date(json['lastConsultedAt']),
       snapshotExpiresAt: _date(json['snapshotExpiresAt']),
+      pendingAccountReference: json['pendingAccountReference'] as String?,
       checks: (json['checks'] as List<dynamic>? ?? const [])
           .map((e) => checkFromJson(e as Map<String, dynamic>))
           .toList(),

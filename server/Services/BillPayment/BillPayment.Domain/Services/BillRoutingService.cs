@@ -125,17 +125,30 @@ public static class BillRoutingService
     /// </summary>
     public const string REASON_PASSWORD_DERIVED_SHORT_PREFIX = "password_derived_short_prefix";
 
-    /// <summary>Documento fiscal do tenant impresso no artefato (degrau 1).</summary>
+    /// <summary>Documento fiscal do tenant impresso no artefato (degrau 2).</summary>
     public const string REASON_PAYER_TAX_ID = "payer_tax_id";
 
-    /// <summary>Beneficiário cadastrado só por este tenant (degrau 3).</summary>
+    /// <summary>Beneficiário cadastrado só por este tenant (degrau 4).</summary>
     public const string REASON_EXCLUSIVE_PAYEE = "exclusive_payee";
 
     /// <summary>Documento sob rótulo de pagador, e não é de ninguém deste tenant.</summary>
     public const string REASON_PAYER_IS_ANOTHER = "payer_is_another";
 
-    /// <summary>Nada no artefato disse de quem ele é (degrau 4).</summary>
+    /// <summary>Nada no artefato disse de quem ele é (degrau 5).</summary>
     public const string REASON_PAYER_NOT_IDENTIFIED = "payer_not_identified";
+
+    /// <summary>
+    /// A consulta oficial do Pix dinâmico devolveu um documento do tenant como pagador (degrau 1).
+    /// </summary>
+    public const string REASON_OFFICIAL_PIX_PAYER = "official_pix_payer";
+
+    /// <summary>
+    /// A consulta oficial do Pix dinâmico devolveu como pagador um documento que não é do tenant.
+    /// </summary>
+    public const string REASON_OFFICIAL_PAYER_IS_ANOTHER = "official_payer_is_another";
+
+    /// <summary>O número da conta cadastrado numa expectativa do tenant está no artefato (degrau 3).</summary>
+    public const string REASON_ACCOUNT_REFERENCE = "account_reference";
 
     /// <param name="extraction">
     /// O que a cascata leu. Traz os documentos fiscais do artefato — do pagador <em>e</em> do
@@ -150,15 +163,35 @@ public static class BillRoutingService
     /// é apurada pelo handler, com a travessia de tenant autorizada — que devolve <c>bool</c> e
     /// nada mais (ADR-008).
     /// </param>
+    /// <param name="officialPayerTaxId">
+    /// O pagador que a consulta oficial do QR Pix <strong>dinâmico</strong> devolveu inteiro e com
+    /// DV válido (<c>PixLookupSnapshot.RegisteredPayerTaxId</c>, ADR-025). Nulo quando não houve
+    /// Pix dinâmico, o tenant não tem conta vinculada, ou a consulta não respondeu — e aí a escada
+    /// segue exatamente como seria sem ele.
+    /// </param>
+    /// <param name="accountReferenceMatch">
+    /// A expectativa cujo número de conta foi achado no artefato, pelo
+    /// <c>AccountReferenceMatchingService</c> (ADR-026). Nulo quando nenhuma — ou mais de uma — casou.
+    /// </param>
     public static RoutingDecision Route(
         ExtractionResult extraction,
         PayerProfile? profile,
-        IReadOnlyCollection<TaxId> exclusivePayeeTaxIds)
+        IReadOnlyCollection<TaxId> exclusivePayeeTaxIds,
+        TaxId? officialPayerTaxId = null,
+        AccountReferenceMatch? accountReferenceMatch = null)
     {
         ArgumentNullException.ThrowIfNull(extraction);
 
-        // O documento do tenant impresso no artefato. Serve aos degraus 0 e 1: no 0 como
-        // identificação de quem é o pagador, no 1 como a própria prova de propriedade.
+        // Degrau 1 negativo OFICIAL — vale antes de tudo (decisão do usuário, 2026-09-14). A
+        // cobrança registrada é emitida CONTRA um documento, e quem o afirma é o PSP do trilho que
+        // paga, não uma leitura de PDF: se ele não é de ninguém deste tenant, o boleto é de outra
+        // pessoa, e o desfecho é o mesmo do rótulo de pagador — descarte, sem ninguém ficar
+        // sabendo de quem era (ADR-008).
+        if (officialPayerTaxId is not null && (profile is null || !Owns(profile, officialPayerTaxId)))
+            return RoutingDecision.Foreign(REASON_OFFICIAL_PAYER_IS_ANOTHER, officialPayerTaxId);
+
+        // O documento do tenant impresso no artefato. Serve aos degraus 0 e 2: no 0 como
+        // identificação de quem é o pagador, no 2 como a própria prova de propriedade.
         var own = profile is null
             ? null
             : extraction.Parties.FirstOrDefault(p => Owns(profile, p.TaxId));
@@ -184,18 +217,33 @@ public static class BillRoutingService
         if (!string.IsNullOrEmpty(extraction.UnlockedBy) && !shortPrefixOnly)
             return RoutingDecision.Promote(RoutingConfidence.Strong, REASON_PASSWORD_DERIVED, own?.TaxId);
 
-        // Degrau 1 — o documento fiscal do tenant impresso no artefato. Cobre 93,3% do corpus.
+        // Degrau 2 — o documento fiscal do tenant impresso no artefato. Cobre 93,3% do corpus.
         if (own is not null)
             return RoutingDecision.Promote(RoutingConfidence.Strong, REASON_PAYER_TAX_ID, own.TaxId);
 
-        // Degrau 1 negativo — só com rótulo. Sem ele, o número tanto pode ser o pagador quanto a
-        // concessionária, e a quarentena cega tiraria do usuário a chance de reivindicar.
         var labelled = extraction.Parties.FirstOrDefault(p => p.UnderPayerLabel);
 
+        // Degrau 1 — o pagador oficial do Pix dinâmico é do tenant. Fica ABAIXO do degrau 2 só na
+        // ordem do código: os dois promovem com a mesma força, e o 2 devolve o documento impresso,
+        // que é o mesmo. Com um pagador de OUTRA pessoa sob rótulo no documento, o desfecho é o de
+        // sempre — descarte: documento contradizendo a consulta oficial é anomalia (ADR-025), e
+        // falhar fechado é o que preserva o isolamento.
+        if (officialPayerTaxId is not null && labelled is null)
+            return RoutingDecision.Promote(RoutingConfidence.Strong, REASON_OFFICIAL_PIX_PAYER, officialPayerTaxId);
+
+        // Degrau 2 negativo — só com rótulo. Sem ele, o número tanto pode ser o pagador quanto a
+        // concessionária, e a quarentena cega tiraria do usuário a chance de reivindicar.
         if (labelled is not null)
             return RoutingDecision.Foreign(REASON_PAYER_IS_ANOTHER, labelled.TaxId);
 
-        // Degrau 3 — beneficiário exclusivo. Nunca sobrepõe o degrau 1 negativo (doc 07): ele
+        // Degrau 3 — o número da conta que o tenant cadastrou está no artefato (ADR-026). Fica
+        // DEPOIS dos negativos, de propósito: o número foi informado pelo tenant, e nunca desfaz uma
+        // prova de que o boleto é de outra pessoa. Forte só dentro do código de barras, com número
+        // longo; no texto, ou com número curto, a coincidência é plausível e a confiança é fraca.
+        if (accountReferenceMatch is not null)
+            return RoutingDecision.Promote(accountReferenceMatch.Confidence, REASON_ACCOUNT_REFERENCE);
+
+        // Degrau 4 — beneficiário exclusivo. Nunca sobrepõe o degrau 1 negativo (doc 07): ele
         // reduz fila, não decide sozinho, e por isso a confiança é Weak e a aprovação humana
         // continua obrigatória.
         if (exclusivePayeeTaxIds.Count > 0
@@ -212,7 +260,7 @@ public static class BillRoutingService
         if (shortPrefixOnly)
             return RoutingDecision.Promote(RoutingConfidence.Weak, REASON_PASSWORD_DERIVED_SHORT_PREFIX);
 
-        // Degrau 4 — fila de reivindicação. Nenhum boleto vira Bill sem rota determinada; não
+        // Degrau 5 — fila de reivindicação. Nenhum boleto vira Bill sem rota determinada; não
         // existe atribuição por default ao dono da fonte.
         return RoutingDecision.Unrouted(REASON_PAYER_NOT_IDENTIFIED);
     }

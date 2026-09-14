@@ -70,8 +70,17 @@ internal static partial class TaxIdScanner
     /// estrito, então o empate já resolve para "não é rótulo de pagador", que é a resposta certa.
     /// Acrescentar <c>\b</c> quebra o caso real, medido em 2026-08-26: o PdfPig entrega o texto
     /// emendado (<c>PagadorRUFINO EMPREITEIRA</c>) e a borda de palavra nunca fecha.
+    /// <para>
+    /// <strong><c>cliente</c> precedido de "código", "cód." ou "nº" NÃO é rótulo</strong> — é o
+    /// número da conta do cliente na concessionária. Bug de 2026-09-14: a fatura da Vivo imprime
+    /// <c>Código Cliente:00000120864975I.E.: … CNPJ Matriz: 02.558.157/0001-62</c>, o CNPJ da
+    /// própria Telefônica saía como pagador rotulado, a escada o lia como "boleto de outra
+    /// pessoa" e o PDF era descartado em silêncio. A exclusão é por lookbehind, e não por
+    /// lookahead de dígito: "Cliente: 11.222.333/0001-81" é rótulo legítimo seguido do documento.
+    /// </para>
     /// </remarks>
-    [GeneratedRegex(@"pagador|sacado|tomador|cliente|contribuinte|devedor",
+    [GeneratedRegex(
+        @"pagador|sacado|tomador|contribuinte|devedor|(?<!(?:c[óo]d(?:igo)?\.?|n[º°o]\.?|n[úu]mero)\s{0,3}(?:d[oe]\s{0,3})?)cliente",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex PayerLabel();
 
@@ -79,7 +88,13 @@ internal static partial class TaxIdScanner
     /// O outro lado. Existe para desempatar: num boleto os dois blocos são vizinhos, e sem isto
     /// o rótulo do credor seria confundido com o do devedor por simples proximidade.
     /// </summary>
-    [GeneratedRegex(@"benefici[áa]rio|cedente|favorecido|credor|sacador",
+    /// <remarks>
+    /// <c>emissor</c>, <c>emitente</c> e <c>matriz</c> entraram em 2026-09-14: fatura de
+    /// concessionária não usa "beneficiário", e identifica quem cobra como "CNPJ Matriz" ou
+    /// "emitente". Errar para este lado só tira a força de recusa de um número — nunca atribui
+    /// boleto a ninguém, porque atribuir depende de casar com o cadastro.
+    /// </remarks>
+    [GeneratedRegex(@"benefici[áa]rio|cedente|favorecido|credor|sacador|emissor|emitente|matriz",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex PayeeLabel();
 

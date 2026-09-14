@@ -104,8 +104,17 @@ class CaptureItemRepositoryImpl implements CaptureItemRepository {
       );
 
   @override
-  Future<Result<ClaimOutcome>> claimItem(String id) => _guard(
-        () => apiService.claimItem(id),
+  Future<Result<ClaimOutcome>> claimItem(
+    String id, {
+    String? rememberAccountReference,
+  }) =>
+      _guard(
+        () => apiService.claimItem(
+          id,
+          rememberAccountReference: rememberAccountReference,
+        ),
+        // O número da conta não entra no contexto: identifica o cliente na
+        // concessionária.
         context: {'op': 'claimCaptureItem', 'itemId': id},
       );
 

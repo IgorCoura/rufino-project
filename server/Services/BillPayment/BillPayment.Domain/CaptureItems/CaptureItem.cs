@@ -37,6 +37,9 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
     public const int INTERNET_MESSAGE_ID_MAX_LENGTH = 512;
 
     public const int STORAGE_KEY_MAX_LENGTH = 512;
+
+    /// <summary>O mesmo teto do número da conta na expectativa, para onde ele vai.</summary>
+    public const int ACCOUNT_REFERENCE_MAX_LENGTH = 100;
     public const int SOURCE_URL_MAX_LENGTH = 2000;
 
     /// <summary>
@@ -246,6 +249,18 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
     /// </para>
     /// </remarks>
     public DateTime? LeaseExpiresAt { get; private set; }
+
+    /// <summary>
+    /// O número da conta que a reivindicação oferece lembrar — lido pela IA e ENCONTRADO nos dígitos
+    /// do documento (ADR-026). Só dígitos significativos; nulo quando não houve candidato confirmado.
+    /// </summary>
+    public string? AccountReferenceSuggestion { get; private set; }
+
+    /// <summary>
+    /// O número da conta que quem reivindicou pediu para lembrar. Fica no item como registro do
+    /// pedido; quem o cumpre é a validação do boleto, quando o beneficiário já está resolvido.
+    /// </summary>
+    public string? RememberedAccountReference { get; private set; }
 
     private CaptureItem() { }
 
@@ -519,6 +534,9 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
         DismissedBy = null;
         DismissedAt = null;
 
+        // A sugestão de conta sai da leitura desta passagem, que vai ser refeita.
+        AccountReferenceSuggestion = null;
+
         // A procedência também é do dia em que o item passou: a escada de link vai ser percorrida
         // de novo, com as receitas de hoje, e pode trazer o documento de outro endereço — ou de
         // nenhum. Manter o anterior descreveria uma busca que não foi a que aconteceu.
@@ -567,16 +585,36 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
     /// reivindicação é o degrau mais fraco de todos, e deixá-la sobrepor a única evidência
     /// <em>constatada</em> de propriedade inverteria a ordem de confiança do doc 07.
     /// </remarks>
-    public void Claim(UserId claimedBy, BillId billId, DateTime occurredAt)
+    /// <param name="rememberAccountReference">
+    /// Os dígitos significativos da conta que a pessoa pediu para lembrar, já conferidos contra o
+    /// documento por quem chama. Nulo quando ela não pediu.
+    /// </param>
+    public void Claim(UserId claimedBy, BillId billId, DateTime occurredAt, string? rememberAccountReference = null)
     {
         if (claimedBy.Equals(UserId.Empty))
             throw CaptureItemErrors.ClaimedByRequired();
         if (Status == CaptureItemStatus.ForeignPayer)
             throw CaptureItemErrors.ClaimContradictsExtractedPayer(Id.Value);
 
+        var remembered = OptionalAccountReference(rememberAccountReference, nameof(RememberedAccountReference));
+
         Promote(billId, RoutingConfidence.Claimed, occurredAt);
         ClaimedBy = claimedBy;
         ClaimedAt = occurredAt;
+        RememberedAccountReference = remembered;
+    }
+
+    /// <summary>
+    /// Guarda — ou limpa — o número da conta que a reivindicação vai oferecer lembrar.
+    /// </summary>
+    /// <remarks>
+    /// Não muda status: é sugestão para uma tela, e quem confirma que os dígitos estão no documento
+    /// é quem chama, antes (ADR-011).
+    /// </remarks>
+    public void SuggestAccountReference(string? significantDigits, DateTime occurredAt)
+    {
+        AccountReferenceSuggestion = OptionalAccountReference(significantDigits, nameof(AccountReferenceSuggestion));
+        UpdatedAt = occurredAt;
     }
 
     /// <summary>
@@ -819,6 +857,8 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
         ClaimedAt = null;
         DismissedBy = null;
         DismissedAt = null;
+        AccountReferenceSuggestion = null;
+        RememberedAccountReference = null;
         ManuallySupplied = false;
         ProcessingAttempts = 0;
         LastError = null;
@@ -966,6 +1006,17 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
             trimmed = trimmed[..SUBJECT_MAX_LENGTH];
 
         Subject = string.IsNullOrEmpty(trimmed) ? null : trimmed;
+    }
+
+    private static string? OptionalAccountReference(string? value, string field)
+    {
+        var trimmed = value?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+            return null;
+        if (trimmed.Length > ACCOUNT_REFERENCE_MAX_LENGTH)
+            throw CaptureItemErrors.TextTooLong(field, ACCOUNT_REFERENCE_MAX_LENGTH);
+
+        return trimmed;
     }
 
     private static string RequireReason(string reason)

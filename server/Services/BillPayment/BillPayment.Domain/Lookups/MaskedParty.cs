@@ -29,6 +29,8 @@ public sealed class MaskedParty : ValueObject
     public const int NAME_MAX_LENGTH = 200;
 
     private const string SEPARATORS = ".-/ ";
+    private const int CPF_LENGTH = 11;
+    private const int CNPJ_LENGTH = 14;
 
     public string? Name { get; private set; }
 
@@ -84,6 +86,23 @@ public sealed class MaskedParty : ValueObject
     /// </remarks>
     public TaxId? ResolvedTaxId
         => IsFullyVisible && TaxId.TryParse(MaskedTaxId, out var resolved) ? resolved : null;
+
+    /// <summary>
+    /// O documento pontuado para exibição, com a máscara no lugar dos dígitos ocultos
+    /// (<c>***.982.247-**</c>). <c>null</c> quando o provedor não devolveu documento.
+    /// </summary>
+    /// <remarks>
+    /// Só exibição: não confirma nem contradiz nada. Máscara de comprimento que não é de CPF nem de
+    /// CNPJ sai como veio — pontuar adivinhando o tipo inventaria uma forma que o provedor não deu.
+    /// </remarks>
+    public string? DisplayTaxId => MaskedTaxId switch
+    {
+        null => null,
+        _ when ResolvedTaxId is { } resolved => resolved.Formatted(),
+        { Length: CPF_LENGTH } m => $"{m[..3]}.{m[3..6]}.{m[6..9]}-{m[9..]}",
+        { Length: CNPJ_LENGTH } m => $"{m[..2]}.{m[2..5]}.{m[5..8]}/{m[8..12]}-{m[12..]}",
+        var m => m,
+    };
 
     /// <summary>
     /// O documento do tenant pode ser este pagador? <c>false</c> é uma contradição comprovada.

@@ -10,6 +10,7 @@ import '../shared/formats.dart';
 import '../shared/message_panel.dart';
 import '../shared/status_badge.dart';
 import 'capture_item_detail_viewmodel.dart';
+import 'claim_dialog.dart';
 
 // Os tipos do seletor de arquivos moraram aqui até a importação manual de
 // boleto também passar a anexar documento. Dois consumidores no módulo é o
@@ -526,31 +527,23 @@ class _Body extends StatelessWidget {
   }
 
   Future<void> _confirmClaim(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final claimed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Reivindicar este boleto?'),
-        content: const Text(
-          'O documento passa a ser deste cliente e vira um boleto na fila '
-          'de verificação. O sistema relê o artefato pelos mesmos dígitos '
-          'verificadores do caminho automático.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton.tonal(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Reivindicar'),
-          ),
-        ],
+      builder: (_) => ClaimDialog(
+        suggestedAccountReference:
+            viewModel.item?.accountReferenceSuggestion,
+        onClaim: (rememberAccountReference) async {
+          final succeeded = await viewModel.claim(
+            rememberAccountReference: rememberAccountReference,
+          );
+          if (succeeded || !viewModel.claimRefusedAccountReference) {
+            return const ClaimAttempt.finished();
+          }
+          return ClaimAttempt.accountRefused(viewModel.errorMessage);
+        },
       ),
     );
-    if (confirmed != true) return;
-
-    final claimed = await viewModel.claim();
-    if (claimed && viewModel.claimedBillId != null) {
+    if (claimed == true && viewModel.claimedBillId != null) {
       onOpenBill(viewModel.claimedBillId!);
     }
   }

@@ -730,6 +730,160 @@ verificação desta entrega: o `FakeAuthorizationServerClient` não conhecia os 
 `schedule`/`undo-decision`, e os testes de alçada de risco aprovavam **com data** sem pedir a
 alçada de agendamento.
 
+## 2026-09-14 (2) — O pagador do QR chega à tela, e o vencimento deixa de sumir
+
+Pedido do usuário: a seção "Consulta oficial" do detalhe mostrar a data de vencimento e o pagador
+(nome e CPF/CNPJ) — **o pagador só no QR Code**, porque o `bill/simulate` do código de barras não o
+devolve. Zero migração: `PixLookupSnapshot.Payer` já era gravado no jsonb `pix_lookup` desde o
+ADR-024; só nunca tinha entrado no DTO.
+
+- **`PixLookupDto.Payer`** (`PixPayerDto(Name, TaxId, IsTaxIdComplete)`) no `GET …/bills/{id}/detail`.
+  `BankSlipLookupDto` **não** ganha pagador — não há de onde vir.
+- **`MaskedParty.DisplayTaxId`** pontua para exibição: documento resolvido sai por
+  `TaxId.Formatted()`; máscara de 11 ou 14 posições sai pontuada com a máscara no lugar
+  (`***.982.247-**`); outro comprimento sai como veio, porque pontuar ali seria adivinhar o tipo.
+  `IsTaxIdComplete` é `MaskedParty.IsFullyVisible` — a tela acrescenta "(parcial)" quando é falso.
+- ⚠️ **Exibir não é confirmar.** Nada muda no check 8: quem decide se o pagador é do tenant continua
+  sendo `RegisteredPayerTaxId`/`ResolvedTaxId` (ADR-025), com as travas no tipo. `DisplayTaxId` não
+  deve ser usado em comparação nenhuma — ele devolve máscara e documento com DV inválido.
+- No cliente, a linha **Vencimento** dos dois blocos passa a existir sempre, com "Não informado"
+  quando o provedor não devolve a data (antes a linha sumia, e ausência parecia omissão da tela).
+
+Cobertura: `Lookups/MaskedPartyTests` (+5, os três formatos e o DV inválido) e
+`Bills/ValidateBillTests` (+3: pagador completo com vencimento, máscara marcada incompleta, e a
+contraprova do boleto só com código de barras sem bloco Pix).
+
+## 2026-09-14 (2) — A fatura da Vivo: o PDF descartado e o corpo na reivindicação
+
+Relatado sobre a "Sua Fatura Digital Vivo Chegou": o e-mail foi para a quarentena e o "documento"
+baixado era a página HTML do e-mail. Dois defeitos independentes, reproduzidos rodando o parser real
+sobre o `.eml` (os logs de 13/09 já não existiam no contêiner).
+
+### 🐛 O CNPJ da Telefônica era lido como pagador, e o PDF era descartado
+
+O PDF imprime `Código Cliente:00000120864975I.E.: … CNPJ Matriz: 02.558.157/0001-62`. O
+`TaxIdScanner` tratava `cliente` como rótulo de pagador, então o CNPJ da **própria concessionária**
+saía rotulado, a escada concluía `payer_is_another` e — desde 2026-08-28 — o item era apagado sem
+guardar arquivo. Correção de LEITURA, não de regra de isolamento: `cliente` precedido de
+"código/cód./nº/número [do]" deixou de ser rótulo (lookbehind — um lookahead de dígito quebraria
+"Cliente: 11.222.333/0001-81", que é rótulo legítimo seguido do documento), e `emissor`, `emitente` e
+`matriz` entraram como rótulos do lado de quem cobra. `filial` ficou de fora de propósito: aparece no
+bloco do pagador de empresas com várias unidades. Regressão e contraprovas em
+`Extraction/TaxIdScannerTests`.
+
+### 🐛 Corpo e anexo da mesma mensagem viravam dois itens
+
+O corpo da Vivo traz o Pix copia e cola e o código de barras escritos. Processado em paralelo com o
+anexo, o item do corpo resolvia, não tinha documento fiscal nenhum e ia para `Unrouted` — e, como
+quem resolve guarda o que leu, o "documento original" dele era o HTML.
+
+- **A fila segura o corpo** (`CaptureItemWorkQueries.ClaimAsync`): o item `message-body` não é
+  reivindicado enquanto houver anexo irmão da mesma mensagem em `Received`/`VisionPending`. Quem
+  espera não é reivindicado, então não gasta tentativa. `FOR UPDATE OF c` — a subconsulta lê a mesma
+  tabela e não pode travar as linhas irmãs.
+- **O corpo que repete o boleto do anexo é descartado** (`ProcessCaptureItemCommand`): resolvido o
+  corpo, os anexos irmãos em `Parsed`/`Promoted`/`Unrouted` com arquivo guardado são RELIDOS pela
+  cascata determinística e, havendo instrumento com a mesma `NaturalKey`, o corpo vira `Discarded`
+  com `DiscardedOf` apontando o anexo (livro-caixa: `duplicate_of_attachment`). Relê em vez de
+  guardar instrumento no item porque o `CaptureItem` não carrega instrumento — e o anexo pode estar
+  na reivindicação, sem boleto. Corpo com OUTRO boleto continua sendo item próprio.
+
+Testes: `CaptureItems/MessageBodySiblingTests` (5 — a espera, a liberação, a contraprova da mensagem
+sem anexo, o **teste de regressão** do descarte e a contraprova do boleto diferente).
+
+### O pagador oficial do Pix dinâmico virou o degrau 1 da escada (ADR-025, adendo)
+
+Conta de concessionária quase nunca imprime o documento do pagador, e toda ela caía na
+reivindicação. Decisão do usuário: o `RegisteredPayerTaxId` do decode (QR dinâmico, documento
+inteiro, DV válido — as travas do ADR-025) entra no `BillRoutingService.Route` como
+`officialPayerTaxId`.
+
+- **Documento do tenant → `Promote` `Strong`** (`official_pix_payer`), mesmo sem nada impresso.
+- 🔑 **Qualquer outro documento → `Foreign` → descarte** (`official_payer_is_another`), e é o
+  PRIMEIRO teste da escada: vence o documento do tenant impresso e a senha derivada.
+- Oficial do tenant + outro pagador sob rótulo no PDF → o descarte de sempre (falha fechada).
+- Sem QR dinâmico, sem conta vinculada ou consulta indisponível → a escada é a de antes.
+- ⚠️ **Consequência aceita pelo usuário:** conta registrada no CPF de alguém fora do `PayerProfile`
+  (sócio, titular da linha) é descartada. Cadastrar esses documentos em `AdditionalTaxIds` deixou de
+  ser opcional.
+- **Uma leitura de QR por boleto, não duas.** `ProcessCaptureItemCommand.ConsultDynamicPixAsync`
+  consulta antes do roteamento e anexa o resultado resolvido ao boleto; `ValidateBillCommand`
+  reaproveita-o na PRIMEIRA validação (status `Captured`, até 15 min) sem registrar tentativa nova no
+  histórico. Revalidar consulta sempre. Motivo medido no mesmo dia: o Asaas limita leituras de QR
+  por conta (`invalid_action`, "Limite para leitura de QR Code atingido") — foi o que impediu a
+  medição da fase 0 com a chave do user-secrets.
+- A escada foi renumerada nos comentários: 0 senha → 1 pagador oficial → 2 documento impresso (e o
+  negativo por rótulo) → 4 beneficiário exclusivo → 5 fila. O 3 é o da seção seguinte.
+
+Testes: 4 em `Services/BillRoutingServiceTests` e `CaptureItems/OfficialPixPayerRoutingTests` (5 —
+promove, descarta, sem conta não consulta, consulta indisponível não decide, e a primeira validação
+reaproveitando a leitura com `PixCallCount == 1`). `FakeLookupServices` ganhou `PixCallCount`.
+
+### O número da conta cadastrado na expectativa virou o degrau 3 (ADR-026)
+
+Toda conta de concessionária traz o número da conta do cliente, e na arrecadação ele costuma estar
+no campo livre do código de barras. `BillExpectation.AccountReference` — que o usuário já informava
+para separar contas do mesmo beneficiário — passou a rotear.
+
+- **`Domain/Services/AccountReferenceMatchingService`** (+ `AccountReferenceMatch`,
+  `AccountReferenceEvidence`): dígitos significativos (`SignificantDigits` — sem letras, sem zeros à
+  esquerda, nulo abaixo de 6) procurados no **campo livre** (posição 20+) ou como **sequência
+  inteira** no texto. 🔑 **Por conter, nunca por posição** — é isso que o separa da `RoutingRule`
+  que a 2.6 mediu e abandonou. Código de barras com 8+ dígitos → `Strong`; texto ou 6–7 dígitos →
+  `Weak`; duas expectativas casando → nenhuma (fila).
+- **Fica depois dos negativos** na escada (`REASON_ACCOUNT_REFERENCE`): número informado pelo
+  tenant nunca desfaz prova de que o boleto é de outra pessoa.
+- **Sem travessia de tenant.** Cada tenant roteia a própria cópia; as travessias continuam duas.
+- **`ExtractionResult.DocumentText`** (novo, até 200 mil caracteres, nunca persistido nem logado):
+  os parsers de PDF e de corpo entregam o texto lido. O processamento procura também no **corpo do
+  e-mail guardado** — anexo escaneado sem camada de texto ainda tem o corpo.
+- **`IBillExpectationRepository.ListWithAccountReferenceAsync`**: sem rastreamento e sem ciclos, e
+  inclui as desativadas — parar de vigiar a chegada não muda de quem a conta é.
+- ⚠️ **Armadilha de teste:** o PdfPig emenda as linhas do PDF sem separador, então uma conta impressa
+  numa linha e um código de barras na seguinte viram UMA sequência de dígitos e deixam de casar como
+  sequência inteira. No documento real há sempre um rótulo depois do número.
+
+Testes: `Services/AccountReferenceMatchingServiceTests` (13 — barcode forte, formatação e zeros,
+número curto fraco, texto fraco, número dentro de outro maior não casa, menos de 6 dígitos, duas
+expectativas, expectativa sem conta, e o degrau na escada com a **contraprova de isolamento**) e
+`CaptureItems/AccountReferenceRoutingTests` (3 — barcode forte, texto fraco, e a contraprova).
+
+### "Lembrar desta conta" na reivindicação (ADR-026, D3)
+
+Sem cadastro prévio o degrau 3 não resolve nada; a reivindicação é quem ensina o número.
+
+- **`CaptureItem.AccountReferenceSuggestion`** — preenchida por `ProcessCaptureItemCommand` ao
+  mandar o item para `Unrouted`, a partir do `accountReference` da leitura por IA, **só se os
+  dígitos estiverem no documento** (`AccountReferenceMatchingService.Locate`). O modelo lê "Número
+  da fatura" como conta com frequência suficiente para que sugerir sem conferir fosse um convite ao
+  erro. Limpa em `Reopen` e `Recapture`.
+- **`POST /capture-items/{id}/claim`** aceita corpo opcional `{rememberAccountReference}`
+  (`ClaimCaptureItemModel`). O número é conferido contra o documento RELIDO e o corpo do e-mail
+  guardado: fora dele → **400 `BLP.CPI18`**; menos de 6 dígitos → **400 `BLP.CPI19`** — e nada é
+  reivindicado. Aceito, vira `CaptureItem.RememberedAccountReference` (só dígitos significativos).
+- **`RememberClaimedAccountCommand`**, disparado por `BillValidatedDomainEvent` e **registrado ANTES
+  do cumprimento de ciclo** (a expectativa criada já é encontrada pelo cumprimento do mesmo boleto):
+  sem beneficiário resolvido fica pendente (`AwaitingPayee`); já lembrado → nada; uma expectativa
+  sem número → `BillExpectation.AssignAccountReference`; senão cria uma (`Register`, mensal, dia do
+  vencimento, prazo observado da chegada, fonte do item). Idempotente, muta um agregado só, e **não
+  apaga o pedido** do item — "cumprido" é existir expectativa com aquele número.
+- **`BillExpectation.AssignAccountReference` NÃO é `Reconfigure`**: reconfigurar vira a origem para
+  `Manual` e reposiciona ciclos, o que desligaria em silêncio o aprendizado de uma expectativa
+  aprendida. Só preenche expectativa sem número (`BLP.EXP14` se já tiver).
+- **`LearnBillExpectationsCommand` não aprende quando o beneficiário já tem QUALQUER expectativa**
+  (antes só contava a sem número): a conta lembrada ganhava ao lado uma gêmea aprendida sem número,
+  com alerta em dobro e casamento de ciclo ambíguo.
+- **Leitura:** `CaptureItemDto` ganhou `AccountReferenceSuggestion`/`RememberedAccountReference`
+  sob o portão financeiro do ADR-008 (a conta do cliente identifica de quem é o boleto);
+  `BillDetailDto.PendingAccountReference` diz o número pedido enquanto falta o beneficiário.
+- Migração `CaptureItemAccountReferenceMemory` (duas colunas nullable em `capture_items`).
+- Erros novos: `BLP.CPI18`, `BLP.CPI19`, `BLP.EXP14`.
+
+Testes: `CaptureItems/RememberAccountOnClaimTests` (8 — sugestão confirmada e a contraprova da não
+confirmada, claim que registra, as duas recusas 400, o **teste-âncora** da expectativa criada uma vez
+só, preencher a sem número, e a pendência que aparece no detalhe), mais 4 em
+`CaptureItems/CaptureItemTests` e 2 em `Expectations/BillExpectationTests`.
+
 ## 2026-09-14 — Baixar documentos de vários boletos de uma vez
 
 Pedido do usuário: selecionar boletos na lista e baixar os documentos, escolhendo **documento
@@ -2097,7 +2251,7 @@ cena, porque é a chave que paga). O desenho:
 
 ## Architecture — what is non-obvious
 
-Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC transversal — hoje só `BLP01` TenantMismatch em `BillPaymentErrors.cs`), `BLP.<AGG>##` (Aggregate-specific — reserve a sigla do Aggregate ao criá-lo e registre aqui). **Siglas em uso**: `PRF` (PayerProfile, BLP.PRF01–13 — o 10 foi aposentado em 2026-08-31, não o reutilize), `PYE` (Payee, BLP.PYE01–17), `ORG` (TrustedOrigin, BLP.ORG01–10), `BNK` (BankCode, SHK.BNK01–02), `DGL` (DigitableLine, BLP.DGL01–06), `PIX` (PixPayload, BLP.PIX01–04), `INS` (PaymentInstrument, BLP.INS01–03), `BIL` (Bill, BLP.BIL01–44), `LKP` (Lookups, BLP.LKP01–07), `SEC` (Secrets, BLP.SEC01–07), `CPS` (CaptureSource, BLP.CPS01–20), `CPI` (CaptureItem, BLP.CPI01–17), `MBX` (Mailboxes — VOs de leitura de caixa, BLP.MBX01–04), `EXT` (Extraction — VOs da cascata, BLP.EXT01–08), `EXP` (BillExpectation, BLP.EXP00–13), `NTF` (TenantNotificationSettings, BLP.NTF00–03), `CMS` (CapturedMessage, BLP.CMS01–12), `CRP` (CaptureRetentionPolicy, BLP.CRP01–02), `PMO` (PaymentOrder, BLP.PMO01–23 — codificada na fase 3, 2026-09-02; o 18 é o sinal de "volte para a fila" da submissão, irmão do BIL28, e o 21 é o equivalente do comprovante via outbox; catálogo completo na seção "Fase 3 — Status"). `BIL` foi até o 44: 34 é o reflexo de pagamento fora da máquina, 35 é o aceite de vencido do ADR-017, 36–39 saíram da separação aprovar×agendar (ADR-018), **40 é a recusa de "pagar hoje" fora do horário de envio (ADR-021)**, 41 é a revalidação de boleto já agendado, e 42–44 são a validação do download de documentos em lote (2026-09-14). **`RTR` (RoutingRule) foi ABANDONADA na 2.6** — a medição mostrou que a chave que ela usaria não distingue pagadores; não recrie a sigla sem reabrir aquele achado. **`BLP.CPI04` é fixado pelo doc 07** (reivindicação que contradiz o pagador extraído) — não renumere a factory. Convenções:
+Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC transversal — hoje só `BLP01` TenantMismatch em `BillPaymentErrors.cs`), `BLP.<AGG>##` (Aggregate-specific — reserve a sigla do Aggregate ao criá-lo e registre aqui). **Siglas em uso**: `PRF` (PayerProfile, BLP.PRF01–13 — o 10 foi aposentado em 2026-08-31, não o reutilize), `PYE` (Payee, BLP.PYE01–17), `ORG` (TrustedOrigin, BLP.ORG01–10), `BNK` (BankCode, SHK.BNK01–02), `DGL` (DigitableLine, BLP.DGL01–06), `PIX` (PixPayload, BLP.PIX01–04), `INS` (PaymentInstrument, BLP.INS01–03), `BIL` (Bill, BLP.BIL01–44), `LKP` (Lookups, BLP.LKP01–07), `SEC` (Secrets, BLP.SEC01–07), `CPS` (CaptureSource, BLP.CPS01–20), `CPI` (CaptureItem, BLP.CPI01–19), `MBX` (Mailboxes — VOs de leitura de caixa, BLP.MBX01–04), `EXT` (Extraction — VOs da cascata, BLP.EXT01–08), `EXP` (BillExpectation, BLP.EXP00–14), `NTF` (TenantNotificationSettings, BLP.NTF00–03), `CMS` (CapturedMessage, BLP.CMS01–12), `CRP` (CaptureRetentionPolicy, BLP.CRP01–02), `PMO` (PaymentOrder, BLP.PMO01–23 — codificada na fase 3, 2026-09-02; o 18 é o sinal de "volte para a fila" da submissão, irmão do BIL28, e o 21 é o equivalente do comprovante via outbox; catálogo completo na seção "Fase 3 — Status"). `BIL` foi até o 44: 34 é o reflexo de pagamento fora da máquina, 35 é o aceite de vencido do ADR-017, 36–39 saíram da separação aprovar×agendar (ADR-018), **40 é a recusa de "pagar hoje" fora do horário de envio (ADR-021)**, 41 é a revalidação de boleto já agendado, e 42–44 são a validação do download de documentos em lote (2026-09-14). **`RTR` (RoutingRule) foi ABANDONADA na 2.6** — a medição mostrou que a chave que ela usaria não distingue pagadores; não recrie a sigla sem reabrir aquele achado. **`BLP.CPI04` é fixado pelo doc 07** (reivindicação que contradiz o pagador extraído) — não renumere a factory. Convenções:
 
 - Aggregate Roots emitem Domain Events; Entities internas nunca.
 - **Portas de integração vão em `Domain/Ports/`** (pasta a criar na Fase 1, irmã de `SeedWork/`), não em `Domain/SeedWork/` — mesma razão (`Infra → Application` seria ciclo), mas separadas por serem contratos de mundo externo e não do modelo. Trafegam só tipos do Domain; nenhum DTO de provedor cruza a fronteira. Catálogo em [`02-domain-model.md`](BillPayment.Architecture/02-domain-model.md).

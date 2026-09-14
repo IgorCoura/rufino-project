@@ -160,4 +160,45 @@ public sealed class TaxIdScannerTests
             TaxIdScanner.Scan("Sacador / Avalista 11.222.333/0001-81 fim")).UnderPayerLabel);
     }
 
+    // TESTE DE REGRESSÃO (2026-09-14). A fatura da Vivo imprime "Código Cliente:" (o número da
+    // conta) logo antes do CNPJ da própria Telefônica. O CNPJ saía como pagador rotulado, a escada
+    // concluía "boleto de outra pessoa" e o PDF era descartado em silêncio. O texto é o que o
+    // PdfPig entrega da fatura real, com o documento trocado por um válido fictício.
+    [Fact]
+    public void Scan_WhenClienteIsTheCustomerCodeBeforeTheIssuersCnpj_ShouldNotFlagItAsPayer()
+    {
+        var found = Assert.Single(TaxIdScanner.Scan(
+            "Telefonica Brasil S.A.Nº da Conta:00001123004411Av. Engenheiro Luiz Carlos Berrini, 1.376"
+            + "Código Cliente:00000120864975I.E.: 108383949112 CNPJ Matriz: 11.222.333/0001-81JAMILDO"));
+
+        Assert.False(found.UnderPayerLabel);
+    }
+
+    // As outras formas de "número do cliente" também não são rótulo de pagador.
+    [Theory]
+    [InlineData("Cód. Cliente 123456 Rodape 11.222.333/0001-81 fim")]
+    [InlineData("Nº do Cliente: 123456 Rodape 11.222.333/0001-81 fim")]
+    [InlineData("Numero Cliente 123456 Rodape 11.222.333/0001-81 fim")]
+    public void Scan_WhenClienteIsAnIdentifierField_ShouldNotFlagItAsPayer(string text)
+    {
+        Assert.False(Assert.Single(TaxIdScanner.Scan(text)).UnderPayerLabel);
+    }
+
+    // A CONTRAPROVA: "Cliente" sozinho continua sendo rótulo de pagador, inclusive colado ao
+    // documento — sem ela, apagar o rótulo inteiro faria o teste de regressão passar à toa.
+    [Fact]
+    public void Scan_WhenClienteIsTheLabelOfTheCustomerBlock_ShouldStillFlagItAsPayer()
+    {
+        Assert.True(Assert.Single(
+            TaxIdScanner.Scan("Cliente: EMPRESA LTDA CNPJ 11.222.333/0001-81 fim")).UnderPayerLabel);
+    }
+
+    // Fatura de concessionária identifica quem cobra como emitente ou matriz, não beneficiário.
+    [Theory]
+    [InlineData("Pagador FULANO Emitente CONCESSIONARIA CNPJ 11.222.333/0001-81 fim")]
+    [InlineData("Pagador FULANO CNPJ Matriz 11.222.333/0001-81 fim")]
+    public void Scan_WhenTheNearestLabelIsTheIssuers_ShouldNotFlagItAsPayer(string text)
+    {
+        Assert.False(Assert.Single(TaxIdScanner.Scan(text)).UnderPayerLabel);
+    }
 }

@@ -101,6 +101,57 @@ public class MaskedPartyTests
         Assert.True(payer.IsCompatibleWithAny([]));
     }
 
+    // Documento inteiro e com DV válido sai com a pontuação do próprio TaxId.
+    [Theory]
+    [InlineData(CPF, "529.982.247-25")]
+    [InlineData(CNPJ, "11.222.333/0001-81")]
+    public void DisplayTaxId_WhenTheDocumentIsResolved_ShouldFormatIt(string raw, string expected)
+    {
+        var payer = MaskedParty.Of("Fulano", raw);
+
+        Assert.Equal(expected, payer.DisplayTaxId);
+    }
+
+    // A máscara é pontuada no formato do tipo que o comprimento indica, com o oculto no lugar.
+    [Theory]
+    [InlineData("***.982.247-**", "***.982.247-**")]
+    [InlineData("XXX982247XX", "***.982.247-**")]
+    [InlineData("11.222.***/0001-**", "11.222.***/0001-**")]
+    public void DisplayTaxId_WhenTheDocumentIsMasked_ShouldPunctuateTheMask(string raw, string expected)
+    {
+        var payer = MaskedParty.Of("Fulano", raw);
+
+        Assert.Equal(expected, payer.DisplayTaxId);
+    }
+
+    // Inteiro mas com DV inválido não é identidade (ADR-011) — só é exibido, pontuado igual.
+    [Fact]
+    public void DisplayTaxId_WhenFullyVisibleButCheckDigitsFail_ShouldStillPunctuate()
+    {
+        var payer = MaskedParty.Of("Fulano", "52998224700");
+
+        Assert.Null(payer.ResolvedTaxId);
+        Assert.Equal("529.982.247-00", payer.DisplayTaxId);
+    }
+
+    // Comprimento que não é de CPF nem de CNPJ sai como veio: pontuar seria adivinhar o tipo.
+    [Fact]
+    public void DisplayTaxId_WhenTheLengthMatchesNoDocumentKind_ShouldReturnTheMaskAsIs()
+    {
+        var payer = MaskedParty.Of("Fulano", "***4567**");
+
+        Assert.Equal("***4567**", payer.DisplayTaxId);
+    }
+
+    // Sem documento não há o que exibir.
+    [Fact]
+    public void DisplayTaxId_WithoutADocument_ShouldBeNull()
+    {
+        var payer = MaskedParty.Of("Fulano", maskedTaxId: null);
+
+        Assert.Null(payer.DisplayTaxId);
+    }
+
     // Conta os dígitos que o provedor deixou à mostra — é a medida de quanto a evidência vale.
     [Fact]
     public void VisibleDigitCount_ShouldCountOnlyTheDigitsLeftVisible()

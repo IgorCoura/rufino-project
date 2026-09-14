@@ -43,6 +43,8 @@ abstract final class CaptureItemMapper {
       processingAttempts: json['processingAttempts'] as int? ?? 0,
       lastError: json['lastError'] as String?,
       linkHost: json['linkHost'] as String?,
+      accountReferenceSuggestion: json['accountReferenceSuggestion'] as String?,
+      rememberedAccountReference: json['rememberedAccountReference'] as String?,
     );
   }
 
@@ -206,10 +208,18 @@ class CaptureItemApiService {
   }
 
   /// Claims an unrouted item — it becomes this tenant's bill.
-  Future<ClaimOutcome> claimItem(String id) async {
+  ///
+  /// [rememberAccountReference] is "lembrar desta conta" (ADR-026): the server
+  /// only accepts a number whose digits are in the document, and refuses the
+  /// whole claim otherwise (400 BLP.CPI18 / BLP.CPI19) — nothing is claimed.
+  Future<ClaimOutcome> claimItem(
+    String id, {
+    String? rememberAccountReference,
+  }) async {
     final response = await client.post(
       _uri('/capture-items/$id/claim'),
       headers: await _headers(write: true),
+      body: jsonEncode({'rememberAccountReference': rememberAccountReference}),
     );
     checkApiStatus(response);
     final body = jsonDecode(response.body) as Map<String, dynamic>;
