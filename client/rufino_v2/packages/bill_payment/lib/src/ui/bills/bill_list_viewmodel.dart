@@ -65,6 +65,11 @@ class BillListViewModel extends ChangeNotifier {
   // LinkedHashMap de propósito: a ordem em que a pessoa marcou é a ordem do
   // arquivo baixado (decisão de 2026-09-14).
   final LinkedHashMap<String, Bill> _selected = LinkedHashMap();
+
+  // O modo é separado do que está marcado: ligar pelo botão abre a seleção
+  // vazia, e desmarcar o último boleto não a desliga — quem desliga é o X ou o
+  // download concluído.
+  bool _selectionMode = false;
   bool _isExporting = false;
   String? _exportMessage;
 
@@ -83,8 +88,9 @@ class BillListViewModel extends ChangeNotifier {
   /// Whether there is another page to ask for.
   bool get hasMore => _nextCursor != null;
 
-  /// Whether at least one bill is selected — the list is in selection mode.
-  bool get isSelecting => _selected.isNotEmpty;
+  /// Whether the list is in selection mode — turned on by the button (or a
+  /// long press) and off by the close button or a finished download.
+  bool get isSelecting => _selectionMode;
 
   /// The selected bills, in the order they were selected.
   List<Bill> get selectedBills => List.unmodifiable(_selected.values);
@@ -101,8 +107,18 @@ class BillListViewModel extends ChangeNotifier {
   /// Whether the bill [id] is selected.
   bool isSelected(String id) => _selected.containsKey(id);
 
+  /// Turns selection mode on, with nothing selected yet.
+  void startSelection() {
+    if (_selectionMode) return;
+    _selectionMode = true;
+    notifyListeners();
+  }
+
   /// Selects [bill], or unselects it when it already was.
+  ///
+  /// Outside selection mode it turns the mode on — the long press shortcut.
   void toggleSelection(Bill bill) {
+    _selectionMode = true;
     if (_selected.remove(bill.id) == null) _selected[bill.id] = bill;
     notifyListeners();
   }
@@ -116,9 +132,10 @@ class BillListViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Leaves selection mode.
+  /// Leaves selection mode, forgetting what was selected.
   void clearSelection() {
-    if (_selected.isEmpty) return;
+    if (!_selectionMode && _selected.isEmpty) return;
+    _selectionMode = false;
     _selected.clear();
     notifyListeners();
   }
@@ -185,8 +202,9 @@ class BillListViewModel extends ChangeNotifier {
 
   /// Selects the status filter (`null` = everything) and reloads.
   ///
-  /// Trocar o filtro LIMPA a seleção: manter boletos marcados que saíram da
-  /// vista faria o download levar o que a pessoa não está vendo.
+  /// Trocar o filtro LIMPA o que estava marcado: manter boletos que saíram da
+  /// vista faria o download levar o que a pessoa não está vendo. O modo seleção
+  /// continua ligado — quem troca de filtro no meio dele quer marcar outros.
   Future<void> selectStatus(String? status) {
     _statusFilter = status;
     _selected.clear();
@@ -195,7 +213,7 @@ class BillListViewModel extends ChangeNotifier {
 
   /// Downloads the documents of the selection with [options].
   ///
-  /// Salvou → a seleção é limpa, o trabalho acabou. Desistir da caixa de
+  /// Salvou → a seleção é DESLIGADA, o trabalho acabou. Desistir da caixa de
   /// diálogo do sistema não é erro e não vira "Arquivo salvo.". Falha do
   /// servidor mantém a seleção, para tentar de novo sem remarcar tudo.
   Future<void> exportSelected(BillDocumentExportOptions options) async {
@@ -222,6 +240,7 @@ class BillListViewModel extends ChangeNotifier {
           );
           if (saved) {
             _exportMessage = 'Arquivo salvo.';
+            _selectionMode = false;
             _selected.clear();
           }
         } catch (error, stackTrace) {

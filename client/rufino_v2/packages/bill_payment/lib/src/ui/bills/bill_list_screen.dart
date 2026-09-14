@@ -16,7 +16,8 @@ import 'bill_list_viewmodel.dart';
 /// "aguardando aprovação".
 ///
 /// Also where several bills are selected to download their documents at once:
-/// a long press (or the checkbox on wide screens) starts the selection.
+/// the "Baixar documentos" button (or a long press on a card) turns the
+/// selection on, and a finished download turns it off.
 class BillListScreen extends StatefulWidget {
   /// Creates the screen.
   const BillListScreen({
@@ -126,26 +127,17 @@ class _BillListScreenState extends State<BillListScreen> {
           },
           child: Scaffold(
             appBar: selecting
-                ? _SelectionAppBar(
-                    viewModel: viewModel,
-                    onExport: _export,
-                  )
+                ? _SelectionAppBar(viewModel: viewModel)
                 : AppBar(
                     title: const Text('Boletos'),
                     leading:
                         BillPaymentBackButton(fallback: widget.backFallback),
                   ),
-            floatingActionButton: selecting
-                ? null
-                : BillPaymentPermissionGuard(
-                    resource: BillPaymentResources.bill,
-                    scope: BillPaymentScopes.import,
-                    child: FloatingActionButton.extended(
-                      onPressed: widget.onImportBill,
-                      icon: const Icon(Symbols.upload_file),
-                      label: const Text('Importar'),
-                    ),
-                  ),
+            floatingActionButton: _FloatingActions(
+              viewModel: viewModel,
+              onImportBill: widget.onImportBill,
+              onExport: _export,
+            ),
             body: SafeArea(
               child: Center(
                 child: ConstrainedBox(
@@ -199,12 +191,74 @@ class _BillListScreenState extends State<BillListScreen> {
   }
 }
 
-/// A barra do modo seleção: quantos, marcar os carregados e baixar.
-class _SelectionAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _SelectionAppBar({required this.viewModel, required this.onExport});
+/// Os botões flutuantes: fora da seleção, "Baixar documentos" (liga a
+/// seleção) acima do "Importar"; dentro dela, só "Baixar (N)", que abre a
+/// folha de opções.
+class _FloatingActions extends StatelessWidget {
+  const _FloatingActions({
+    required this.viewModel,
+    required this.onImportBill,
+    required this.onExport,
+  });
 
   final BillListViewModel viewModel;
+  final VoidCallback onImportBill;
   final VoidCallback onExport;
+
+  @override
+  Widget build(BuildContext context) {
+    // Dois FloatingActionButton na mesma rota precisam de heroTag distinto,
+    // senão a transição de página lança por tag duplicada.
+    if (viewModel.isSelecting) {
+      final count = viewModel.selectedBills.length;
+      final enabled = count > 0 && !viewModel.isExporting;
+
+      return FloatingActionButton.extended(
+        heroTag: 'bills-export',
+        onPressed: enabled ? onExport : null,
+        backgroundColor:
+            enabled ? null : Theme.of(context).colorScheme.surfaceContainerHighest,
+        icon: const Icon(Symbols.download),
+        label: Text(count == 0 ? 'Baixar' : 'Baixar ($count)'),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (viewModel.canExport)
+          FloatingActionButton.extended(
+            heroTag: 'bills-start-selection',
+            onPressed: viewModel.startSelection,
+            icon: const Icon(Symbols.download),
+            label: const Text('Baixar documentos'),
+          ),
+        BillPaymentPermissionGuard(
+          resource: BillPaymentResources.bill,
+          scope: BillPaymentScopes.import,
+          child: Padding(
+            padding: EdgeInsets.only(
+              top: viewModel.canExport ? AppSpacing.sm : 0,
+            ),
+            child: FloatingActionButton.extended(
+              heroTag: 'bills-import',
+              onPressed: onImportBill,
+              icon: const Icon(Symbols.upload_file),
+              label: const Text('Importar'),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A barra do modo seleção: quantos, marcar os carregados e sair.
+class _SelectionAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _SelectionAppBar({required this.viewModel});
+
+  final BillListViewModel viewModel;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -219,7 +273,11 @@ class _SelectionAppBar extends StatelessWidget implements PreferredSizeWidget {
         tooltip: 'Sair da seleção',
         onPressed: viewModel.clearSelection,
       ),
-      title: Text(count == 1 ? '1 selecionado' : '$count selecionados'),
+      title: Text(switch (count) {
+        0 => 'Selecione os boletos',
+        1 => '1 selecionado',
+        _ => '$count selecionados',
+      }),
       actions: [
         IconButton(
           icon: const Icon(Symbols.select_all),
@@ -228,12 +286,6 @@ class _SelectionAppBar extends StatelessWidget implements PreferredSizeWidget {
           tooltip: 'Selecionar todos os carregados',
           onPressed: viewModel.selectAllLoaded,
         ),
-        if (viewModel.canExport)
-          IconButton(
-            icon: const Icon(Symbols.download),
-            tooltip: 'Baixar documentos',
-            onPressed: viewModel.isExporting ? null : onExport,
-          ),
       ],
     );
   }
@@ -274,18 +326,19 @@ class _Results extends StatelessWidget {
         );
       case BillListStatus.loaded:
       case BillListStatus.loadingMore:
-        // Em tela larga a caixa de seleção fica sempre à vista; no celular ela
-        // só aparece depois do toque longo, para não roubar espaço da linha.
-        final wide = MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet;
+        // A caixa de seleção só aparece com a seleção ligada — pelo botão
+        // "Baixar documentos" ou pelo toque longo.
         final selecting = viewModel.isSelecting;
 
         return ListView.builder(
           controller: scrollController,
-          padding: const EdgeInsets.fromLTRB(
+          // Folga no fim para a última linha não ficar embaixo dos botões
+          // flutuantes — dois fora da seleção, um dentro dela.
+          padding: EdgeInsets.fromLTRB(
             AppSpacing.md,
             0,
             AppSpacing.md,
-            AppSpacing.md + 72,
+            AppSpacing.md + (selecting || !viewModel.canExport ? 72 : 136),
           ),
           itemCount: viewModel.items.length + (viewModel.hasMore ? 1 : 0),
           itemBuilder: (context, index) {
@@ -299,7 +352,7 @@ class _Results extends StatelessWidget {
             return _BillCard(
               bill: bill,
               selected: viewModel.isSelected(bill.id),
-              showCheckbox: wide || selecting,
+              showCheckbox: selecting,
               selecting: selecting,
               onToggle: () => viewModel.toggleSelection(bill),
               onOpen: () => onOpenBill(bill.id),

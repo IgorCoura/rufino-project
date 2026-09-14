@@ -68,8 +68,9 @@ void main() {
       expect(vm.selectedBills.map((b) => b.id), ['b3', 'b1']);
     });
 
-    // Marcar de novo desmarca, e sem nada marcado a lista sai da seleção.
-    test('toggling a selected bill unselects it', () async {
+    // Marcar de novo desmarca — e desmarcar o último NÃO desliga a seleção:
+    // quem desliga é o X ou o download concluído.
+    test('unselecting the last bill keeps selection mode on', () async {
       final vm = viewModel();
       await vm.load();
 
@@ -77,7 +78,25 @@ void main() {
         ..toggleSelection(vm.items[0])
         ..toggleSelection(vm.items[0]);
 
+      expect(vm.selectedBills, isEmpty);
+      expect(vm.isSelecting, isTrue);
+    });
+
+    // O botão liga a seleção vazia; o X a desliga e esquece o que foi marcado.
+    test('the button turns selection on and the close turns it off', () async {
+      final vm = viewModel();
+      await vm.load();
+
+      vm.startSelection();
+      expect(vm.isSelecting, isTrue);
+      expect(vm.selectedBills, isEmpty);
+
+      vm
+        ..toggleSelection(vm.items[0])
+        ..clearSelection();
+
       expect(vm.isSelecting, isFalse);
+      expect(vm.selectedBills, isEmpty);
     });
 
     // "Selecionar todos" preserva quem já estava marcado na frente e acrescenta
@@ -93,23 +112,24 @@ void main() {
       expect(vm.selectedBills.map((b) => b.id), ['b2', 'b1', 'b3']);
     });
 
-    // Trocar o filtro limpa a seleção: baixar o que saiu da vista seria
-    // surpresa.
-    test('changing the filter clears the selection', () async {
+    // Trocar o filtro limpa o que estava marcado (baixar o que saiu da vista
+    // seria surpresa), mas mantém a seleção ligada para marcar outros.
+    test('changing the filter clears the picks and keeps the mode', () async {
       final vm = viewModel();
       await vm.load();
       vm.toggleSelection(vm.items[0]);
 
       await vm.selectStatus(BillStatuses.paid);
 
-      expect(vm.isSelecting, isFalse);
+      expect(vm.selectedBills, isEmpty);
+      expect(vm.isSelecting, isTrue);
     });
   });
 
   group('export', () {
     // O pedido leva os ids na ordem da seleção e as três escolhas; salvou,
-    // avisa e sai da seleção.
-    test('sends the selection and clears it once the file is saved', () async {
+    // avisa e DESLIGA a seleção.
+    test('sends the selection and turns it off once the file is saved', () async {
       final vm = viewModel();
       await vm.load();
       vm
@@ -140,6 +160,7 @@ void main() {
 
       expect(vm.exportMessage, isNull);
       expect(vm.isSelecting, isTrue);
+      expect(vm.selectedBills, hasLength(1));
     });
 
     // Recusa do servidor mostra a mensagem da regra e mantém a seleção.
@@ -219,20 +240,35 @@ void main() {
       expect(repository.calls.where((c) => c.startsWith('open:')), isEmpty);
     });
 
-    // Em tela larga a caixa de seleção fica à vista desde o começo.
-    testWidgets('wide screens show the checkbox from the start', (tester) async {
+    // Regra do usuário (2026-09-14): a seleção NÃO fica sempre ligada, nem em
+    // tela larga — as caixas só aparecem depois do botão "Baixar documentos".
+    testWidgets('checkboxes stay hidden until the button turns selection on',
+        (tester) async {
       await pumpList(tester, width: 1000);
 
+      expect(find.byType(Checkbox), findsNothing);
+
+      await tester.tap(find.text('Baixar documentos'));
+      await tester.pumpAndSettle();
+
       expect(find.byType(Checkbox), findsNWidgets(3));
+      expect(find.text('Selecione os boletos'), findsOneWidget);
+      // Com nada marcado, o botão de baixar existe mas não faz nada.
+      final baixar = tester.widget<FloatingActionButton>(
+        find.widgetWithText(FloatingActionButton, 'Baixar'),
+      );
+      expect(baixar.onPressed, isNull);
     });
 
-    // A folha manda as escolhas feitas, e o arquivo é salvo.
+    // A folha manda as escolhas feitas, o arquivo é salvo e a seleção desliga.
     testWidgets('the sheet sends the chosen options', (tester) async {
       await pumpList(tester);
 
-      await tester.longPress(find.textContaining('300,00'));
+      await tester.tap(find.text('Baixar documentos'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Baixar documentos'));
+      await tester.tap(find.textContaining('300,00'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Baixar (1)'));
       await tester.pumpAndSettle();
 
       expect(find.text('Baixar documentos de 1 boleto'), findsOneWidget);
@@ -253,6 +289,8 @@ void main() {
       expect(repository.lastExport?.packaging, BillDocumentPackagings.pdfPerBill);
       expect(saved, hasLength(1));
       expect(find.text('Arquivo salvo.'), findsOneWidget);
+      expect(find.text('Boletos'), findsOneWidget);
+      expect(find.byType(Checkbox), findsNothing);
     });
 
     // Cancelar a folha não baixa nada e mantém a seleção.
@@ -261,7 +299,7 @@ void main() {
 
       await tester.longPress(find.textContaining('100,00'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Baixar documentos'));
+      await tester.tap(find.text('Baixar (1)'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Cancelar'));
       await tester.pumpAndSettle();

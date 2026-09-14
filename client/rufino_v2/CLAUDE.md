@@ -1133,7 +1133,7 @@ refresh de token e limpa no logout — junto com as outras duas.
 | Rota | Tela | Guard (recurso/escopo) |
 |---|---|---|
 | `/bill-payment/pending` | Painel diário: fila de aprovação + 3 listas de pendências + nudge de onboarding | `expectation`/`view` |
-| `/bill-payment/bills` | Fila de boletos, filtro `?status=` **no servidor**, abre em Aguardando aprovação; filtros Agendados/Pagos/Falhou e a linha "pagar em" quando há data efetiva; **seleção de vários boletos para baixar os documentos** (toque longo, ou caixa de seleção em tela larga) | `bill`/`view` |
+| `/bill-payment/bills` | Fila de boletos, filtro `?status=` **no servidor**, abre em Aguardando aprovação; filtros Agendados/Pagos/Falhou e a linha "pagar em" quando há data efetiva; **seleção de vários boletos para baixar os documentos** (ligada pelo botão flutuante "Baixar documentos" ou toque longo; desliga no X ou ao salvar) | `bill`/`view` |
 | `/bill-payment/bills/import` | Importação manual: linha digitável, código Pix e/ou **anexo do boleto** (PDF/imagem) — um dos três basta | `bill`/`import` |
 | `/bill-payment/bills/:id` | Aprovação: banner de risco (Seguro/Atenção/Perigo), 14 verificações, consulta oficial por inteiro, resumo com competência/descrição da IA + revalidar/negar/cancelar/aprovar (Perigo exige a caixa "assumo o risco"); pós-aprovação, a seção **Execução do pagamento** (fase 3) com status/retenção/datas da ordem, cancelar agendamento, confirmar pagamento imediato e reabrir boleto falhado | `bill`/`view` (cancelar ordem: `bill`/`cancel`; confirmar/reabrir: `bill`/`approve`) |
 | `/bill-payment/bills/:id/artifact` | O documento original do boleto, em tela cheia, **com botão de baixar** | `bill`/`view` |
@@ -1149,18 +1149,24 @@ refresh de token e limpa no logout — junto com as outras duas.
 
 Coisas que não podem erodir:
 
-- **Download de documentos em lote (2026-09-14) mora na lista de boletos.** Toque longo inicia a
-  seleção (em tela ≥ `AppBreakpoints.tablet` a caixa fica sempre à vista); com a seleção ativa o
-  toque MARCA em vez de abrir o boleto, o botão Agendar e o FAB somem, e voltar sai da seleção em vez
-  da tela (`PopScope`). A barra troca para "N selecionados" com **Selecionar todos os carregados** —
-  a lista é paginada, e o tooltip diz isso em vez de prometer o que não vai acontecer — e **Baixar
-  documentos**, que abre `showBillExportSheet` com as três escolhas (documento inteiro / só a primeira
-  página; anexar comprovantes; PDF único / um PDF por boleto, que baixa `.zip`). Quem monta o arquivo
-  é o servidor (`POST /bills/documents/export`): o PDF cifrado só abre lá, e a senha não sai.
-  Regras que os testes de `bill_document_export_test.dart` fixam: **a ordem do arquivo é a ordem em
-  que os boletos foram marcados** (`LinkedHashMap` no ViewModel — não troque por `Set` sem ordem),
-  **trocar o filtro limpa a seleção**, salvar limpa a seleção, e desistir do "salvar como" ou falha
-  do servidor MANTÊM a seleção para tentar de novo. A folha avisa quantos boletos não têm documento:
+- **Download de documentos em lote (2026-09-14) mora na lista de boletos.** A seleção é um MODO,
+  ligado e desligado explicitamente — decisão do usuário, depois de a primeira versão deixar a caixa
+  de seleção sempre à vista em tela larga. **Liga** pelo botão flutuante **"Baixar documentos"**
+  (acima do Importar) ou pelo toque longo num card, que já o marca; **desliga** pelo X da barra, pelo
+  voltar (`PopScope`) ou quando o arquivo é salvo. O modo é separado do que está marcado
+  (`BillListViewModel.startSelection` / `isSelecting`): desmarcar o último boleto NÃO desliga. Com o
+  modo ligado as caixas aparecem, o toque MARCA em vez de abrir o boleto, o Agendar e o Importar
+  somem, a barra mostra "Selecione os boletos" / "N selecionados" com **Selecionar todos os
+  carregados** (a lista é paginada, e o tooltip diz isso), e o botão flutuante vira **"Baixar (N)"** —
+  desabilitado com nada marcado —, que abre `showBillExportSheet` com as três escolhas (documento
+  inteiro / só a primeira página; anexar comprovantes; PDF único / um PDF por boleto, que baixa
+  `.zip`). Os dois botões flutuantes têm `heroTag` próprio: dois FAB na mesma rota com a tag padrão
+  lançam na transição de página. Quem monta o arquivo é o servidor (`POST /bills/documents/export`):
+  o PDF cifrado só abre lá, e a senha não sai. Regras que os testes de
+  `bill_document_export_test.dart` fixam: **a ordem do arquivo é a ordem em que os boletos foram
+  marcados** (`LinkedHashMap` no ViewModel — não troque por `Set` sem ordem), **trocar o filtro limpa
+  o que estava marcado e mantém o modo**, salvar DESLIGA a seleção, e desistir do "salvar como" ou
+  falha do servidor MANTÊM a seleção para tentar de novo. A folha avisa quantos boletos não têm documento:
   para eles o servidor põe uma página de aviso com a origem **e o código de pagamento** — exceção
   deliberada, decidida pelo usuário, à regra de que a API não devolve os dígitos (ela continua valendo
   para todo o resto da tela). O salvador é o mesmo `DocumentSaver` dos visualizadores, agora passado
