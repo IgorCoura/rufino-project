@@ -14,7 +14,7 @@ using UglyToad.PdfPig.Writer;
 /// </summary>
 public sealed class PdfComposerTests
 {
-    private static readonly IPdfComposer Composer = new PdfComposer(NullLogger<PdfComposer>.Instance);
+    private static readonly PdfComposer Composer = new(NullLogger<PdfComposer>.Instance);
 
     // Documentos entram na ordem em que foram acrescentados, com todas as páginas.
     [Fact]
@@ -59,6 +59,88 @@ public sealed class PdfComposerTests
         using var document = PdfDocument.Open(composition.Build());
         Assert.Equal(1, document.NumberOfPages);
         Assert.Single(document.GetPage(1).GetImages());
+    }
+
+    // Teste de regressão (2026-09-14): a foto do celular entrava no PDF na resolução original, e
+    // um boleto fotografado virava dezenas de MB. Agora ela cabe na folha A4 a 200 DPI, em JPEG.
+    [Theory]
+    [InlineData(SKEncodedImageFormat.Png)]
+    [InlineData(SKEncodedImageFormat.Jpeg)]
+    public void TryAppend_WithAPhoneSizedPhoto_ShouldFitItOnAnA4SheetAtPrintResolution(SKEncodedImageFormat format)
+    {
+        var photo = NoisyPhoto(3000, 2250, format);
+        using var composition = Composer.Begin();
+
+        Assert.True(composition.TryAppend(photo, "application/octet-stream"));
+
+        var pdf = composition.Build();
+        using var document = PdfDocument.Open(pdf);
+        var image = Assert.Single(document.GetPage(1).GetImages());
+
+        // A4 deitada, área útil de 746 × 499 pt: a 200 DPI isso são no máximo 2072 × 1386 px.
+        Assert.True(image.WidthInSamples <= 2072, $"largura {image.WidthInSamples}");
+        Assert.True(image.HeightInSamples <= 1386, $"altura {image.HeightInSamples}");
+        Assert.True(pdf.Length < photo.Length / 2 || pdf.Length < 1_000_000, $"PDF com {pdf.Length} bytes");
+    }
+
+    // Foto deitada vai em A4 deitada; em pé, em A4 em pé — a folha acompanha a imagem.
+    [Theory]
+    [InlineData(1600, 900, 842, 595)]
+    [InlineData(900, 1600, 595, 842)]
+    public void TryAppend_WithAnImage_ShouldOrientTheSheetLikeTheImage(
+        int pixelWidth, int pixelHeight, double pageWidth, double pageHeight)
+    {
+        using var composition = Composer.Begin();
+
+        composition.TryAppend(SolidImage(pixelWidth, pixelHeight, SKEncodedImageFormat.Jpeg), "image/jpeg");
+
+        using var document = PdfDocument.Open(composition.Build());
+        var page = document.GetPage(1);
+        Assert.Equal(pageWidth, page.Width, precision: 0);
+        Assert.Equal(pageHeight, page.Height, precision: 0);
+    }
+
+    // O celular grava os pixels deitados e diz no EXIF que a foto é em pé: sem aplicar a
+    // rotação, o boleto sairia de lado no PDF.
+    [Fact]
+    public void TryAppend_WithAnExifRotatedPhoto_ShouldApplyTheRotation()
+    {
+        var sensorLandscape = WithExifOrientation(SolidImage(1600, 900, SKEncodedImageFormat.Jpeg), orientation: 6);
+        using var composition = Composer.Begin();
+
+        composition.TryAppend(sensorLandscape, "image/jpeg");
+
+        using var document = PdfDocument.Open(composition.Build());
+        var page = document.GetPage(1);
+        var image = Assert.Single(page.GetImages());
+        Assert.True(page.Height > page.Width);
+        Assert.True(image.HeightInSamples > image.WidthInSamples);
+    }
+
+    // Imagem pequena não é ampliada: ampliar só incharia o arquivo sem ganhar nitidez.
+    [Fact]
+    public void Fit_WithASmallImage_ShouldKeepItsSize()
+    {
+        var fitted = A4Image.Fit(SolidImage(120, 80, SKEncodedImageFormat.Png));
+
+        Assert.NotNull(fitted);
+        Assert.Equal(120, fitted!.PixelWidth);
+        Assert.Equal(80, fitted.PixelHeight);
+    }
+
+    // PNG transparente vai para JPEG sobre fundo branco, não preto.
+    [Fact]
+    public void Fit_WithATransparentPng_ShouldPaintAWhiteBackground()
+    {
+        using var bitmap = new SKBitmap(new SKImageInfo(50, 50, SKColorType.Rgba8888, SKAlphaType.Premul));
+        bitmap.Erase(SKColors.Transparent);
+        using var png = SKImage.FromBitmap(bitmap).Encode(SKEncodedImageFormat.Png, 100);
+
+        var fitted = A4Image.Fit(png.ToArray());
+
+        using var decoded = SKBitmap.Decode(fitted!.Jpeg);
+        var pixel = decoded.GetPixel(25, 25);
+        Assert.True(pixel.Red > 240 && pixel.Green > 240 && pixel.Blue > 240, pixel.ToString());
     }
 
     // Documento que não abre devolve false e não deixa página nenhuma para trás — quem chama
@@ -125,6 +207,53 @@ public sealed class PdfComposerTests
             builder.AddPage(595, 842).AddText($"{label}-{i}", 12, new PdfPoint(40, 780), font);
 
         return builder.Build();
+    }
+
+    private static byte[] SolidImage(int width, int height, SKEncodedImageFormat format)
+    {
+        using var bitmap = new SKBitmap(width, height);
+        bitmap.Erase(SKColors.DarkOliveGreen);
+        using var data = SKImage.FromBitmap(bitmap).Encode(format, 90);
+        return data.ToArray();
+    }
+
+    /// <summary>Uma "foto": gradiente com ruído, que comprime como imagem de câmera e não como cor lisa.</summary>
+    private static byte[] NoisyPhoto(int width, int height, SKEncodedImageFormat format)
+    {
+        var random = new Random(42);
+        var pixels = new SKColor[width * height];
+
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                var noise = random.Next(-16, 16);
+                pixels[(y * width) + x] = new SKColor(
+                    (byte)Math.Clamp((x * 255 / width) + noise, 0, 255),
+                    (byte)Math.Clamp((y * 255 / height) + noise, 0, 255),
+                    (byte)Math.Clamp(128 + noise, 0, 255));
+            }
+        }
+
+        using var bitmap = new SKBitmap(width, height) { Pixels = pixels };
+        using var data = SKImage.FromBitmap(bitmap).Encode(format, 92);
+        return data.ToArray();
+    }
+
+    /// <summary>Insere um segmento APP1 com EXIF de uma tag só — a orientação — logo após o SOI.</summary>
+    private static byte[] WithExifOrientation(byte[] jpeg, ushort orientation)
+    {
+        byte[] exif =
+        [
+            0xFF, 0xE1, 0x00, 0x22,
+            (byte)'E', (byte)'x', (byte)'i', (byte)'f', 0x00, 0x00,
+            (byte)'M', (byte)'M', 0x00, 0x2A, 0x00, 0x00, 0x00, 0x08,
+            0x00, 0x01,
+            0x01, 0x12, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, (byte)(orientation >> 8), (byte)orientation, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ];
+
+        return [.. jpeg[..2], .. exif, .. jpeg[2..]];
     }
 
     internal static byte[] ImageBytes(SKEncodedImageFormat format)

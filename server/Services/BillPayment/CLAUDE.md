@@ -767,11 +767,18 @@ nenhum outro endpoint** — `GET /bills`, `GET /bills/{id}/detail` e o resto con
 - **`Domain/Ports/IPdfComposer`** (+ `IPdfComposition`, `PdfNotice`, `PdfNoticeField`) — junta
   PDFs, corta páginas, põe imagem numa página e escreve o aviso. Documento que não abre devolve
   `false` em `TryAppend`, e quem chama põe o aviso: **nunca lança por documento ruim**.
-- **`Infra/Documents/PdfComposer`** (PdfPig, singleton). PNG/JPEG entram direto, WEBP é
-  reencodado como PNG pelo SkiaSharp, dimensões conferidas pelo `SKCodec` antes de decodificar
-  (teto de 60 MP). **A fonte é a Roboto embutida no assembly** (`Documents/Fonts/`, Apache 2.0, com a
+- **`Infra/Documents/PdfComposer`** (PdfPig, singleton). **A fonte é a Roboto embutida no assembly** (`Documents/Fonts/`, Apache 2.0, com a
   licença ao lado) — as catorze fontes padrão do PdfPig **não têm `ç` nem `ã`** e lançam
   `InvalidOperationException` ao escrever português, e a imagem do contêiner não tem fonte nenhuma.
+- **`Infra/Documents/A4Image`** — 🐛 **toda imagem é normalizada para uma folha A4 antes de entrar no
+  PDF** (relatado pelo usuário no mesmo dia: boleto em foto virava PDF enorme). A foto entrava na
+  resolução do celular; medido com uma foto de 12 MP, o PNG virava **34 MB** de PDF (o PdfPig embute
+  PNG como pixels comprimidos sem perda) e o JPEG 3,7 MB. Agora: rotação do EXIF aplicada (o celular
+  grava os pixels na orientação do sensor), **A4 deitada para imagem mais larga que alta**, redução
+  para **200 DPI** da área útil (nunca amplia), fundo branco (PNG transparente viraria preto) e JPEG
+  qualidade 82 — a mesma foto dá **270 KB**. O JPEG é reduzido já na decodificação quando o formato
+  permite, com folga de 2× para a redução final ter qualidade; dimensões conferidas pelo `SKCodec`
+  antes de decodificar (teto de 60 MP).
 - **`Application/Queries/Bills/BillDocumentExportQueries`** + `BillDocumentExport.cs` (Smart Enums
   `BillDocumentPages`/`BillDocumentPackaging`, request e resultado). Lê o documento pelo
   **`UnlockedArtifactReader`** — PDF cifrado entra destravado, como no visualizador — e o comprovante
@@ -781,18 +788,24 @@ nenhum outro endpoint** — `GET /bills`, `GET /bills/{id}/detail` e o resto con
   (documentos somando mais de 200 MB). Id de outro tenant derruba o pedido inteiro com **404**, a
   mesma resposta de id inexistente.
 
-**Testes:** `Documents/PdfComposerTests` (9 — ordem das páginas, corte, as três imagens, documento
+**Testes:** `Documents/PdfComposerTests` (16 — ordem das páginas, corte, as três imagens, documento
 ilegível sem página órfã, acentuação + payload Pix quebrado em linhas, aviso que continua na página
-seguinte, composição vazia) e `Bills/BillDocumentExportTests` (17 — as quatro decisões acima,
+seguinte, composição vazia; e da normalização de imagem: o **teste de regressão** da foto de celular
+cabendo em A4 a 200 DPI em PNG e JPEG, a folha acompanhando a orientação, a rotação EXIF aplicada —
+com um JPEG que ganha o segmento APP1 à mão —, imagem pequena que não é ampliada e PNG transparente
+sobre fundo branco) e `Bills/BillDocumentExportTests` (17 — as quatro decisões acima,
 imagem, PDF cifrado, zip, PDF direto com um boleto, tenant alheio, os dois erros de seleção e opção
 desconhecida em 400).
 
-**Medido em 2026-09-14:** 1.402 unitários verdes (1 ignorado); integração **887 aprovados e 1 falha
-conhecida, não relacionada** — `PaymentOrderFlowTests.ScheduleOptions_OnABillDueInTheFuture_ShouldResolveTheFourSuggestions`
-monta o vencimento como hoje + 20 dias, que em 2026-09-14 cai num **domingo** (2026-10-04): o
-pagamento desliza para o dia útil seguinte e `AfterDueDate` sai verdadeiro. O teste depende do dia
-em que roda; aguarda decisão do usuário (não foi alterado). `dotnet build BillPayment.sln
--p:TreatWarningsAsErrors=true` limpo. Cliente: 432 testes do `bill_payment` e 692 da casca verdes,
+**Medido em 2026-09-14:** 1.402 unitários verdes (1 ignorado) e **895 de integração verdes, 0
+falhas**. `dotnet build BillPayment.sln -p:TreatWarningsAsErrors=true` limpo.
+
+🐛 **De passagem, uma intermitência consertada:**
+`PaymentOrderFlowTests.ScheduleOptions_OnABillDueInTheFuture_ShouldResolveTheFourSuggestions`
+reprovava nos dias em que hoje + 20 caía em fim de semana ou feriado — em 2026-09-14 caiu num
+domingo (2026-10-04), o pagamento "no vencimento" deslizava para segunda e a prévia dizia
+`AfterDueDate`. O `FutureDueSnapshot` passou a usar o dia útil seguinte pelo MESMO
+`BrazilianWorkingDayCalendar` do servidor, então a suíte deixou de depender do dia em que roda. Cliente: 432 testes do `bill_payment` e 692 da casca verdes,
 `flutter analyze` sem apontamentos.
 
 ## 2026-09-11 — A guia do FGTS Digital caía na reivindicação com o CNPJ do tenant impresso na página
@@ -2454,7 +2467,7 @@ BillPayment/
 │   ├── Extraction/                   #   CandidateScanner, QrCodeScanner (ZXing), PdfBoletoDocumentParser (PdfPig), EmailBodyDocumentParser, CascadingBoletoDocumentParser, HtmlText, HtmlLinkHarvester, TaxIdScanner, ExtractionOptions
 │   ├── Extraction/Links/             #   LinkResolutionOptions + LinkRecipe, SafeUrlPolicy (anti-SSRF), HttpDocumentLinkResolver, NullDocumentLinkResolver
 │   ├── DocumentIntelligence/         #   DocumentIntelligenceOptions, ExtractionBudget, PdfPageTrimmer, NullDocumentIntelligence + Gemini/
-│   ├── Documents/                    #   PdfComposer (PdfPig — exportação de documentos) + Fonts/ (Roboto embutida, Apache 2.0)
+│   ├── Documents/                    #   PdfComposer (PdfPig — exportação de documentos), A4Image (foto normalizada para A4 a 200 DPI) + Fonts/ (Roboto embutida, Apache 2.0)
 │   ├── Notifications/                #   LoggingNotificationSender + GraphNotificationSender (sendMail) + ResilientNotificationSender (encadeia e NUNCA lanca) + NotificationOptions
 │   ├── Storage/                      #   S3AttachmentStorage, StorageOptions, UnconfiguredAttachmentStorage
 │   ├── Secrets/                      #   SecretsOptions, EnvelopeSecretVault (AES-256-GCM), UnconfiguredSecretVault
