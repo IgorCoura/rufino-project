@@ -848,6 +848,29 @@ número curto fraco, texto fraco, número dentro de outro maior não casa, menos
 expectativas, expectativa sem conta, e o degrau na escada com a **contraprova de isolamento**) e
 `CaptureItems/AccountReferenceRoutingTests` (3 — barcode forte, texto fraco, e a contraprova).
 
+### O QR Pix da Vivo era TEXTO, e só código de barras saía do PDF
+
+A fatura da Vivo não embute o QR como imagem: desenha-o com a fonte `VivoQRCode`, 4.225
+caracteres `0`/`1` numa grade de 65×65 (57×57 + margem de 4), em que `1` é módulo escuro. O
+`QrCodeScanner` só lê imagens embutidas, a visão não usa candidato Pix quando o código de barras já
+resolveu, e o documento saía com um instrumento só — sem o trilho preferencial (ADR-010) e sem o
+check `PixBarcodeConsistency`.
+
+- **`Infra/Extraction/GlyphQrScanner`** lê `page.Letters`: agrupa glifos `0`/`1` por fonte e
+  tamanho, exige N fileiras de N glifos com passo constante (**geometria, nunca o nome da fonte**),
+  corta a margem branca, confere que o lado é de QR válido (21 + 4k) e decodifica com o
+  `ZXing.QrCode.Internal.Decoder` nas duas leituras (`1` escuro e `0` escuro). Só vira instrumento o
+  que passa no CRC do `PixPayload` — o mesmo funil do QR em imagem (ADR-011).
+- 🐛 **A grade sai do texto que vai para as varreduras de dígitos** (`GlyphQrScanner.Result.GridGlyphs`,
+  decodificada ou não). Pego pelo teste da grade invertida: 4.225 dígitos seguidos fizeram o
+  `CandidateScanner` fabricar **quatro códigos de barras com DV válido**. O texto da página é
+  reconstruído dos glifos restantes, que é como o PdfPig monta `page.Text`.
+
+Testes em `Extraction/PdfBoletoDocumentParserTests` (4 — o **teste de regressão** da grade que
+rende Pix + código de barras, a grade que pinta o `0`, e as duas contraprovas: QR de glifos que não é
+Pix e grade quadrada que não é QR). O PDF é sintético (QR gerado pelo `ZXing.QrCode.Internal.Encoder`
+e escrito em Courier); a fatura real não é versionada.
+
 ### "Lembrar desta conta" na reivindicação (ADR-026, D3)
 
 Sem cadastro prévio o degrau 3 não resolve nada; a reivindicação é quem ensina o número.
@@ -2356,7 +2379,7 @@ Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC t
 - **Texto e QR rodam os dois, sempre — não em cascata excludente.** Num boleto híbrido a linha digitável vem do texto e o BR Code vem da imagem, e é a presença **simultânea** dos dois trilhos que sustenta o check `PixBarcodeConsistency`, a defesa contra QR adulterado colado sobre boleto verdadeiro. Parar no primeiro degrau que resolve desligaria essa defesa em todo documento híbrido — medido: **18 dos 41** documentos do corpus são híbridos, e com cascata excludente o check teria zero dados. O `seen` compartilhado entre os dois scanners deduplica.
 - **`DigitableLine.FromBarcode` reconstrói e delega ao `Parse`, nunca monta o VO direto.** O código de barras impresso é às vezes a única fonte legível (documento digitalizado não tem camada de texto, e o que o leitor decodifica é a barra ITF). Reconstruir a linha e passar pelo `Parse` mantém DVs, banco não atribuído e rollover de vencimento provados **num lugar só** — um caminho de construção que pulasse isso seria porta dos fundos para dentro do núcleo determinístico. Em arrecadação o DV de bloco admite mais de um valor, então a linha reconstruída pode diferir da impressa em um dígito; **não afeta a deduplicação**, porque a chave natural do instrumento vem do `Barcode`, que é idêntico.
 - **Duas armadilhas do leitor de imagem de PDF, ambas silenciosas.** (1) `Decode` devolve **um** código por imagem; boleto de concessionária costuma ter dois QR — um de nota fiscal e outro de Pix —, e sem `DecodeMultiple` o da nota vence e o Pix nunca é visto. (2) `TryGetPng` **falha em `/DCTDecode`**, que é JPEG e é o formato que as concessionárias usam; os bytes brutos já são um JPEG e o SkiaSharp os lê direto. As duas falhavam **sem erro**: o documento resolvia pelo código de barras e ninguém notava que o trilho preferencial havia sumido. Juntas valeram +8 instrumentos Pix e quase o dobro de documentos híbridos no corpus.
-- **O leitor de QR lê as imagens embutidas, não rasteriza a página.** Boleto imprime o QR como imagem embutida, e extraí-la custa uma fração de renderizar a página — que exigiria motor de rasterização e binário nativo a mais no contêiner. QR desenhado como vetor cai para o extrator de visão, e a métrica da cascata mostra isso.
+- **O leitor de QR lê as imagens embutidas, não rasteriza a página.** Boleto imprime o QR como imagem embutida, e extraí-la custa uma fração de renderizar a página — que exigiria motor de rasterização e binário nativo a mais no contêiner. QR desenhado como vetor cai para o extrator de visão, e a métrica da cascata mostra isso. **Exceção desde 2026-09-14: QR desenhado como TEXTO** — grade de glifos `0`/`1` numa fonte de quadradinhos, como a fatura da Vivo — é lido pelo `GlyphQrScanner` (ver a seção de 2026-09-14 (2)).
 - **O scanner gera e valida; não reconhece.** Não existe regex confiável para linha digitável — ela aparece com pontos, espaços, quebrada, ou colada em outro número. `CandidateScanner` produz todas as janelas de 47 e 48 dígitos e deixa `DigitableLine.Parse` reprovar: **construir a instância é a prova dos DVs**. `DomainException` ali é fluxo normal (milhares de janelas são lixo) — é o **único** lugar do BC onde engoli-la é correto.
 - **Quebra de linha encerra a sequência de dígitos, de propósito.** Emendar dígitos de linhas diferentes produziria números que não existem no documento, e um deles poderia passar nos quatro DVs por acaso — o falso positivo já observado no corpus (`banco=000`, R$ 4.411.000,00). Verificado na medição de 2026-08-11 que essa regra **não** causa falso negativo: os documentos não resolvidos não têm a linha no texto, em forma nenhuma.
 - **Uma senha por tentativa de abertura, mesmo sendo mais lento.** O PdfPig aceita uma lista de candidatas de uma vez, mas não diz **qual** abriu — e sem isso não há evidência para o `UnlockedBy`, que o ADR-009 exige. O teto de candidatas (`ExtractionOptions.MaxPasswordCandidates`, default 40) é o que impede um PDF hostil de virar laço caro.
