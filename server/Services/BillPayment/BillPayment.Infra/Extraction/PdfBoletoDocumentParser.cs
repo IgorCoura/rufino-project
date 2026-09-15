@@ -248,13 +248,24 @@ internal sealed class PdfBoletoDocumentParser(
             if (++pages > _options.MaxPages)
                 break;
 
-            // Quebra de linha entre páginas: sem ela, o fim de uma página emendaria no começo da
-            // outra e produziria dígitos que não existem no documento.
-            text.Append(page.Text).Append('\n');
-
             var fromImages = QrCodeScanner.Scan(page.GetImages(), seen, reference, logger, cancellationToken);
             qrCount += fromImages.Count;
             instruments.AddRange(fromImages);
+
+            // O QR também pode ser TEXTO — uma grade de glifos 0/1 numa fonte de quadradinhos, como
+            // a fatura da Vivo faz. Sem esta leitura o Pix dela sumia em silêncio (2026-09-14).
+            var fromGlyphs = GlyphQrScanner.Scan(page.Letters, seen, logger, cancellationToken);
+            qrCount += fromGlyphs.Instruments.Count;
+            instruments.AddRange(fromGlyphs.Instruments);
+
+            // Quebra de linha entre páginas: sem ela, o fim de uma página emendaria no começo da
+            // outra e produziria dígitos que não existem no documento. E a grade de glifos fica FORA
+            // do texto: são milhares de dígitos seguidos, de onde a varredura de linha digitável
+            // fabrica códigos de barras com DV válido por acaso.
+            text.Append(fromGlyphs.GridGlyphs.Count == 0
+                    ? page.Text
+                    : string.Concat(page.Letters.Where(l => !fromGlyphs.GridGlyphs.Contains(l)).Select(l => l.Value)))
+                .Append('\n');
         }
 
         var body = text.ToString();

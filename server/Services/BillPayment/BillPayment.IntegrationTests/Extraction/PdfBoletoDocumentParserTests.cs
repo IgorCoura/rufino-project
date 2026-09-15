@@ -3,6 +3,7 @@
 using System.Text;
 using BillPayment.Domain.CaptureItems;
 using BillPayment.Domain.Extraction;
+using BillPayment.Domain.Instruments;
 using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.Services;
 using BillPayment.Domain.SharedKernel;
@@ -226,5 +227,122 @@ public sealed class PdfBoletoDocumentParserTests
             knownTaxIds: [], Today, CancellationToken.None);
 
         Assert.True(semACandidata.IsLocked);
+    }
+
+    /// <summary>BR Code dinâmico com CRC válido, o mesmo formato que concessionária emite.</summary>
+    private const string DynamicPix =
+        "00020101021226770014BR.GOV.BCB.PIX2555api.itau/pix/qr/v2/fe80130d-c5ef-407b-94a5-f6b2005020095"
+        + "204000053039865802BR5906SABESP6009SAO PAULO62070503***6304A76E";
+
+    // TESTE DE REGRESSÃO (2026-09-14, fatura da Vivo). O QR Pix vinha desenhado como TEXTO — uma
+    // grade de caracteres 0/1 numa fonte de quadradinhos — e não como imagem. O leitor de QR só
+    // olhava imagens, então o documento resolvia só pelo código de barras e o trilho Pix sumia em
+    // silêncio. Agora a grade é lida e o documento sai com os dois instrumentos.
+    [Fact]
+    public async Task Parse_WhenTheQrIsDrawnAsAGridOfGlyphs_ShouldReadThePixToo()
+    {
+        var pdf = PdfWithGlyphQr(DynamicPix, darkGlyph: '1', BankSlip);
+
+        var result = await Build().ParseAsync(pdf, "application/pdf", [], knownTaxIds: [], Today, CancellationToken.None);
+
+        Assert.Contains(result.Instruments, i => i.Kind == PaymentInstrumentKind.PixQr);
+        Assert.Contains(result.Instruments, i => i.Kind == PaymentInstrumentKind.Barcode);
+    }
+
+    // A fonte decide qual caractere pinta o módulo: o emissor que pinta o 0 também é lido.
+    [Fact]
+    public async Task Parse_WhenTheGlyphGridPaintsTheZero_ShouldStillReadThePix()
+    {
+        var pdf = PdfWithGlyphQr(DynamicPix, darkGlyph: '0');
+
+        var result = await Build().ParseAsync(pdf, "application/pdf", [], knownTaxIds: [], Today, CancellationToken.None);
+
+        Assert.Same(PaymentInstrumentKind.PixQr, Assert.Single(result.Instruments).Kind);
+        Assert.Same(ExtractionMethod.QrCode, result.Method);
+    }
+
+    // A CONTRAPROVA do funil: QR de glifos que não é Pix (um endereço) não vira instrumento — o CRC
+    // do BR Code continua sendo quem decide, como no QR em imagem (ADR-011).
+    [Fact]
+    public async Task Parse_WhenTheGlyphQrIsNotAPixPayload_ShouldNotProduceAnInstrument()
+    {
+        var pdf = PdfWithGlyphQr("https://www.vivo.com.br/fatura", darkGlyph: '1');
+
+        var result = await Build().ParseAsync(pdf, "application/pdf", [], knownTaxIds: [], Today, CancellationToken.None);
+
+        Assert.False(result.Resolved);
+    }
+
+    // A CONTRAPROVA da detecção: uma grade quadrada de 0/1 que não é QR não produz nada — sem ela,
+    // um leitor que devolvesse lixo passaria nos testes acima.
+    [Fact]
+    public async Task Parse_WhenASquareGridOfDigitsIsNotAQr_ShouldNotProduceAnInstrument()
+    {
+        var random = new Random(42);
+        var rows = Enumerable.Range(0, 29)
+            .Select(_ => new string(Enumerable.Range(0, 29).Select(_ => random.Next(2) == 0 ? '0' : '1').ToArray()))
+            .ToArray();
+
+        var result = await Build().ParseAsync(PdfWithGrid(rows), "application/pdf", [], knownTaxIds: [], Today, CancellationToken.None);
+
+        Assert.False(result.Resolved);
+    }
+
+    /// <summary>
+    /// Um PDF com o QR escrito como a Vivo escreve: uma linha de texto por fileira de módulos, com a
+    /// margem branca de 4 módulos, e as linhas extras (se houver) acima da grade.
+    /// </summary>
+    private static byte[] PdfWithGlyphQr(string content, char darkGlyph, params string[] textLines)
+    {
+        var qr = ZXing.QrCode.Internal.Encoder.encode(content, ZXing.QrCode.Internal.ErrorCorrectionLevel.M);
+        var matrix = qr.Matrix;
+        const int quiet = 4;
+        var side = matrix.Width + (2 * quiet);
+        var lightGlyph = darkGlyph == '1' ? '0' : '1';
+
+        var rows = new string[side];
+        for (var y = 0; y < side; y++)
+        {
+            var row = new char[side];
+            for (var x = 0; x < side; x++)
+            {
+                var mx = x - quiet;
+                var my = y - quiet;
+                var dark = mx >= 0 && my >= 0 && mx < matrix.Width && my < matrix.Height && matrix[mx, my] == 1;
+                row[x] = dark ? darkGlyph : lightGlyph;
+            }
+
+            rows[y] = new string(row);
+        }
+
+        return PdfWithGrid(rows, textLines);
+    }
+
+    private static byte[] PdfWithGrid(string[] rows, params string[] textLines)
+    {
+        var builder = new PdfDocumentBuilder();
+        var page = builder.AddPage(595, 842);
+        var text = builder.AddStandard14Font(Standard14Font.Helvetica);
+        var grid = builder.AddStandard14Font(Standard14Font.Courier);
+
+        var y = 800.0;
+        foreach (var line in textLines)
+        {
+            page.AddText(line, 10, new UglyToad.PdfPig.Core.PdfPoint(30, y), text);
+            y -= 20;
+        }
+
+        // Courier é monoespaçada: cada caractere cai numa coluna de largura fixa, e as fileiras
+        // descem pelo mesmo passo — a grade que a fonte de quadradinhos produz.
+        const double size = 4;
+        const double step = size * 0.6;
+        y -= 20;
+        foreach (var row in rows)
+        {
+            page.AddText(row, size, new UglyToad.PdfPig.Core.PdfPoint(30, y), grid);
+            y -= step;
+        }
+
+        return builder.Build();
     }
 }
