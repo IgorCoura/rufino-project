@@ -67,6 +67,15 @@ public sealed class ExpectationCycle : Entity<ExpectationCycleId>
         UpdatedAt = occurredAt;
     }
 
+    internal void TransferFulfillment(BillId fromBill, BillId toBill, DateTime occurredAt)
+    {
+        if (Status != CycleStatus.Fulfilled || FulfilledByBillId != fromBill)
+            throw BillExpectationErrors.FulfillmentTransferNotAllowed(Id.Value);
+
+        FulfilledByBillId = toBill;
+        UpdatedAt = occurredAt;
+    }
+
     internal void Fulfill(BillId billId, DateTime occurredAt)
     {
         EnsureOpen();

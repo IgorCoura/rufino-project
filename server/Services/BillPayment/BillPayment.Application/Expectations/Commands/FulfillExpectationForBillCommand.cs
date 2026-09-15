@@ -73,16 +73,33 @@ public sealed class FulfillExpectationForBillCommandHandler(
 
         // O ciclo que ESTE boleto já cumpriu volta a casar, e é o que torna a reentrega do
         // outbox inofensiva sem um curto-circuito por competência à parte: a mesma regra serve
-        // aqui e na verificação 14, que é o ponto de os dois chamarem o mesmo serviço.
+        // aqui e na verificação 14, que é o ponto de os dois chamarem o mesmo serviço. O ciclo que
+        // o boleto SUBSTITUÍDO cumpriu também casa — recaptura cancela e recria (2026-09-15).
+        var replaced = await bills.ListReplacedAsync(tenantId, bill.DedupKey, bill.Id, cancellationToken);
+
         var match = ExpectationMatchingService.Match(
-            candidates, dueDate, today, alreadyFulfilledBy: bill.Id);
+            candidates, dueDate, today, alreadyFulfilledBy: bill.Id, replaced);
 
         if (match is not null)
         {
             var matched = candidates.First(e => e.Id == match.ExpectationId);
 
-            if (matched.CycleFor(competence)?.Status == CycleStatus.Fulfilled)
+            // Pelo id, e não pela competência: o casamento pode ter vindo pela janela da virada do
+            // mês, e aí o ciclo casado não é o da competência do vencimento.
+            var cycle = matched.Cycles.First(c => c.Id == match.CycleId);
+
+            if (cycle.Status == CycleStatus.Fulfilled)
+            {
+                // Cumprido pelo boleto que este substitui: o cumprimento passa para cá, sem
+                // reaprender o calendário — a conta chegou uma vez só.
+                if (cycle.FulfilledByBillId is { } previous && previous != bill.Id)
+                {
+                    matched.TransferFulfillment(cycle.Id, previous, bill.Id, now);
+                    await unitOfWork.SaveEntitiesAsync(cancellationToken);
+                }
+
                 return new FulfillExpectationForBillResponse(request.BillId, match.ExpectationId.Value, match.CycleId.Value);
+            }
 
             matched.Fulfill(match.CycleId, bill.Id, dueDate, arrivedOn, arrivedThrough, now);
             await unitOfWork.SaveEntitiesAsync(cancellationToken);

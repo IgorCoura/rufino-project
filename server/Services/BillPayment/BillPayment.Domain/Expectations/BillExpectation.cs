@@ -531,6 +531,34 @@ public sealed class BillExpectation : AggregateRoot<BillExpectationId>
     }
 
     /// <summary>
+    /// O ciclo cumprido por um boleto passa a ser cumprido pelo boleto que o substituiu.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>É o mesmo compromisso capturado de novo</strong> — a recaptura cancela o boleto antigo
+    /// e cria outro com o mesmo código de barras. Sem isto o ciclo ficava preso ao boleto cancelado,
+    /// e o novo nunca cumpria nada (2026-09-15).
+    /// </para>
+    /// <para>
+    /// <strong>Não é <see cref="Fulfill"/>, e não reaprende o calendário</strong>: a conta chegou uma
+    /// vez só, e contá-la de novo na média móvel distorceria o dia de vencimento e o prazo observado.
+    /// Também não emite evento de cumprimento — o alerta daquele ciclo já foi resolvido.
+    /// </para>
+    /// <para>
+    /// Quem decide que um substitui o outro é quem chama (mesma chave, o antigo liberou a chave).
+    /// Aqui a guarda é só a do próprio agregado: o ciclo tem de estar cumprido pelo boleto antigo.
+    /// </para>
+    /// </remarks>
+    public void TransferFulfillment(
+        ExpectationCycleId cycleId, BillId fromBill, BillId toBill, DateTime occurredAt)
+    {
+        var cycle = RequireCycle(cycleId);
+
+        cycle.TransferFulfillment(fromBill, toBill, occurredAt);
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>
     /// Chegou algo e não deu para transformar em boleto — cumprimento parcial.
     /// </summary>
     /// <remarks>

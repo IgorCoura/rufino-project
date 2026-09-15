@@ -174,6 +174,17 @@ public static class CheckReasons
     /// <summary>O ciclo não existia e nasce na chegada — rede de segurança contra prazo curto.</summary>
     public const string EXPECTATION_CYCLE_OPENS_ON_ARRIVAL = "expectation_cycle_opens_on_arrival";
 
+    /// <summary>
+    /// O ciclo já foi cumprido por um boleto cancelado ou negado com o mesmo código de barras — este
+    /// boleto o substitui e herda o cumprimento (a recaptura cancela e recria).
+    /// </summary>
+    public const string EXPECTATION_FULFILLMENT_INHERITED = "expectation_fulfillment_inherited";
+
+    /// <summary>
+    /// O ciclo da competência já foi cumprido por OUTRO boleto — este pode ser uma segunda cobrança.
+    /// </summary>
+    public const string EXPECTATION_CYCLE_ALREADY_FULFILLED = "expectation_cycle_already_fulfilled";
+
     /// <summary>O beneficiário não tem nenhuma expectativa cadastrada.</summary>
     public const string EXPECTATION_NOT_REGISTERED = "expectation_not_registered";
 

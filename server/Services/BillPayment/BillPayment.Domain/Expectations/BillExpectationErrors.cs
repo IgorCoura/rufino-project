@@ -199,6 +199,22 @@ public static class BillExpectationErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
 
+    /// <summary>
+    /// Transferir o cumprimento exige o ciclo cumprido pelo boleto de origem — senão a transferência
+    /// tiraria o ciclo de quem de fato o cumpriu.
+    /// </summary>
+    public static DomainException FulfillmentTransferNotAllowed(
+        Guid cycleId,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}15",
+            messageTemplate: "O ciclo {0} não está cumprido pelo boleto que seria substituído.",
+            parameters: [cycleId],
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

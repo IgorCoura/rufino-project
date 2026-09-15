@@ -170,12 +170,48 @@ public class ExpectationCheckTests
         Assert.False(result.IsCriticalFailure);
     }
 
+    // TESTE DE REGRESSÃO (2026-09-15, fatura da Vivo reprocessada). A recaptura cancelou o boleto
+    // que tinha cumprido o ciclo e criou outro com o mesmo código de barras; o novo encontrava o
+    // ciclo fechado e saía inconclusivo. Substituindo o cancelado, ele herda a conta esperada.
+    [Fact]
+    public void Evaluate_WhenTheCycleWasFulfilledByTheBillThisOneReplaces_ShouldPassAsInherited()
+    {
+        var replaced = BillId.New();
+        var (expectation, cycle) = OpenCycleFor(BillCompetence);
+        BillExpectationMother.Fulfill(expectation, cycle.Id, replaced, actualDueDate: new DateOnly(2026, 6, 25));
+
+        var result = Evaluate(BillWithPayee(), [replaced], expectation);
+
+        Assert.Equal(CheckOutcome.Passed, result.Outcome);
+        Assert.Equal(CheckReasons.EXPECTATION_FULFILLMENT_INHERITED, result.ReasonCode);
+        Assert.Same(RiskLevel.Safe, result.RiskContribution);
+    }
+
+    // TESTE DE REGRESSÃO. O ciclo fechado por outro boleto (que este NÃO substitui) dizia "mais de
+    // uma conta deste beneficiário poderia ser esta" sobre um beneficiário com uma conta só. Agora
+    // o motivo diz o que aconteceu: a conta já foi cumprida — pode ser uma segunda cobrança.
+    [Fact]
+    public void Evaluate_WhenAnotherBillFulfilledTheCycle_ShouldSayItWasAlreadyFulfilled()
+    {
+        var (expectation, cycle) = OpenCycleFor(BillCompetence);
+        BillExpectationMother.Fulfill(expectation, cycle.Id, BillId.New(), actualDueDate: new DateOnly(2026, 6, 25));
+
+        var result = Evaluate(BillWithPayee(), expectation);
+
+        Assert.Equal(CheckOutcome.Inconclusive, result.Outcome);
+        Assert.Equal(CheckReasons.EXPECTATION_CYCLE_ALREADY_FULFILLED, result.ReasonCode);
+    }
+
     private static CheckResult Evaluate(Bill bill, params BillExpectation[] expectations)
+        => Evaluate(bill, [], expectations);
+
+    private static CheckResult Evaluate(Bill bill, IReadOnlyCollection<BillId> replaced, params BillExpectation[] expectations)
         => BillValidationService
             .Evaluate(ValidationMother.Context(
                 bill,
                 payee: ValidationMother.RegisteredPayee(),
-                expectations: expectations))
+                expectations: expectations,
+                replacedBillIds: replaced))
             .Single(r => r.Type == CheckType.ExpectationMatch);
 
     /// <summary>Boleto consultado e com o beneficiário já resolvido — é o que a 14 exige.</summary>

@@ -178,6 +178,8 @@ void main() {
         'expectation_cycle_opens_on_arrival',
         'expectation_not_registered',
         'expectation_ambiguous',
+        'expectation_fulfillment_inherited',
+        'expectation_cycle_already_fulfilled',
         'expectation_paused',
         'expectation_payee_unresolved',
         'expectation_due_date_unavailable',

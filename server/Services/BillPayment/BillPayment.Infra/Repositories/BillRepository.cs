@@ -70,6 +70,26 @@ internal sealed class BillRepository : IBillRepository
             .Take(limit)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyCollection<BillId>> ListReplacedAsync(
+        TenantId tenantId,
+        string? dedupKey,
+        BillId excluding,
+        CancellationToken cancellationToken = default)
+    {
+        // Sem chave não há como afirmar que é o mesmo compromisso — QR estático não deduplica.
+        if (string.IsNullOrWhiteSpace(dedupKey))
+            return [];
+
+        return await _context.Bills
+            .AsNoTracking()
+            .Where(b => b.TenantId == tenantId
+                && b.DedupKey == dedupKey
+                && b.Id != excluding
+                && !StatusesThatOccupyTheKey.Contains(b.Status))
+            .Select(b => b.Id)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<DuplicateProbe> ProbeActiveDuplicateAsync(
         string dedupKey,
         TenantId tenantId,

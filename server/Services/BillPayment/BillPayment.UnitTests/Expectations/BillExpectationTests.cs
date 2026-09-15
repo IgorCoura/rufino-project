@@ -643,4 +643,36 @@ public class BillExpectationTests
 
         Assert.Equal("BLP.EXP14", exception.Id);
     }
+
+    // O ciclo cumprido pelo boleto cancelado passa ao que o substituiu — sem contar a conta de novo
+    // na média móvel: ela chegou uma vez só (2026-09-15).
+    [Fact]
+    public void TransferFulfillment_ShouldRepointTheCycleWithoutLearningAgain()
+    {
+        var (expectation, cycle) = BillExpectationMother.WithOpenCycle(2026, 8);
+        var oldBill = BillId.New();
+        BillExpectationMother.Fulfill(expectation, cycle.Id, oldBill, actualDueDate: new DateOnly(2026, 8, 10));
+        var observations = expectation.ObservationCount;
+        var newBill = BillId.New();
+
+        expectation.TransferFulfillment(cycle.Id, oldBill, newBill, OccurredAt.AddDays(1));
+
+        Assert.Equal(newBill, cycle.FulfilledByBillId);
+        Assert.Same(CycleStatus.Fulfilled, cycle.Status);
+        Assert.Equal(observations, expectation.ObservationCount);
+    }
+
+    // Transferir a partir de um boleto que não cumpriu o ciclo tiraria o ciclo de quem cumpriu:
+    // BLP.EXP15.
+    [Fact]
+    public void TransferFulfillment_FromABillThatDidNotFulfillTheCycle_ShouldThrowBLP_EXP15()
+    {
+        var (expectation, cycle) = BillExpectationMother.WithOpenCycle(2026, 8);
+        BillExpectationMother.Fulfill(expectation, cycle.Id, BillId.New(), actualDueDate: new DateOnly(2026, 8, 10));
+
+        var exception = Assert.Throws<DomainException>(() =>
+            expectation.TransferFulfillment(cycle.Id, BillId.New(), BillId.New(), OccurredAt.AddDays(1)));
+
+        Assert.Equal("BLP.EXP15", exception.Id);
+    }
 }

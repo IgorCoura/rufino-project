@@ -98,14 +98,28 @@ public static class BillValidationService
                 "Sem vencimento legível não há competência para casar com a conta esperada.");
 
         // O próprio boleto pode já ter cumprido o ciclo numa passagem anterior — revalidar é
-        // rotina, e sem isto o segundo passe encontraria "nenhuma expectativa" sobre ele.
+        // rotina, e sem isto o segundo passe encontraria "nenhuma expectativa" sobre ele. E o
+        // boleto que ele substitui (recapturado, com o mesmo código de barras) também conta.
         var match = ExpectationMatchingService.Match(
-            context.Expectations, dueDate, context.Today, alreadyFulfilledBy: bill.Id);
+            context.Expectations, dueDate, context.Today, alreadyFulfilledBy: bill.Id, context.ReplacedBillIds);
 
         if (match is not null)
-            return CheckResult.Passed(
-                CheckType.ExpectationMatch,
-                evidence: $"Casou com a conta esperada, competência {new CompetencePeriod(dueDate.Year, dueDate.Month)}.");
+        {
+            var inherited = context.Expectations
+                .SelectMany(e => e.Cycles)
+                .FirstOrDefault(c => c.Id == match.CycleId)?.FulfilledByBillId is { } fulfilledBy
+                && context.ReplacedBillIds.Contains(fulfilledBy);
+
+            return inherited
+                ? CheckResult.Passed(
+                    CheckType.ExpectationMatch,
+                    CheckReasons.EXPECTATION_FULFILLMENT_INHERITED,
+                    $"Casou com a conta esperada, competência {new CompetencePeriod(dueDate.Year, dueDate.Month)}, "
+                    + "no lugar do boleto cancelado com o mesmo código de barras.")
+                : CheckResult.Passed(
+                    CheckType.ExpectationMatch,
+                    evidence: $"Casou com a conta esperada, competência {new CompetencePeriod(dueDate.Year, dueDate.Month)}.");
+        }
 
         if (!context.Expectations.Any(e => e.IsWatchingOn(context.Today)))
             return CheckResult.Inconclusive(
@@ -124,6 +138,18 @@ public static class BillValidationService
                 CheckType.ExpectationMatch,
                 CheckReasons.EXPECTATION_CYCLE_OPENS_ON_ARRIVAL,
                 $"A conta era esperada; o ciclo de {competence} nasce nesta chegada.");
+        }
+
+        // Antes de falar em ambiguidade: o ciclo desta competência pode estar simplesmente fechado
+        // por outro boleto. Dizer "mais de uma conta" sobre um beneficiário com uma conta só manda a
+        // pessoa procurar o que não existe (2026-09-15).
+        if (ExpectationMatchingService.IsCompetenceFulfilledByAnother(
+                context.Expectations, dueDate, context.Today, bill.Id))
+        {
+            return CheckResult.Inconclusive(
+                CheckType.ExpectationMatch,
+                CheckReasons.EXPECTATION_CYCLE_ALREADY_FULFILLED,
+                $"A conta esperada de {competence} já foi cumprida por outro boleto — este pode ser uma segunda cobrança.");
         }
 
         return CheckResult.Inconclusive(
