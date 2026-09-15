@@ -610,6 +610,92 @@ public class BillValidationServiceTests
         Assert.Equal(CheckOutcome.Passed, result.Outcome);
     }
 
+    // TESTE ÂNCORA da releitura (2026-09-15): o pagador que a validação usa é o que o DOCUMENTO
+    // diz nesta rodada, não o que a captura conseguiu ler. É o que conserta o boleto nascido sem
+    // pagador — o RUF101 — com um "Revalidar", em vez de exigir reimportação.
+    [Fact]
+    public void Evaluate_PayerMatch_WhenTheRereadingFindsThePayer_ShouldPassEvenWithTheAggregateEmpty()
+    {
+        var bill = BillMother.CaptureVerbatim(
+            [InstrumentSamples.Barcode()], BillMother.MailboxOrigin(), extractedPayer: null);
+
+        var result = Check(
+            ValidationMother.Context(
+                ValidationMother.BankSlipWithLookup(bill: bill),
+                payerProfile: ValidationMother.TenantProfile(),
+                documentPayer: PartyInfo.FromExtraction("RUFINO EMPREITEIRA LTDA", "11222333000181"),
+                documentReread: true),
+            CheckType.PayerMatch);
+
+        Assert.Equal(CheckOutcome.Passed, result.Outcome);
+    }
+
+    // A releitura também DESMENTE o que estava guardado: documento que hoje nomeia outro pagador
+    // bloqueia, mesmo com o agregado carregando o pagador certo da captura. Retrato velho não
+    // pode calar a evidência de agora.
+    [Fact]
+    public void Evaluate_PayerMatch_WhenTheRereadingContradictsTheStoredPayer_ShouldBlock()
+    {
+        var bill = BillMother.CaptureVerbatim(
+            [InstrumentSamples.Barcode()],
+            BillMother.MailboxOrigin(),
+            extractedPayer: PartyInfo.FromExtraction("RUFINO EMPREITEIRA LTDA", "11222333000181"));
+
+        var result = Check(
+            ValidationMother.Context(
+                ValidationMother.BankSlipWithLookup(bill: bill),
+                payerProfile: ValidationMother.TenantProfile(),
+                documentPayer: PartyInfo.FromExtraction("OUTRA EMPRESA LTDA", "52998224725"),
+                documentReread: true),
+            CheckType.PayerMatch);
+
+        Assert.Equal(CheckOutcome.Failed, result.Outcome);
+        Assert.Equal(CheckReasons.PAYER_MISMATCH, result.ReasonCode);
+    }
+
+    // Releitura que aconteceu e não achou pagador nenhum é AFIRMAÇÃO — o documento não identifica
+    // ninguém —, e por isso sobrepõe o que o agregado tinha guardado.
+    [Fact]
+    public void Evaluate_PayerMatch_WhenTheRereadingFindsNobody_ShouldNotFallBackToTheStoredPayer()
+    {
+        var bill = BillMother.CaptureVerbatim(
+            [InstrumentSamples.Barcode()],
+            BillMother.MailboxOrigin(),
+            extractedPayer: PartyInfo.FromExtraction("RUFINO EMPREITEIRA LTDA", "11222333000181"));
+
+        var result = Check(
+            ValidationMother.Context(
+                ValidationMother.BankSlipWithLookup(bill: bill),
+                payerProfile: ValidationMother.TenantProfile(),
+                documentPayer: null,
+                documentReread: true),
+            CheckType.PayerMatch);
+
+        Assert.Equal(CheckOutcome.Inconclusive, result.Outcome);
+        Assert.Equal(CheckReasons.PAYER_NOT_EXTRACTABLE, result.ReasonCode);
+    }
+
+    // CONTRAPROVA, e é a que impede o balde fora do ar de apagar evidência: SEM releitura, vale o
+    // que o agregado guardou. Boleto importado só com os dígitos nunca tem o que reler.
+    [Fact]
+    public void Evaluate_PayerMatch_WithoutARereading_ShouldUseWhatTheAggregateKept()
+    {
+        var bill = BillMother.CaptureVerbatim(
+            [InstrumentSamples.Barcode()],
+            BillMother.MailboxOrigin(),
+            extractedPayer: PartyInfo.FromExtraction("RUFINO EMPREITEIRA LTDA", "11222333000181"));
+
+        var result = Check(
+            ValidationMother.Context(
+                ValidationMother.BankSlipWithLookup(bill: bill),
+                payerProfile: ValidationMother.TenantProfile(),
+                documentPayer: null,
+                documentReread: false),
+            CheckType.PayerMatch);
+
+        Assert.Equal(CheckOutcome.Passed, result.Outcome);
+    }
+
     // BLOQUEIO NOVO: ninguém emite boleto contra si mesmo. Beneficiário igual ao pagador é
     // consulta descrevendo outro título ou documento adulterado — nos dois casos, não se paga.
     [Fact]

@@ -116,6 +116,10 @@ public static class ApplicationDependencies
         // Compartilhado pela fila de análise e pelo pedido manual de reler — duas cópias
         // divergiriam, e a divergência apareceria como "pela fila lê, pelo botão não".
         services.AddScoped<IBillReadingSource, BillReadingSource>();
+
+        // A releitura determinística do documento, que roda a cada validação — o que faz a
+        // verificação do pagador responder sobre o arquivo, e não sobre a captura.
+        services.AddScoped<IBillDocumentSource, BillDocumentSource>();
         services.AddScoped<IPayeeQueries, PayeeQueries>();
         services.AddScoped<IPayerProfileQueries, PayerProfileQueries>();
         services.AddScoped<IPayerProfileWorkQueries, PayerProfileWorkQueries>();

@@ -581,7 +581,13 @@ public static class BillValidationService
                 CheckSeverity.Blocking);
         }
 
-        var extracted = context.Bill.ExtractedPayer;
+        // O documento é RELIDO a cada validação, como a consulta oficial é refeita — e é a
+        // releitura que decide (2026-09-15). Enquanto o pagador vinha congelado da captura, a
+        // verificação respondia sobre o que a extração do dia da captura tinha conseguido ler:
+        // corrigir a leitura não consertava boleto nenhum, e toda fonte nova precisava lembrar de
+        // preencher o campo. Sem releitura — boleto sem arquivo, balde fora — vale o que o
+        // agregado guardou, que é o único registro que sobrou.
+        var extracted = context.DocumentReread ? context.DocumentPayer : context.Bill.ExtractedPayer;
         if (extracted?.TaxId is { } taxId)
         {
             // O documento tem de estar IMPRESSO como campo, não ser um trecho do código de barras.

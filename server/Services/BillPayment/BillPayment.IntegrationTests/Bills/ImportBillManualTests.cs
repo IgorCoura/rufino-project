@@ -4,6 +4,8 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using BillPayment.Domain.Bills;
+using BillPayment.Domain.PayerProfiles;
+using BillPayment.Domain.SharedKernel;
 using BillPayment.IntegrationTests.Contracts;
 using BillPayment.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -38,6 +40,12 @@ public sealed class ImportBillManualTests : BaseIntegrationTest
     // Instrumentos sintéticos com DVs e CRC corretos — instrumento real não entra no repositório.
     private const string BankSlipLine = "34191234546789012345767890123457314880000061507";
     private const string OtherBankSlipLine = "03399876534321098765743210987657414930000140980";
+
+    /// <summary>
+    /// Documento fiscal do tenant — diferente do beneficiário impresso, senão a verificação 8
+    /// bloquearia por "o beneficiário é o próprio pagador" antes de chegar ao pagador.
+    /// </summary>
+    private const string TenantCnpj = "45678901000175";
 
     private const string DynamicPix =
         "00020101021226760014br.gov.bcb.pix2554pix.example.com/qr/v2/9d36b84fc70b478fb95c12729b90ca255204000053039865802BR5912EDP TESTE SA6007TAUBATE62120508TXID00026304E47A";
@@ -291,6 +299,79 @@ public sealed class ImportBillManualTests : BaseIntegrationTest
 
         Assert.NotNull(bill!.Origin.StorageKey);
     }
+
+    // TESTE ÂNCORA (RUF101 - JUNDDIAMONDS, 2026-09-15). O defeito relatado: boleto importado à
+    // mão sempre caía na verificação 8 com "não foi possível determinar de quem é este documento"
+    // — sobre um PDF que imprime, na parte de baixo, "Pagador: RUFINO ... CNPJ/CPF: ...". A
+    // cascata já lia o documento fiscal e o handler o descartava.
+    [Fact]
+    public async Task PostImport_WithThePayerPrintedInTheDocument_ShouldCarryItToTheBill()
+    {
+        await SeedPayerProfileAsync(TenantCnpj);
+
+        var response = await PostMultipartAsync(BankSlipPdfNaming(TenantCnpj));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<ImportBillResponseContract>();
+        var bill = await LoadAsync(body!.Id);
+
+        Assert.Equal(TenantCnpj, bill!.ExtractedPayer?.TaxId?.Value);
+    }
+
+    // CONTRAPROVA, e é ela que protege o boleto legítimo: o CNPJ que está no papel SEM rótulo de
+    // pagador e fora do cadastro não vira pagador nenhum. Num boleto o documento do beneficiário
+    // está impresso ao lado do do pagador — tomá-lo por pagador faria a verificação 8 enxergar
+    // contradição com o cadastro e BLOQUEAR uma conta boa.
+    [Fact]
+    public async Task PostImport_WithOnlyThePayeeTaxIdPrinted_ShouldLeaveThePayerEmpty()
+    {
+        await SeedPayerProfileAsync(TenantCnpj);
+
+        var response = await PostMultipartAsync(
+            PdfWith("Banco Itau", BankSlipLine, "Beneficiario PADARIA SAO JOSE LTDA", "CNPJ 11.222.333/0001-81"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<ImportBillResponseContract>();
+        var bill = await LoadAsync(body!.Id);
+
+        Assert.Null(bill!.ExtractedPayer);
+    }
+
+    // Sem cadastro fiscal ainda não há com o que casar, e é o rótulo que sustenta a leitura — o
+    // mesmo critério da captura automática, que é por isso que ele mora no Domain Service.
+    [Fact]
+    public async Task PostImport_WithoutAPayerProfile_ShouldStillReadTheLabelledPayer()
+    {
+        var response = await PostMultipartAsync(BankSlipPdfNaming(TenantCnpj));
+
+        var body = await response.Content.ReadFromJsonAsync<ImportBillResponseContract>();
+        var bill = await LoadAsync(body!.Id);
+
+        Assert.Equal(TenantCnpj, bill!.ExtractedPayer?.TaxId?.Value);
+    }
+
+    /// <summary>O boleto como o emissor o imprime: a linha em cima, o bloco do pagador embaixo.</summary>
+    private static byte[] BankSlipPdfNaming(string payerTaxId)
+        => PdfWith(
+            "Banco Itau",
+            BankSlipLine,
+            "Beneficiario JUND DIAMOND C F LTDA CNPJ/CPF: 11.222.333/0001-81",
+            "Pagador: RUFINO EMP.ELET.HIDR.LTDA CNPJ/CPF: " + payerTaxId);
+
+    private Task SeedPayerProfileAsync(string taxId)
+        => ExecuteDbContextAsync(async db =>
+        {
+            await db.PayerProfiles.AddAsync(PayerProfile.Register(
+                Domain.SharedKernel.TenantId.From(TenantId),
+                PayerKind.Company,
+                "RUFINO EMPREITEIRA LTDA",
+                TaxId.Parse(taxId),
+                ReceivedAt));
+
+            await db.SaveEntitiesAsync();
+        });
 
     private static ImportBillRequest ManualRequest(
         string? digitableLine = null,

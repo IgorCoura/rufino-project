@@ -107,7 +107,16 @@ public sealed class ImportBillCommandHandler(
                 document?.ContentHash,
                 storageKey);
 
-            var bill = Bill.Capture(tenantId, instruments, origin, now);
+            // O pagador que o arquivo identifica vai junto. Ele já tinha sido lido pela cascata —
+            // e era descartado aqui, o que fazia a verificação 8 responder "não foi possível
+            // determinar de quem é este documento" sobre um boleto que imprime o CNPJ do tenant
+            // ao lado da palavra "Pagador" (RUF101 - JUNDDIAMONDS, 2026-09-15).
+            var bill = Bill.Capture(
+                tenantId,
+                instruments,
+                origin,
+                now,
+                document?.PayerTaxId is { } payer ? PartyInfo.Of(null, payer) : null);
 
             // Unicidade global da chave de instrumento — travessia autorizada pelo ADR-008.
             // A checagem aqui evita o round-trip no caso comum; quem resolve a corrida é o índice
@@ -214,7 +223,10 @@ public sealed class ImportBillCommandHandler(
             string.IsNullOrWhiteSpace(request.DocumentFileName) ? "boleto" : request.DocumentFileName,
             request.DocumentContentType,
             "sha256:" + Convert.ToHexStringLower(SHA256.HashData(request.Document.Span)),
-            extraction);
+            extraction,
+            // Quem decide qual dos documentos fiscais do arquivo é o do pagador é o Domain Service,
+            // pelo mesmo critério da captura automática: o handler não repete a régua.
+            BillRoutingService.IdentifyPayer(extraction, profile));
     }
 
     /// <summary>
@@ -245,11 +257,16 @@ public sealed class ImportBillCommandHandler(
             : [profile.PrimaryTaxId, .. profile.AdditionalTaxIds];
 
     /// <summary>O arquivo anexado, já lido pela cascata e com o hash calculado.</summary>
+    /// <param name="PayerTaxId">
+    /// O pagador que o arquivo identifica, quando identifica. Nulo é estado válido: documento que
+    /// não imprime o CNPJ do pagador sob rótulo, e não traz nenhum do cadastro, não diz de quem é.
+    /// </param>
     private sealed record ImportedDocument(
         string FileName,
         string? ContentType,
         string ContentHash,
-        ExtractionResult Extraction);
+        ExtractionResult Extraction,
+        TaxId? PayerTaxId);
 }
 
 public sealed class ImportBillIdentifiedCommandHandler(

@@ -192,9 +192,7 @@ public static class BillRoutingService
 
         // O documento do tenant impresso no artefato. Serve aos degraus 0 e 2: no 0 como
         // identificação de quem é o pagador, no 2 como a própria prova de propriedade.
-        var own = profile is null
-            ? null
-            : extraction.Parties.FirstOrDefault(p => Owns(profile, p.TaxId));
+        var own = OwnParty(extraction, profile);
 
         // Degrau 0 — a senha é prova de propriedade, não conveniência. O emissor a derivou do
         // documento do pagador, e as candidatas saíram do PayerProfile DESTE tenant: se abriu,
@@ -264,6 +262,45 @@ public static class BillRoutingService
         // existe atribuição por default ao dono da fonte.
         return RoutingDecision.Unrouted(REASON_PAYER_NOT_IDENTIFIED);
     }
+
+    /// <summary>
+    /// O pagador que o documento identifica, para quem <strong>já sabe de quem o boleto é</strong>
+    /// — a importação manual, onde a pessoa afirma a propriedade e a escada não tem o que decidir.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>É o mesmo critério de <see cref="Route"/>, e é por isso que mora aqui.</strong>
+    /// Documento do tenant impresso (degrau 2) ou, na falta dele, o que veio sob rótulo de pagador
+    /// (degrau 2 negativo) — a mesma regra que preenche o <c>RoutingDecision.PayerTaxId</c>. O
+    /// handler não pode repeti-la à mão: seria a mesma decisão sobre dois agregados escrita em dois
+    /// lugares, e a cópia é que sairia do lugar quando a régua mudasse.
+    /// </para>
+    /// <para>
+    /// <strong>Candidato sem rótulo e sem casar com o cadastro NÃO vale.</strong> Num boleto o CNPJ
+    /// do beneficiário está impresso ao lado do CNPJ do pagador, e devolver "o primeiro que
+    /// apareceu" faria o da concessionária virar pagador — o check <c>PayerMatch</c> então o leria
+    /// como contradição ao cadastro e <strong>bloquearia</strong> um boleto legítimo (ADR-004).
+    /// </para>
+    /// <para>
+    /// <strong>Devolver o pagador de OUTRA pessoa é desfecho desejado</strong>, não descuido: o
+    /// documento que nomeia outro pagador sob rótulo tem de chegar ao check para bloquear. Quem
+    /// importou à mão vê o motivo; a importação em si não é recusada aqui, porque recusar é
+    /// decisão da validação, não desta leitura.
+    /// </para>
+    /// </remarks>
+    public static TaxId? IdentifyPayer(ExtractionResult extraction, PayerProfile? profile)
+    {
+        ArgumentNullException.ThrowIfNull(extraction);
+
+        return OwnParty(extraction, profile)?.TaxId
+            ?? extraction.Parties.FirstOrDefault(p => p.UnderPayerLabel)?.TaxId;
+    }
+
+    /// <summary>O documento do próprio tenant impresso no artefato, se houver.</summary>
+    private static PartyCandidate? OwnParty(ExtractionResult extraction, PayerProfile? profile)
+        => profile is null
+            ? null
+            : extraction.Parties.FirstOrDefault(p => Owns(profile, p.TaxId));
 
     /// <summary>
     /// A raiz do CNPJ entra só quando o tenant pediu: filial cujo boleto chega sem cadastro

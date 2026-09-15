@@ -452,6 +452,30 @@ public sealed class Bill : AggregateRoot<BillId>
         return occurredAt.AddTicks(Math.Min(scaled, MAX_READING_RETRY_DELAY.Ticks));
     }
 
+    /// <summary>
+    /// Atualiza o pagador com o que a releitura do documento guardado acabou de ler.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>O campo deixou de ser retrato da captura e virou cache da última leitura</strong>
+    /// (2026-09-15). Quem decide a verificação 8 é o valor relido na própria rodada, que chega
+    /// pelo contexto; este aqui existe para a lista e o detalhe mostrarem alguma coisa antes da
+    /// primeira validação — e para o boleto sem documento guardado continuar tendo o que mostrar.
+    /// </para>
+    /// <para>
+    /// <strong>Releitura que não aconteceu não apaga o que havia</strong>, pela mesma razão de
+    /// <see cref="AttachLookups"/>: balde fora do ar não é evidência de que o documento não traz
+    /// pagador. Por isso o chamador só invoca este método quando releu de fato.
+    /// </para>
+    /// </remarks>
+    public void RefreshExtractedPayer(PartyInfo? payer, DateTime occurredAt)
+    {
+        EnsureAcceptsValidation();
+
+        ExtractedPayer = payer;
+        UpdatedAt = occurredAt;
+    }
+
     /// <summary>Vincula (ou desvincula) o beneficiário cadastrado que a consulta resolveu.</summary>
     public void ResolvePayee(PayeeId? payeeId, DateTime occurredAt)
     {

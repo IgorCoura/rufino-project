@@ -72,6 +72,7 @@ public sealed class ValidateBillCommandHandler(
     IPayerProfileRepository payerProfiles,
     IBillLookupService billLookup,
     IPixLookupService pixLookup,
+    IBillDocumentSource documentSource,
     IBankDirectory bankDirectory,
     TimeProvider clock,
     IUnitOfWork unitOfWork)
@@ -105,6 +106,14 @@ public sealed class ValidateBillCommandHandler(
         // novo registraria uma consulta que não aconteceu.
         bill.AttachLookups(bankSlipResult, pixReused ? null : pixResult, now.UtcDateTime);
 
+        // O documento guardado é RELIDO aqui, como as consultas oficiais são refeitas: a
+        // verificação 8 responde sobre o arquivo de agora, não sobre o que a captura conseguiu ler
+        // no dia. Releitura que não aconteceu não apaga o que o agregado tinha — só o balde fora do
+        // ar apagaria a única evidência que sobrou.
+        var document = await documentSource.ReadAsync(bill, payerProfile, tenantId, cancellationToken);
+        if (document.Read)
+            bill.RefreshExtractedPayer(document.Payer, now.UtcDateTime);
+
         var tenantPayees = await payees.ListByTenantAsync(tenantId, cancellationToken);
         var resolution = PayeeResolutionService.Resolve(bill.Beneficiary, tenantPayees);
         bill.ResolvePayee(resolution.Payee?.Id, now.UtcDateTime);
@@ -120,6 +129,8 @@ public sealed class ValidateBillCommandHandler(
             Origin = await ResolveOriginAsync(bill, tenantId, cancellationToken),
             PayerProfile = payerProfile,
             BankDirectory = bankDirectory,
+            DocumentPayer = document.Payer,
+            DocumentReread = document.Read,
             Expectations = await ListExpectationsAsync(bill, tenantId, cancellationToken),
             ReplacedBillIds = await bills.ListReplacedAsync(tenantId, bill.DedupKey, bill.Id, cancellationToken),
             Duplicate = DuplicateFinding.From(probe),
