@@ -165,7 +165,9 @@ internal static class ValidationMother
         LookupParty? consultedBeneficiary = null,
         BillLookupResult? bankSlipLookup = null,
         PixLookupResult? pixLookup = null,
-        IReadOnlyCollection<BillId>? replacedBillIds = null)
+        IReadOnlyCollection<BillId>? replacedBillIds = null,
+        PartyInfo? documentPayer = null,
+        bool documentReread = false)
         => new()
         {
             Bill = bill,
@@ -179,6 +181,8 @@ internal static class ValidationMother
             ReplacedBillIds = replacedBillIds ?? [],
             Duplicate = duplicate ?? DuplicateFinding.None,
             DuplicateOf = duplicateOf,
+            DocumentPayer = documentPayer,
+            DocumentReread = documentReread,
             Today = today ?? Today,
         };
 

@@ -79,6 +79,31 @@ public sealed class BillValidationContext
     public required IBankDirectory BankDirectory { get; init; }
 
     /// <summary>
+    /// O pagador que o documento guardado identifica <strong>nesta rodada</strong> — relido do
+    /// arquivo, como a consulta oficial é refeita.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Só vale quando <see cref="DocumentReread"/> é verdadeiro.</strong> Nulo com a
+    /// releitura feita significa "o documento não identifica pagador nenhum" — uma afirmação;
+    /// nulo sem releitura significa "não deu para perguntar", que é outra coisa e cai no que o
+    /// agregado tinha guardado.
+    /// </para>
+    /// </remarks>
+    public PartyInfo? DocumentPayer { get; init; }
+
+    /// <summary>
+    /// O documento guardado foi aberto e relido nesta rodada.
+    /// </summary>
+    /// <remarks>
+    /// Falso em boleto importado só com os dígitos (não há arquivo), quando o balde não entrega o
+    /// que guardou, e quando o arquivo é de um tipo que a cascata não abre. Nos três a verificação
+    /// 8 segue com o que a captura tinha lido — <strong>falhar fechado aqui seria apagar evidência
+    /// por causa de indisponibilidade</strong>.
+    /// </remarks>
+    public bool DocumentReread { get; init; }
+
+    /// <summary>
     /// As expectativas do beneficiário resolvido. Vazio quando não há beneficiário, quando ele
     /// não tem nenhuma cadastrada — ou quando quem monta o contexto ainda não as carrega.
     /// </summary>

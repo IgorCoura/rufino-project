@@ -1,4 +1,4 @@
-namespace BillPayment.UnitTests.Bills;
+﻿namespace BillPayment.UnitTests.Bills;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Bills.Checks;
@@ -351,6 +351,34 @@ public class BillValidationTests
 
         Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
         Assert.False(outcome.ApprovalPreserved);
+    }
+
+    // A releitura do documento atualiza o pagador guardado sem mexer no status: é enriquecimento
+    // de retrato, e quem decide status é só RecordChecks.
+    [Fact]
+    public void RefreshExtractedPayer_OnABillAwaitingApproval_ShouldReplaceThePayerAndKeepTheStatus()
+    {
+        var bill = BillMother.Capture();
+        bill.RecordChecks(AllPassing(), EvaluatedAt);
+
+        bill.RefreshExtractedPayer(
+            PartyInfo.FromExtraction("RUFINO EMPREITEIRA LTDA", "11222333000181"), EvaluatedAt.AddHours(1));
+
+        Assert.Equal("11222333000181", bill.ExtractedPayer?.TaxId?.Value);
+        Assert.Same(BillStatus.AwaitingApproval, bill.Status);
+        Assert.Equal(EvaluatedAt.AddHours(1), bill.UpdatedAt);
+    }
+
+    // Boleto em status terminal não relê nada: a mesma guarda que protege a validação protege o
+    // retrato do pagador — documento pago não muda mais de história.
+    [Fact]
+    public void RefreshExtractedPayer_OnATerminalBill_ShouldThrow()
+    {
+        var bill = Approved();
+        bill.Cancel(Approver, "desistência", EvaluatedAt.AddHours(1));
+
+        Assert.Throws<DomainException>(
+            () => bill.RefreshExtractedPayer(null, EvaluatedAt.AddHours(2)));
     }
 
     // Boleto com data escolhida está a caminho do provedor. Antes desta guarda a revalidação o
