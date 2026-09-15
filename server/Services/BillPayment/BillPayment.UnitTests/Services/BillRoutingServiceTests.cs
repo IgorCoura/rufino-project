@@ -413,6 +413,68 @@ public class BillRoutingServiceTests
         Assert.Equal(OwnCnpj, after.PayerTaxId?.Value);
     }
 
+    // IMPORTAÇÃO MANUAL — TESTE ÂNCORA (RUF101 - JUNDDIAMONDS, 2026-09-15). Quem importa à mão já
+    // afirmou a propriedade, então a escada não roda; mas o pagador impresso tem de chegar ao
+    // boleto assim mesmo, senão o check 8 responde "não foi possível determinar de quem é este
+    // documento" sobre um PDF que imprime o CNPJ do tenant ao lado da palavra "Pagador".
+    [Fact]
+    public void IdentifyPayer_WhenTheDocumentCarriesTheTenantTaxId_ShouldReturnIt()
+    {
+        var payer = BillRoutingService.IdentifyPayer(
+            Extraction(parties: [Party(PayeeCnpj), Party(OwnCnpj)]), PayerProfileMother.Register());
+
+        Assert.Equal(OwnCnpj, payer?.Value);
+    }
+
+    // O documento do tenant vence o rótulo: num boleto o CNPJ do beneficiário está impresso ao
+    // lado do do pagador, e é casar com o cadastro — não a ordem em que a varredura achou — que
+    // diz qual dos dois é o pagador.
+    [Fact]
+    public void IdentifyPayer_WithBothPartiesPrinted_ShouldPreferTheOneInTheRegistry()
+    {
+        var payer = BillRoutingService.IdentifyPayer(
+            Extraction(parties: [Party(PayeeCnpj, underPayerLabel: true), Party(OwnCnpj)]),
+            PayerProfileMother.Register());
+
+        Assert.Equal(OwnCnpj, payer?.Value);
+    }
+
+    // Sem cadastro para casar, vale o rótulo — e devolver o documento de OUTRA pessoa é o
+    // desfecho desejado: é ele que faz o check 8 bloquear em vez de silenciar (ADR-004).
+    [Fact]
+    public void IdentifyPayer_WhenOnlyALabelledForeignTaxIdIsPrinted_ShouldReturnIt()
+    {
+        var payer = BillRoutingService.IdentifyPayer(
+            Extraction(parties: [Party(SomeoneElsesCnpj, underPayerLabel: true)]),
+            PayerProfileMother.Register());
+
+        Assert.Equal(SomeoneElsesCnpj, payer?.Value);
+    }
+
+    // CONTRAPROVA, e é a que protege o boleto legítimo: candidato sem rótulo e fora do cadastro
+    // NÃO vira pagador. Devolvê-lo faria o CNPJ da concessionária contradizer o cadastro fiscal e
+    // BLOQUEAR uma conta boa — o oposto do que o campo existe para fazer.
+    [Fact]
+    public void IdentifyPayer_WithAnUnlabelledStrangerTaxId_ShouldReturnNothing()
+    {
+        var payer = BillRoutingService.IdentifyPayer(
+            Extraction(parties: [Party(PayeeCnpj)]), PayerProfileMother.Register());
+
+        Assert.Null(payer);
+    }
+
+    // Sem cadastro fiscal não há com o que casar, e o rótulo continua sendo o que sustenta a
+    // afirmação — é o caso do tenant que importa antes de cadastrar o próprio CNPJ.
+    [Fact]
+    public void IdentifyPayer_WithoutAProfile_ShouldStillReadTheLabelledOne()
+    {
+        var payer = BillRoutingService.IdentifyPayer(
+            Extraction(parties: [Party(PayeeCnpj), Party(OwnCnpj, underPayerLabel: true)]),
+            profile: null);
+
+        Assert.Equal(OwnCnpj, payer?.Value);
+    }
+
     // A assimetria continua de pé depois da fusão: a visão entra SEM rótulo, então o documento de
     // um terceiro lido por ela não descarta o boleto como de outra pessoa — ele vai para a
     // reivindicação, onde uma pessoa decide (ADR-011 estendido à posse do boleto).
