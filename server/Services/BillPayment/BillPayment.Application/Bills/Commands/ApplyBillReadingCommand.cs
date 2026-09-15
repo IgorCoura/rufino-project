@@ -140,6 +140,7 @@ public sealed class ApplyBillReadingCommandHandler(
             Expectations = bill.PayeeId is { } payeeId
                 ? await expectations.ListByPayeeAsync(tenantId, payeeId, cancellationToken)
                 : [],
+            ReplacedBillIds = await bills.ListReplacedAsync(tenantId, bill.DedupKey, bill.Id, cancellationToken),
             Today = DateOnly.FromDateTime(now.UtcDateTime),
         };
 

@@ -49,6 +49,21 @@ public interface IBillRepository
         int limit,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Os boletos deste tenant que o boleto <paramref name="excluding"/> substitui: mesma chave de
+    /// deduplicação, em estado que libera a chave (<c>Cancelled</c>/<c>Denied</c>).
+    /// </summary>
+    /// <remarks>
+    /// Serve à verificação 14 e ao cumprimento de ciclo: o ciclo que o boleto antigo cumpriu passa
+    /// ao novo quando é o mesmo compromisso capturado de novo (2026-09-15). Filtra por tenant — não é
+    /// travessia.
+    /// </remarks>
+    Task<IReadOnlyCollection<BillId>> ListReplacedAsync(
+        TenantId tenantId,
+        string? dedupKey,
+        BillId excluding,
+        CancellationToken cancellationToken = default);
+
     Task<DuplicateProbe> ProbeActiveDuplicateAsync(
         string dedupKey,
         TenantId tenantId,

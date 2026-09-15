@@ -89,6 +89,18 @@ public sealed class BillValidationContext
     /// </remarks>
     public IReadOnlyCollection<BillExpectation> Expectations { get; init; } = [];
 
+    /// <summary>
+    /// Os boletos que ESTE substitui: cancelados ou negados, do mesmo tenant, com a mesma chave de
+    /// deduplicação. É o mesmo compromisso capturado de novo — o caso da recaptura, que cancela o
+    /// boleto antigo e cria outro.
+    /// </summary>
+    /// <remarks>
+    /// Existe para a verificação 14 reconhecer como deste boleto o ciclo que o antigo cumpriu
+    /// (2026-09-15). Sem isto o novo encontrava o ciclo fechado por outro e saía inconclusivo, com uma
+    /// mensagem que falava de "mais de uma conta". Quem carrega é o handler; o serviço segue puro.
+    /// </remarks>
+    public IReadOnlyCollection<BillId> ReplacedBillIds { get; init; } = [];
+
     public DuplicateFinding Duplicate { get; init; } = DuplicateFinding.None;
 
     /// <summary>Id da Bill original quando a duplicata é do mesmo tenant. Nunca preenchido para outro tenant.</summary>

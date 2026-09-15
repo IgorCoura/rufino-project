@@ -164,7 +164,8 @@ internal static class ValidationMother
         IReadOnlyCollection<BillExpectation>? expectations = null,
         LookupParty? consultedBeneficiary = null,
         BillLookupResult? bankSlipLookup = null,
-        PixLookupResult? pixLookup = null)
+        PixLookupResult? pixLookup = null,
+        IReadOnlyCollection<BillId>? replacedBillIds = null)
         => new()
         {
             Bill = bill,
@@ -175,6 +176,7 @@ internal static class ValidationMother
             PayerProfile = payerProfile,
             BankDirectory = bankDirectory ?? new FakeBankDirectory(),
             Expectations = expectations ?? [],
+            ReplacedBillIds = replacedBillIds ?? [],
             Duplicate = duplicate ?? DuplicateFinding.None,
             DuplicateOf = duplicateOf,
             Today = today ?? Today,

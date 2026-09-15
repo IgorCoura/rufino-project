@@ -907,6 +907,50 @@ confirmada, claim que registra, as duas recusas 400, o **teste-âncora** da expe
 só, preencher a sem número, e a pendência que aparece no detalhe), mais 4 em
 `CaptureItems/CaptureItemTests` e 2 em `Expectations/BillExpectationTests`.
 
+## 2026-09-15 — O boleto recapturado herda a conta esperada do cancelado
+
+Relatado sobre a fatura da Vivo: reprocessada, a recaptura cancelou o boleto antigo e criou outro
+com o mesmo código de barras (agora com o QR). O ciclo da expectativa continuou cumprido **pelo
+cancelado**, e a verificação 14 do boleto novo saía inconclusiva dizendo "mais de uma conta deste
+beneficiário poderia ser esta" — sobre um beneficiário com uma conta só. Dois defeitos, duas
+correções (H1 e H3 da análise).
+
+### H3 — o cumprimento acompanha o compromisso, não o primeiro boleto
+
+- **Substituído = mesmo tenant, mesma `DedupKey`, outro id, status que libera a chave**
+  (`Denied`/`Cancelled`, `BillStatus.OccupiesNaturalKey`). `IBillRepository.ListReplacedAsync` é
+  a consulta; sem chave (QR estático) devolve vazio — não há como afirmar que é o mesmo
+  compromisso. Filtra por tenant: **não é travessia**.
+- **`BillValidationContext.ReplacedBillIds`**, carregado pelos dois handlers que validam
+  (`ValidateBillCommand`, `ApplyBillReadingCommand`). `ExpectationMatchingService.Match` ganhou
+  `replacedBills`: o ciclo cumprido por um substituído volta a casar, como o cumprido pelo próprio
+  boleto (`alreadyFulfilledBy`).
+- **A verificação 14 passa com `expectation_fulfillment_inherited`** quando o ciclo casado foi
+  cumprido por um substituído.
+- **`FulfillExpectationForBillCommand` transfere**: busca o ciclo pelo **id** do casamento (não
+  pela competência — o casamento pode ter vindo pela janela da virada do mês) e, cumprido por
+  outro boleto, chama `BillExpectation.TransferFulfillment`.
+- 🔑 **`TransferFulfillment` NÃO reaprende o calendário e NÃO emite evento.** A conta chegou uma
+  vez só; somar a média móvel de novo contaria a mesma conta duas vezes. Só transfere a partir do
+  boleto que de fato cumpriu o ciclo — senão tiraria o ciclo de quem o cumpriu: **`BLP.EXP15`**.
+
+### H1 — o motivo diz o que aconteceu
+
+Antes do fallback `expectation_ambiguous`, `ExpectationMatchingService.IsCompetenceFulfilledByAnother`
+pergunta se a competência do vencimento já foi cumprida por outro boleto (que este **não**
+substitui). Sendo, a verificação sai Inconclusiva com **`expectation_cycle_already_fulfilled`** —
+"a conta esperada já foi cumprida por outro boleto — este pode ser uma segunda cobrança". Mesmo
+teto de Atenção de antes; muda só a frase, que antes descrevia um problema inexistente.
+
+⚠️ **Boleto já inconclusivo antes do deploy precisa de "Revalidar"** — retrato gravado não muda
+sozinho, e o cumprimento só é transferido na próxima validação.
+
+Cliente: as duas traduções em `check_translations.dart`. Testes: 2 em
+`Services/ExpectationCheckTests` (o **teste de regressão** do ciclo herdado e o motivo honesto),
+2 em `Expectations/BillExpectationTests` (transferir sem reaprender, e `BLP.EXP15`) e
+`Expectations/ExpectationFulfillmentTransferTests` (3 — a transferência pelo command, a
+**contraprova** do cancelado com outro código de barras, e a consulta que ignora outro tenant).
+
 ## 2026-09-14 — Baixar documentos de vários boletos de uma vez
 
 Pedido do usuário: selecionar boletos na lista e baixar os documentos, escolhendo **documento
@@ -2274,7 +2318,7 @@ cena, porque é a chave que paga). O desenho:
 
 ## Architecture — what is non-obvious
 
-Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC transversal — hoje só `BLP01` TenantMismatch em `BillPaymentErrors.cs`), `BLP.<AGG>##` (Aggregate-specific — reserve a sigla do Aggregate ao criá-lo e registre aqui). **Siglas em uso**: `PRF` (PayerProfile, BLP.PRF01–13 — o 10 foi aposentado em 2026-08-31, não o reutilize), `PYE` (Payee, BLP.PYE01–17), `ORG` (TrustedOrigin, BLP.ORG01–10), `BNK` (BankCode, SHK.BNK01–02), `DGL` (DigitableLine, BLP.DGL01–06), `PIX` (PixPayload, BLP.PIX01–04), `INS` (PaymentInstrument, BLP.INS01–03), `BIL` (Bill, BLP.BIL01–44), `LKP` (Lookups, BLP.LKP01–07), `SEC` (Secrets, BLP.SEC01–07), `CPS` (CaptureSource, BLP.CPS01–20), `CPI` (CaptureItem, BLP.CPI01–19), `MBX` (Mailboxes — VOs de leitura de caixa, BLP.MBX01–04), `EXT` (Extraction — VOs da cascata, BLP.EXT01–08), `EXP` (BillExpectation, BLP.EXP00–14), `NTF` (TenantNotificationSettings, BLP.NTF00–03), `CMS` (CapturedMessage, BLP.CMS01–12), `CRP` (CaptureRetentionPolicy, BLP.CRP01–02), `PMO` (PaymentOrder, BLP.PMO01–23 — codificada na fase 3, 2026-09-02; o 18 é o sinal de "volte para a fila" da submissão, irmão do BIL28, e o 21 é o equivalente do comprovante via outbox; catálogo completo na seção "Fase 3 — Status"). `BIL` foi até o 44: 34 é o reflexo de pagamento fora da máquina, 35 é o aceite de vencido do ADR-017, 36–39 saíram da separação aprovar×agendar (ADR-018), **40 é a recusa de "pagar hoje" fora do horário de envio (ADR-021)**, 41 é a revalidação de boleto já agendado, e 42–44 são a validação do download de documentos em lote (2026-09-14). **`RTR` (RoutingRule) foi ABANDONADA na 2.6** — a medição mostrou que a chave que ela usaria não distingue pagadores; não recrie a sigla sem reabrir aquele achado. **`BLP.CPI04` é fixado pelo doc 07** (reivindicação que contradiz o pagador extraído) — não renumere a factory. Convenções:
+Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC transversal — hoje só `BLP01` TenantMismatch em `BillPaymentErrors.cs`), `BLP.<AGG>##` (Aggregate-specific — reserve a sigla do Aggregate ao criá-lo e registre aqui). **Siglas em uso**: `PRF` (PayerProfile, BLP.PRF01–13 — o 10 foi aposentado em 2026-08-31, não o reutilize), `PYE` (Payee, BLP.PYE01–17), `ORG` (TrustedOrigin, BLP.ORG01–10), `BNK` (BankCode, SHK.BNK01–02), `DGL` (DigitableLine, BLP.DGL01–06), `PIX` (PixPayload, BLP.PIX01–04), `INS` (PaymentInstrument, BLP.INS01–03), `BIL` (Bill, BLP.BIL01–44), `LKP` (Lookups, BLP.LKP01–07), `SEC` (Secrets, BLP.SEC01–07), `CPS` (CaptureSource, BLP.CPS01–20), `CPI` (CaptureItem, BLP.CPI01–19), `MBX` (Mailboxes — VOs de leitura de caixa, BLP.MBX01–04), `EXT` (Extraction — VOs da cascata, BLP.EXT01–08), `EXP` (BillExpectation, BLP.EXP00–15), `NTF` (TenantNotificationSettings, BLP.NTF00–03), `CMS` (CapturedMessage, BLP.CMS01–12), `CRP` (CaptureRetentionPolicy, BLP.CRP01–02), `PMO` (PaymentOrder, BLP.PMO01–23 — codificada na fase 3, 2026-09-02; o 18 é o sinal de "volte para a fila" da submissão, irmão do BIL28, e o 21 é o equivalente do comprovante via outbox; catálogo completo na seção "Fase 3 — Status"). `BIL` foi até o 44: 34 é o reflexo de pagamento fora da máquina, 35 é o aceite de vencido do ADR-017, 36–39 saíram da separação aprovar×agendar (ADR-018), **40 é a recusa de "pagar hoje" fora do horário de envio (ADR-021)**, 41 é a revalidação de boleto já agendado, e 42–44 são a validação do download de documentos em lote (2026-09-14). **`RTR` (RoutingRule) foi ABANDONADA na 2.6** — a medição mostrou que a chave que ela usaria não distingue pagadores; não recrie a sigla sem reabrir aquele achado. **`BLP.CPI04` é fixado pelo doc 07** (reivindicação que contradiz o pagador extraído) — não renumere a factory. Convenções:
 
 - Aggregate Roots emitem Domain Events; Entities internas nunca.
 - **Portas de integração vão em `Domain/Ports/`** (pasta a criar na Fase 1, irmã de `SeedWork/`), não em `Domain/SeedWork/` — mesma razão (`Infra → Application` seria ciclo), mas separadas por serem contratos de mundo externo e não do modelo. Trafegam só tipos do Domain; nenhum DTO de provedor cruza a fronteira. Catálogo em [`02-domain-model.md`](BillPayment.Architecture/02-domain-model.md).

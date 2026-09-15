@@ -121,6 +121,7 @@ public sealed class ValidateBillCommandHandler(
             PayerProfile = payerProfile,
             BankDirectory = bankDirectory,
             Expectations = await ListExpectationsAsync(bill, tenantId, cancellationToken),
+            ReplacedBillIds = await bills.ListReplacedAsync(tenantId, bill.DedupKey, bill.Id, cancellationToken),
             Duplicate = DuplicateFinding.From(probe),
             DuplicateOf = probe.OriginalBillId,
             Today = DateOnly.FromDateTime(now.UtcDateTime),

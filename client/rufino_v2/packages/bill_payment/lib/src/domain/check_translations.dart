@@ -255,6 +255,12 @@ String? checkReasonMessage(String? reasonCode) => switch (reasonCode) {
       'expectation_ambiguous' =>
         'Mais de uma conta deste beneficiário poderia ser esta. Confira de '
             'qual delas se trata.',
+      'expectation_fulfillment_inherited' =>
+        'A conta esperada foi cumprida pelo boleto que este substituiu — o '
+            'mesmo código, capturado de novo.',
+      'expectation_cycle_already_fulfilled' =>
+        'A conta esperada deste mês já foi cumprida por outro boleto — este '
+            'pode ser uma segunda cobrança.',
       'expectation_paused' =>
         'A conta esperada deste beneficiário está pausada ou desativada.',
       'expectation_payee_unresolved' =>

@@ -82,11 +82,17 @@ public static class ExpectationMatchingService
     /// O boleto que está perguntando, quando ele pode já ter cumprido o ciclo numa passagem
     /// anterior. Com ele, um ciclo <c>Fulfilled</c> por ESTE boleto volta a casar.
     /// </param>
+    /// <param name="replacedBills">
+    /// Os boletos cancelados ou negados que o que pergunta substitui — mesma chave de deduplicação.
+    /// O ciclo que um deles cumpriu também casa: é o mesmo compromisso, e quem o carrega agora é o
+    /// boleto novo. Quem transfere o cumprimento é <c>BillExpectation.TransferFulfillment</c>.
+    /// </param>
     public static ExpectationMatch? Match(
         IReadOnlyCollection<BillExpectation> candidates,
         DateOnly? billDueDate,
         DateOnly today,
-        BillId? alreadyFulfilledBy = null)
+        BillId? alreadyFulfilledBy = null,
+        IReadOnlyCollection<BillId>? replacedBills = null)
     {
         ArgumentNullException.ThrowIfNull(candidates);
 
@@ -97,7 +103,7 @@ public static class ExpectationMatchingService
         var competence = new CompetencePeriod(dueDate.Year, dueDate.Month);
 
         // 1º) a competência do vencimento. Exato, e imune à variação de dias dentro do mês.
-        var byCompetence = Single(watching, alreadyFulfilledBy, c => c.Competence.Equals(competence));
+        var byCompetence = Single(watching, alreadyFulfilledBy, replacedBills, c => c.Competence.Equals(competence));
         if (byCompetence is not null)
             return byCompetence;
 
@@ -105,7 +111,33 @@ public static class ExpectationMatchingService
         return Single(
             watching,
             alreadyFulfilledBy,
+            replacedBills,
             c => Math.Abs(c.ExpectedDueDate.DayNumber - dueDate.DayNumber) <= DUE_DATE_TOLERANCE_DAYS);
+    }
+
+    /// <summary>
+    /// O ciclo da competência do boleto já foi cumprido por OUTRO boleto, que ele não substitui.
+    /// </summary>
+    /// <remarks>
+    /// <strong>É um fato diferente de ambiguidade, e merece nome próprio.</strong> Até 2026-09-15 este
+    /// caso caía no último desfecho da verificação 14 e dizia "mais de uma conta deste beneficiário
+    /// poderia ser esta" sobre um beneficiário com uma conta só — a pessoa ia procurar uma segunda
+    /// conta que não existia, quando o que havia era a mesma conta cobrada duas vezes, ou recapturada.
+    /// </remarks>
+    public static bool IsCompetenceFulfilledByAnother(
+        IReadOnlyCollection<BillExpectation> candidates,
+        DateOnly billDueDate,
+        DateOnly today,
+        BillId bill)
+    {
+        ArgumentNullException.ThrowIfNull(candidates);
+
+        var competence = new CompetencePeriod(billDueDate.Year, billDueDate.Month);
+
+        return candidates
+            .Where(e => e.IsWatchingOn(today))
+            .Select(e => e.CycleFor(competence))
+            .Any(c => c is not null && c.Status == CycleStatus.Fulfilled && c.FulfilledByBillId != bill);
     }
 
     /// <summary>
@@ -154,11 +186,12 @@ public static class ExpectationMatchingService
     private static ExpectationMatch? Single(
         IReadOnlyCollection<BillExpectation> candidates,
         BillId? alreadyFulfilledBy,
+        IReadOnlyCollection<BillId>? replacedBills,
         Func<ExpectationCycle, bool> predicate)
     {
         var matches = candidates
             .SelectMany(
-                e => e.Cycles.Where(c => IsReachable(c, alreadyFulfilledBy) && predicate(c)),
+                e => e.Cycles.Where(c => IsReachable(c, alreadyFulfilledBy, replacedBills) && predicate(c)),
                 (e, c) => ExpectationMatch.Of(e.Id, c.Id))
             .Take(2)
             .ToList();
@@ -166,9 +199,10 @@ public static class ExpectationMatchingService
         return matches.Count == 1 ? matches[0] : null;
     }
 
-    private static bool IsReachable(ExpectationCycle cycle, BillId? alreadyFulfilledBy)
+    private static bool IsReachable(
+        ExpectationCycle cycle, BillId? alreadyFulfilledBy, IReadOnlyCollection<BillId>? replacedBills)
         => cycle.Status.IsOpen
-        || (alreadyFulfilledBy is { } billId
-            && cycle.Status == CycleStatus.Fulfilled
-            && cycle.FulfilledByBillId == billId);
+        || (cycle.Status == CycleStatus.Fulfilled
+            && cycle.FulfilledByBillId is { } fulfilledBy
+            && (fulfilledBy == alreadyFulfilledBy || (replacedBills?.Contains(fulfilledBy) ?? false)));
 }
